@@ -6,7 +6,7 @@ This project designs and later implements a personal posture-and-training app fo
 
 ## Current Phase
 
-The current phase is product design and visual brainstorming. Do not implement the app until the design is approved.
+The current phase is implementation planning. Do not implement app code until the implementation plan is reviewed and approved.
 
 ## Directory Rules
 
