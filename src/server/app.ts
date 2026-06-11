@@ -7,15 +7,18 @@ import { resolve } from "node:path";
 import { loadConfig, type ServerConfig } from "./config";
 import { openAppDatabase } from "./db";
 import { createRepositories } from "./repositories";
+import { registerAuthRoutes } from "./routes/auth";
 
 export async function buildApp(options: Partial<ServerConfig> = {}): Promise<FastifyInstance> {
   const config: ServerConfig = { ...loadConfig(), ...options };
   const db = await openAppDatabase(config.databaseFile);
   const repositories = createRepositories(db);
+  const sessions = new Map<string, number>();
   const app = Fastify({ logger: false });
 
   app.decorate("db", db);
   app.decorate("repositories", repositories);
+  app.decorate("sessions", sessions);
 
   app.addHook("onClose", async () => {
     await db.close();
@@ -30,6 +33,7 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
     decorateReply: false
   });
 
+  registerAuthRoutes(app, { db, sessions });
   app.get("/api/health", async () => ({ ok: true }));
 
   return app;
