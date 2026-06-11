@@ -51,6 +51,16 @@ input {
   background: #fffef8;
 }
 
+select {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #e6d09a;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #2c2416;
+  background: #fffef8;
+}
+
 label {
   display: grid;
   gap: 8px;
@@ -150,6 +160,163 @@ label {
   padding: 14px;
 }
 
+.status-form,
+.plan-card {
+  display: grid;
+  gap: 16px;
+}
+
+.form-head,
+.plan-head,
+.exercise-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.form-head h2,
+.plan-head h2,
+.plan-card h2 {
+  margin: 5px 0 0;
+  font-size: 23px;
+  line-height: 1.2;
+}
+
+.date-pill,
+.progress-pill {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #fff1bd;
+  color: #65480f;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.field-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.slider-field {
+  gap: 10px;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.slider-label strong {
+  color: #5b4210;
+}
+
+input[type="range"] {
+  min-height: auto;
+  padding: 0;
+  accent-color: #c68618;
+}
+
+.advanced-panel {
+  border: 1px solid #eed78f;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff8dc;
+}
+
+.advanced-panel summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.advanced-panel[open] summary {
+  margin-bottom: 12px;
+}
+
+.flag-group {
+  border: 1px solid #e6d09a;
+  border-radius: 8px;
+  margin: 0;
+  padding: 12px;
+}
+
+.flag-group legend {
+  padding: 0 6px;
+  font-weight: 800;
+}
+
+.flag-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.check-row input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.small {
+  font-size: 13px;
+}
+
+.reason-text {
+  margin: 0;
+  color: #655235;
+  line-height: 1.55;
+}
+
+.exercise-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.exercise-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #ead38d;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fffdf4;
+}
+
+.exercise-card.done {
+  border-color: #a9c96f;
+  background: #f5fbdf;
+}
+
+.exercise-card h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.note-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #655235;
+  line-height: 1.5;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-label {
+  display: block;
+  margin-bottom: 3px;
+  color: #8d6a17;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .metric {
   display: block;
   margin-bottom: 8px;
@@ -208,6 +375,16 @@ label {
 .error-text {
   color: #9c2f1d;
   font-weight: 700;
+}
+
+.success-text {
+  margin: 0;
+  border: 1px solid #bcd579;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #3d5e15;
+  background: #f1fad2;
+  font-weight: 800;
 }
 
 .button-row {

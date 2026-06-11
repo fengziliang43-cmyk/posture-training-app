@@ -1,11 +1,65 @@
-import { FormEvent, useEffect, useState } from "react";
-import { getMe, login, logout, setup, type AuthUser } from "./api";
+import { useEffect, useState } from "react";
+import {
+  completeWorkout,
+  createTodayPlan,
+  getMe,
+  login,
+  logout,
+  setup,
+  submitCheckin,
+  type AuthUser,
+  type DailyCheckinInput,
+  type PlanResponsePlan
+} from "./api";
+import { StatusForm } from "./components/StatusForm";
+import { TodayPlan } from "./components/TodayPlan";
 import { Layout, type AppTab } from "./components/Layout";
 
 export function App() {
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [todayPlan, setTodayPlan] = useState<PlanResponsePlan | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [finishLoading, setFinishLoading] = useState(false);
+  const [todayError, setTodayError] = useState<string | null>(null);
+  const [todayInfo, setTodayInfo] = useState<string | null>(null);
+
+  async function handleStatusSubmit(status: DailyCheckinInput) {
+    setPlanLoading(true);
+    setTodayError(null);
+    setTodayInfo(null);
+
+    try {
+      await submitCheckin(status);
+      const result = await createTodayPlan(status.date);
+      setTodayPlan(result.plan);
+      setTodayInfo("今天任务已生成。");
+    } catch {
+      setTodayError("今天任务生成失败，请检查服务器连接。");
+    } finally {
+      setPlanLoading(false);
+    }
+  }
+
+  async function handleFinishTodayWorkout() {
+    if (!todayPlan) {
+      return;
+    }
+
+    setFinishLoading(true);
+    setTodayError(null);
+    setTodayInfo(null);
+
+    try {
+      await completeWorkout(todayPlan.id, { completionStatus: "completed" });
+      setTodayInfo("训练完成已记录。");
+    } catch {
+      setTodayError("训练完成记录提交失败。");
+    } finally {
+      setFinishLoading(false);
+    }
+  }
 
   useEffect(() => {
     getMe()
@@ -32,7 +86,14 @@ export function App() {
 
   return (
     <Layout activeTab={activeTab} username={authUser.username} onTabChange={setActiveTab}>
-      {activeTab === "today" && <TodayPlaceholder />}
+      {activeTab === "today" && (
+        <section className="stack">
+          <StatusForm date={todayDate()} loading={planLoading} onSubmit={handleStatusSubmit} />
+          {todayError && <p className="error-text">{todayError}</p>}
+          {todayInfo && <p className="success-text">{todayInfo}</p>}
+          <TodayPlan plan={todayPlan} finishing={finishLoading} onFinishWorkout={handleFinishTodayWorkout} />
+        </section>
+      )}
       {activeTab === "records" && <RecordsPlaceholder />}
       {activeTab === "posture" && <PosturePlaceholder />}
       {activeTab === "settings" && <SettingsPlaceholder onLogout={() => handleLogout(setAuthUser)} />}
@@ -46,8 +107,7 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<"login" | "setup" | null>(null);
 
-  async function submit(event: FormEvent<HTMLFormElement>, action: "login" | "setup") {
-    event.preventDefault();
+  async function runAuth(action: "login" | "setup") {
     setError(null);
     setPendingAction(action);
 
@@ -64,7 +124,13 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
 
   return (
     <div className="center-screen">
-      <form className="auth-card" onSubmit={(event) => submit(event, "login")}>
+      <form
+        className="auth-card"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void runAuth("login");
+        }}
+      >
         <p className="eyebrow">本地私有训练 App</p>
         <h1>锻体修容</h1>
         <p className="muted">Mac 做服务器，手机通过 Tailscale 访问。照片和训练数据只走本地。</p>
@@ -94,35 +160,13 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
             className="secondary-button"
             type="button"
             disabled={pendingAction !== null}
-            onClick={(event) => submit(event as unknown as FormEvent<HTMLFormElement>, "setup")}
+            onClick={() => void runAuth("setup")}
           >
             {pendingAction === "setup" ? "设置中" : "首次设置"}
           </button>
         </div>
       </form>
     </div>
-  );
-}
-
-function TodayPlaceholder() {
-  return (
-    <section className="stack">
-      <div className="hero-card">
-        <p className="eyebrow">今日</p>
-        <h2>先记录状态，再生成今天任务</h2>
-        <p>下一步会接入腰酸、精神、可训练时间三项必填输入，并展示完整训练任务。</p>
-      </div>
-      <div className="card-grid">
-        <article className="card">
-          <span className="metric">安全</span>
-          <p>红旗症状和腰酸优先级高于训练量。</p>
-        </article>
-        <article className="card">
-          <span className="metric">3 次/周</span>
-          <p>完成三次主训练后自动切恢复日。</p>
-        </article>
-      </div>
-    </section>
   );
 }
 
@@ -168,4 +212,8 @@ function SettingsPlaceholder({ onLogout }: { onLogout: () => void }) {
 async function handleLogout(setAuthUser: (user: AuthUser | null) => void) {
   await logout().catch(() => undefined);
   setAuthUser(null);
+}
+
+function todayDate(): string {
+  return new Date().toISOString().slice(0, 10);
 }
