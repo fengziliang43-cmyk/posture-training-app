@@ -1,0 +1,9 @@
+{
+  "name": "锻体修容",
+  "short_name": "锻体",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff9ea",
+  "theme_color": "#f6c453",
+  "icons": []
+}
