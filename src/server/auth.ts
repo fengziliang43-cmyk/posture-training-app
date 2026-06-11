@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
-import type { FastifyRequest } from "fastify";
+import type { FastifyReply, FastifyRequest } from "fastify";
 
 export const SESSION_COOKIE_NAME = "pt_session";
 
@@ -29,4 +29,18 @@ export function getAuthenticatedUserId(request: FastifyRequest, sessions: Sessio
   }
 
   return sessions.get(token) ?? null;
+}
+
+export function requireAuthenticatedUserId(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  sessions: SessionStore
+): number | null {
+  const userId = getAuthenticatedUserId(request, sessions);
+  if (!userId) {
+    reply.code(401).send({ error: "unauthorized" });
+    return null;
+  }
+
+  return userId;
 }

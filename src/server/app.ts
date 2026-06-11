@@ -8,6 +8,12 @@ import { loadConfig, type ServerConfig } from "./config";
 import { openAppDatabase } from "./db";
 import { createRepositories } from "./repositories";
 import { registerAuthRoutes } from "./routes/auth";
+import { registerCheckinRoutes } from "./routes/checkins";
+import { registerPhotoRoutes } from "./routes/photos";
+import { registerPlanRoutes } from "./routes/plans";
+import { registerRecordsRoutes } from "./routes/records";
+import { registerSettingsRoutes } from "./routes/settings";
+import { registerWorkoutRoutes } from "./routes/workouts";
 
 export async function buildApp(options: Partial<ServerConfig> = {}): Promise<FastifyInstance> {
   const config: ServerConfig = { ...loadConfig(), ...options };
@@ -34,6 +40,12 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
   });
 
   registerAuthRoutes(app, { db, sessions });
+  registerCheckinRoutes(app, { repositories, sessions });
+  registerPlanRoutes(app, { repositories, sessions });
+  registerWorkoutRoutes(app, { repositories, sessions });
+  registerRecordsRoutes(app, { repositories, sessions });
+  registerPhotoRoutes(app, { repositories, sessions, uploadDir: config.uploadDir });
+  registerSettingsRoutes(app, { repositories, sessions });
   app.get("/api/health", async () => ({ ok: true }));
 
   return app;

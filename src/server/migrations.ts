@@ -54,6 +54,7 @@ export async function runMigrations(db: Database): Promise<void> {
       photo_date TEXT NOT NULL,
       angle TEXT NOT NULL,
       file_path TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
