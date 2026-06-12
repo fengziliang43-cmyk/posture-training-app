@@ -15,6 +15,11 @@ is_running() {
   [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null
 }
 
+url_ok() {
+  local url="$1"
+  curl -fsS --max-time 2 "$url" >/dev/null 2>&1
+}
+
 start_service() {
   local name="$1"
   local script="$2"
@@ -65,9 +70,12 @@ status_line() {
   local name="$1"
   local pid_file="$2"
   local url="$3"
+  local health_url="${4:-$url}"
 
-  if is_running "$pid_file"; then
+  if url_ok "$health_url"; then
     echo "${name}：运行中 $url"
+  elif is_running "$pid_file"; then
+    echo "${name}：启动中或无响应 $url"
   else
     echo "${name}：未运行"
   fi
@@ -75,15 +83,22 @@ status_line() {
 
 access_urls() {
   local tailscale_ip
+  local local_ips
   tailscale_ip="$(command -v tailscale >/dev/null 2>&1 && tailscale ip -4 2>/dev/null | head -n 1 || true)"
+  local_ips="$(ifconfig | awk '/inet /{print $2}' | grep -Ev '^(127\.|172\.19\.|172\.30\.)' | paste -sd ' ' - || true)"
 
   echo "本机后端：http://localhost:8787"
   echo "本机网页：http://localhost:5173"
+  if [[ -n "$local_ips" ]]; then
+    for ip in $local_ips; do
+      echo "同一 Wi-Fi APK 可填：http://$ip:8787"
+    done
+  fi
   if [[ -n "$tailscale_ip" ]]; then
     echo "手机 APK 填：http://$tailscale_ip:8787"
     echo "手机浏览器可开：http://$tailscale_ip:5173"
   else
-    echo "未检测到 tailscale 命令；手机地址可在 Tailscale 里查看这台 Mac 的 100.x IP。"
+    echo "未检测到 tailscale 命令；如果同 Wi-Fi 连不上，请在 Tailscale 里查看这台 Mac 的 100.x IP。"
   fi
 }
 
@@ -99,7 +114,7 @@ case "${1:-status}" in
     stop_service "网页 web" "$WEB_PID"
     ;;
   status)
-    status_line "后端 server" "$SERVER_PID" "http://localhost:8787"
+    status_line "后端 server" "$SERVER_PID" "http://localhost:8787" "http://localhost:8787/api/health"
     status_line "网页 web" "$WEB_PID" "http://localhost:5173"
     echo
     access_urls
