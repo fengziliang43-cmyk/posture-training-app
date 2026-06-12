@@ -56,6 +56,25 @@ PATH="/Users/liang/.openclaw/tools/node-v22.22.0/bin:$PATH" npm run build
 
 手机访问方式见 [Tailscale Setup](docs/setup/tailscale.md)。
 
+## Mac 控制台
+
+双击这个文件可以开启或关闭本地服务：
+
+```text
+tools/mac-control/锻体修容控制台.command
+```
+
+控制台会启动：
+
+- 后端 server：`http://localhost:8787`
+- 网页 web：`http://localhost:5173`
+
+APK 登录页里的 `Mac server 地址` 要填 Mac 的 Tailscale 地址，例如：
+
+```text
+http://100.x.x.x:8787
+```
+
 ## Android APK
 
 APK 打包和安装说明见 [Android APK Setup](docs/setup/android-apk.md)。

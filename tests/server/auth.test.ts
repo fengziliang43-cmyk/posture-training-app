@@ -27,6 +27,29 @@ describe("auth", () => {
     });
     expect(login.statusCode).toBe(200);
     expect(login.headers["set-cookie"]).toBeTruthy();
+    expect(login.json().sessionToken).toBeTruthy();
+
+    await app.close();
+  });
+
+  it("accepts bearer token authentication for APK requests", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+
+    const setup = await app.inject({
+      method: "POST",
+      url: "/api/auth/setup",
+      payload: { username: "liang", password: "test-password-123" }
+    });
+    const token = setup.json().sessionToken;
+    expect(token).toBeTruthy();
+
+    const me = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      headers: { authorization: `Bearer ${token}` }
+    });
+    expect(me.statusCode).toBe(200);
+    expect(me.json().user.username).toBe("liang");
 
     await app.close();
   });

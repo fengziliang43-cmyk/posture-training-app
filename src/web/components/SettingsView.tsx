@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { getMe, getSettings, updateSettings, type SettingsRecord } from "../api";
+import {
+  getApiBaseUrl,
+  getMe,
+  getSettings,
+  setApiBaseUrl,
+  testServerConnection,
+  updateSettings,
+  type SettingsRecord
+} from "../api";
 
 interface SettingsViewProps {
   username: string;
@@ -11,15 +19,16 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
     notificationsEnabled: false,
     deepseekEnabled: false
   });
-  const [serverUrl, setServerUrl] = useState(window.location.origin);
+  const [serverUrl, setServerUrlState] = useState(getApiBaseUrl());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
     getSettings()
       .then((response) => setSettings(response.settings))
       .catch(() => setError("设置加载失败。"));
-    setServerUrl(window.location.origin);
+    setServerUrlState(getApiBaseUrl());
     getMe().catch(() => undefined);
   }, []);
 
@@ -36,6 +45,22 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
     }
   }
 
+  async function saveServerUrl() {
+    setSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const normalized = setApiBaseUrl(serverUrl);
+      setServerUrlState(normalized);
+      const ok = await testServerConnection(normalized);
+      setInfo(ok ? "Mac server 地址已保存，连接正常。" : "地址已保存，但 server 未响应。");
+    } catch {
+      setError("Mac server 连接失败，请检查地址、Tailscale 和后端服务。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <section className="stack">
       <div className="hero-card">
@@ -45,6 +70,7 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
       </div>
 
       {error && <p className="error-text">{error}</p>}
+      {info && <p className="success-text">{info}</p>}
 
       <section className="card">
         <h3 className="section-title">账号</h3>
@@ -53,14 +79,25 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
           <strong>{username}</strong>
         </div>
         <div className="setting-row">
-          <span>服务器地址</span>
-          <strong>{serverUrl}</strong>
+          <span>当前连接</span>
+          <strong>{serverUrl || window.location.origin}</strong>
         </div>
       </section>
 
       <section className="card">
         <h3 className="section-title">Tailscale</h3>
         <p className="muted">Mac 和 OPPO 登录同一 Tailscale 账号后，通过私有地址访问本地服务。</p>
+        <label className="setting-input">
+          Mac server 地址
+          <input
+            value={serverUrl}
+            onChange={(event) => setServerUrlState(event.target.value)}
+            placeholder="http://100.x.x.x:8787"
+          />
+        </label>
+        <button type="button" className="secondary-button" disabled={saving} onClick={() => void saveServerUrl()}>
+          保存并测试连接
+        </button>
       </section>
 
       <section className="card">

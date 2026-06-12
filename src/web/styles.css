@@ -379,6 +379,10 @@ input[type="range"] {
   color: #2c2416;
 }
 
+.setting-input {
+  margin-top: 14px;
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -511,7 +515,7 @@ input[type="range"] {
 
 .button-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
 }
 

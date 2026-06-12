@@ -19,6 +19,12 @@ export function createSessionToken(): string {
 }
 
 export function getSessionToken(request: FastifyRequest): string | undefined {
+  const authorization = request.headers.authorization;
+  const authorizationValue = Array.isArray(authorization) ? authorization[0] : authorization;
+  if (authorizationValue?.startsWith("Bearer ")) {
+    return authorizationValue.slice("Bearer ".length).trim();
+  }
+
   return request.cookies[SESSION_COOKIE_NAME];
 }
 

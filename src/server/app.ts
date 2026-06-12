@@ -22,6 +22,25 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
   const sessions = new Map<string, number>();
   const app = Fastify({ logger: false });
 
+  app.addHook("onRequest", (request, reply, done) => {
+    const origin = request.headers.origin;
+    if (origin) {
+      reply.header("Access-Control-Allow-Origin", origin);
+      reply.header("Access-Control-Allow-Credentials", "true");
+      reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      reply.header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
+      reply.header("Access-Control-Max-Age", "86400");
+      reply.header("Vary", "Origin");
+    }
+
+    if (request.method === "OPTIONS") {
+      reply.code(204).send();
+      return;
+    }
+
+    done();
+  });
+
   app.decorate("db", db);
   app.decorate("repositories", repositories);
   app.decorate("sessions", sessions);

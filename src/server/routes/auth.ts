@@ -4,6 +4,7 @@ import type { AppDatabase } from "../db";
 import {
   createSessionToken,
   getAuthenticatedUserId,
+  getSessionToken,
   hashPassword,
   SESSION_COOKIE_NAME,
   type SessionStore,
@@ -45,7 +46,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
     context.sessions.set(sessionToken, result.lastID ?? 0);
     setSessionCookie(reply, sessionToken);
 
-    return { user: { id: result.lastID, username: body.username } };
+    return { user: { id: result.lastID, username: body.username }, sessionToken };
   });
 
   app.post("/api/auth/login", async (request, reply) => {
@@ -73,11 +74,11 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
     context.sessions.set(sessionToken, user.id);
     setSessionCookie(reply, sessionToken);
 
-    return { user: { id: user.id, username: user.username } };
+    return { user: { id: user.id, username: user.username }, sessionToken };
   });
 
   app.post("/api/auth/logout", async (request, reply) => {
-    const token = request.cookies[SESSION_COOKIE_NAME];
+    const token = getSessionToken(request);
     if (token) {
       context.sessions.delete(token);
     }

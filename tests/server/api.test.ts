@@ -12,6 +12,25 @@ describe("server app", () => {
     await app.close();
   });
 
+  it("handles CORS preflight for APK requests", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/auth/login",
+      headers: {
+        origin: "https://localhost",
+        "access-control-request-headers": "content-type, authorization",
+        "access-control-request-method": "POST"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe("https://localhost");
+    expect(response.headers["access-control-allow-headers"]).toContain("Authorization");
+
+    await app.close();
+  });
+
   it("handles the authenticated training API flow", async () => {
     const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
     const cookie = await createAuthenticatedCookie(app);

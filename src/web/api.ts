@@ -17,6 +17,7 @@ export interface DailyCheckinInput extends Omit<DailyStatus, "redFlags"> {
 
 export interface AuthResponse {
   user: AuthUser;
+  sessionToken?: string;
 }
 
 export interface CheckinResponse {
@@ -79,26 +80,59 @@ export interface SettingsResponse {
   settings: SettingsRecord;
 }
 
+const API_BASE_URL_KEY = "posture-training.api-base-url";
+const AUTH_TOKEN_KEY = "posture-training.auth-token";
+
+export function getApiBaseUrl(): string {
+  return localStorage.getItem(API_BASE_URL_KEY) ?? "";
+}
+
+export function setApiBaseUrl(value: string): string {
+  const normalized = normalizeApiBaseUrl(value);
+  if (normalized) {
+    localStorage.setItem(API_BASE_URL_KEY, normalized);
+  } else {
+    localStorage.removeItem(API_BASE_URL_KEY);
+  }
+  return normalized;
+}
+
+export async function testServerConnection(value = getApiBaseUrl()): Promise<boolean> {
+  const response = await fetch(apiUrl("/api/health", value), {
+    headers: authHeaders(),
+    credentials: "include"
+  });
+  return response.ok;
+}
+
 export async function getMe(): Promise<AuthResponse> {
   return apiRequest<AuthResponse>("/api/auth/me");
 }
 
 export async function login(username: string, password: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>("/api/auth/login", {
+  const response = await apiRequest<AuthResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ username, password })
   });
+  storeAuthToken(response.sessionToken);
+  return response;
 }
 
 export async function setup(username: string, password: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>("/api/auth/setup", {
+  const response = await apiRequest<AuthResponse>("/api/auth/setup", {
     method: "POST",
     body: JSON.stringify({ username, password })
   });
+  storeAuthToken(response.sessionToken);
+  return response;
 }
 
 export async function logout(): Promise<void> {
-  await apiRequest("/api/auth/logout", { method: "POST" });
+  try {
+    await apiRequest("/api/auth/logout", { method: "POST" });
+  } finally {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
 }
 
 export async function submitCheckin(checkin: DailyCheckinInput): Promise<CheckinResponse> {
@@ -188,9 +222,10 @@ export async function listPhotos(): Promise<PhotosResponse> {
 }
 
 export async function uploadPhoto(formData: FormData): Promise<{ photo: PhotoRecord }> {
-  const response = await fetch("/api/photos", {
+  const response = await fetch(apiUrl("/api/photos"), {
     method: "POST",
     credentials: "include",
+    headers: authHeaders(),
     body: formData
   });
 
@@ -216,15 +251,17 @@ export async function updateSettings(
 
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const hasFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
-  const response = await fetch(path, {
+  const headers = hasFormDataBody
+    ? { ...authHeaders(), ...init.headers }
+    : {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+        ...init.headers
+      };
+  const response = await fetch(apiUrl(path), {
     credentials: "include",
-    headers: hasFormDataBody
-      ? { ...init.headers }
-      : {
-          "Content-Type": "application/json",
-          ...init.headers
-        },
-    ...init
+    ...init,
+    headers
   });
 
   if (!response.ok) {
@@ -232,4 +269,32 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+function apiUrl(path: string, baseUrl = getApiBaseUrl()): string {
+  if (/^https?:\/\//.test(path)) {
+    return path;
+  }
+
+  const normalizedBaseUrl = normalizeApiBaseUrl(baseUrl);
+  if (!normalizedBaseUrl) {
+    return path;
+  }
+
+  return `${normalizedBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function normalizeApiBaseUrl(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function storeAuthToken(token?: string): void {
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+  }
 }

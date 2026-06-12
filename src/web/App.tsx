@@ -3,12 +3,15 @@ import {
   completeWorkout,
   createTodayPlan,
   flushQueuedOfflineActions,
+  getApiBaseUrl,
   getMe,
   getTodayPlan,
   login,
   logout,
+  setApiBaseUrl,
   setup,
   submitCheckin,
+  testServerConnection,
   type AuthUser,
   type DailyCheckinInput,
   type PlanResponsePlan
@@ -136,19 +139,39 @@ export function App() {
 function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
   const [username, setUsername] = useState("liang");
   const [password, setPassword] = useState("");
+  const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<"login" | "setup" | null>(null);
 
   async function runAuth(action: "login" | "setup") {
     setError(null);
+    setInfo(null);
     setPendingAction(action);
 
     try {
+      setApiBaseUrl(serverUrl);
       const response =
         action === "login" ? await login(username, password) : await setup(username, password);
       onAuthed(response.user);
     } catch {
       setError(action === "login" ? "登录失败，检查密码或先完成本地账号设置。" : "设置失败，可能账号已存在。");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleServerTest() {
+    setError(null);
+    setInfo(null);
+    setPendingAction("login");
+
+    try {
+      const normalized = setApiBaseUrl(serverUrl);
+      const ok = await testServerConnection(normalized);
+      setInfo(ok ? "Mac server 可以连接。" : "Mac server 没有响应。");
+    } catch {
+      setError("Mac server 连接失败，请检查地址、Tailscale 和后端服务。");
     } finally {
       setPendingAction(null);
     }
@@ -182,7 +205,18 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
           />
         </label>
 
+        <label>
+          Mac server 地址
+          <input
+            value={serverUrl}
+            onChange={(event) => setServerUrl(event.target.value)}
+            placeholder="浏览器留空；APK 填 http://Tailscale-IP:8787"
+          />
+        </label>
+        <p className="muted small">浏览器开发时可以留空；手机 APK 需要填 Mac 的 Tailscale 地址。</p>
+
         {error && <p className="error-text">{error}</p>}
+        {info && <p className="success-text">{info}</p>}
 
         <div className="button-row">
           <button type="submit" disabled={pendingAction !== null}>
@@ -195,6 +229,14 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
             onClick={() => void runAuth("setup")}
           >
             {pendingAction === "setup" ? "设置中" : "首次设置"}
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={pendingAction !== null}
+            onClick={() => void handleServerTest()}
+          >
+            测试连接
           </button>
         </div>
       </form>
