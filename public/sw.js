@@ -1,5 +1,6 @@
 const SHELL_CACHE = "posture-training-shell-v1";
 const PLAN_CACHE = "posture-training-plan-v1";
+const RUNTIME_CACHE = "posture-training-runtime-v1";
 const SHELL_ASSETS = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -29,13 +30,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/") || Response.error()));
+  if (url.pathname.startsWith("/api/")) {
     return;
   }
 
-  event.respondWith(fetch(request).catch(() => caches.match(request) || Response.error()));
+  if (request.mode === "navigate") {
+    event.respondWith(networkFirstShell(request));
+    return;
+  }
+
+  event.respondWith(networkFirstRuntimeAsset(request));
 });
+
+async function networkFirstShell(request) {
+  const cache = await caches.open(SHELL_CACHE);
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put("/", response.clone());
+    }
+    return response;
+  } catch {
+    return (await cache.match(request)) || (await cache.match("/")) || Response.error();
+  }
+}
 
 async function networkFirstPlan(request) {
   const cache = await caches.open(PLAN_CACHE);
@@ -49,5 +68,19 @@ async function networkFirstPlan(request) {
   } catch {
     const cached = await cache.match(request);
     return cached || Response.error();
+  }
+}
+
+async function networkFirstRuntimeAsset(request) {
+  const cache = await caches.open(RUNTIME_CACHE);
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return (await cache.match(request)) || Response.error();
   }
 }
