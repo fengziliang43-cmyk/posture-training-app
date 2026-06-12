@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import {
   completeWorkout,
   createTodayPlan,
+  flushQueuedOfflineActions,
   getMe,
+  getTodayPlan,
   login,
   logout,
   setup,
@@ -56,7 +58,7 @@ export function App() {
 
     try {
       await completeWorkout(todayPlan.id, { completionStatus: "completed" });
-      setTodayInfo("训练完成已记录。");
+      setTodayInfo(navigator.onLine ? "训练完成已记录。" : "已离线保存，联网后自动同步。");
     } catch {
       setTodayError("训练完成记录提交失败。");
     } finally {
@@ -70,6 +72,31 @@ export function App() {
       .catch(() => setAuthUser(null))
       .finally(() => setAuthLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!authUser) return;
+
+    getTodayPlan(todayDate())
+      .then((response) => setTodayPlan(response.plan))
+      .catch(() => undefined);
+
+    flushQueuedOfflineActions()
+      .then((flushed) => {
+        if (flushed > 0) setTodayInfo(`已同步 ${flushed} 条离线记录。`);
+      })
+      .catch(() => undefined);
+
+    function handleOnline() {
+      flushQueuedOfflineActions()
+        .then((flushed) => {
+          if (flushed > 0) setTodayInfo(`已同步 ${flushed} 条离线记录。`);
+        })
+        .catch(() => undefined);
+    }
+
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [authUser]);
 
   if (authLoading) {
     return (

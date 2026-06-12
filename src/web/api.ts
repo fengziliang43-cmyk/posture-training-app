@@ -1,4 +1,10 @@
 import type { DailyStatus, GeneratedPlan } from "../core/types";
+import {
+  cacheTodayPlan,
+  flushOfflineActions,
+  getCachedTodayPlan,
+  queueOfflineAction
+} from "./offline";
 
 export interface AuthUser {
   id: number;
@@ -103,23 +109,72 @@ export async function submitCheckin(checkin: DailyCheckinInput): Promise<Checkin
 }
 
 export async function createTodayPlan(date: string): Promise<PlanResponse> {
-  return apiRequest<PlanResponse>("/api/plans/today", {
+  const response = await apiRequest<PlanResponse>("/api/plans/today", {
     method: "POST",
     body: JSON.stringify({ date })
   });
+  cacheTodayPlan(response);
+  return response;
+}
+
+export async function getTodayPlan(date?: string): Promise<PlanResponse> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+
+  try {
+    const response = await apiRequest<PlanResponse>(`/api/plans/today${query}`);
+    cacheTodayPlan(response);
+    return response;
+  } catch (error) {
+    const cached = getCachedTodayPlan(date);
+    if (cached) return cached;
+    throw error;
+  }
 }
 
 export async function completeWorkout(
   planId: number,
-  payload: { completionStatus?: string; notes?: string; lowBackPainAfter?: number } = {}
+  payload: { completionStatus?: string; notes?: string; lowBackPainAfter?: number } = {},
+  options: { queueOnFailure?: boolean } = {}
 ): Promise<WorkoutResponse> {
-  return apiRequest<WorkoutResponse>(`/api/workouts/${planId}/complete`, {
-    method: "POST",
-    body: JSON.stringify({
-      completionStatus: payload.completionStatus ?? "completed",
-      notes: payload.notes,
-      lowBackPainAfter: payload.lowBackPainAfter
-    })
+  const normalizedPayload = {
+    planId,
+    completionStatus: payload.completionStatus ?? "completed",
+    notes: payload.notes,
+    lowBackPainAfter: payload.lowBackPainAfter
+  };
+
+  try {
+    return await apiRequest<WorkoutResponse>(`/api/workouts/${planId}/complete`, {
+      method: "POST",
+      body: JSON.stringify(normalizedPayload)
+    });
+  } catch (error) {
+    if (options.queueOnFailure === false) {
+      throw error;
+    }
+
+    queueOfflineAction({
+      type: "completeWorkout",
+      payload: normalizedPayload
+    });
+
+    return {
+      workoutLog: {
+        id: -1,
+        planId,
+        completedAt: new Date().toISOString(),
+        completionStatus: normalizedPayload.completionStatus,
+        notes: normalizedPayload.notes,
+        lowBackPainAfter: normalizedPayload.lowBackPainAfter
+      }
+    };
+  }
+}
+
+export async function flushQueuedOfflineActions(): Promise<number> {
+  return flushOfflineActions({
+    completeWorkout: (planId, payload) =>
+      completeWorkout(planId, payload, { queueOnFailure: false })
   });
 }
 
