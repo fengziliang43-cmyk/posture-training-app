@@ -12,6 +12,9 @@ import {
   type PlanResponsePlan
 } from "./api";
 import { StatusForm } from "./components/StatusForm";
+import { RecordsView } from "./components/RecordsView";
+import { PostureView } from "./components/PostureView";
+import { SettingsView } from "./components/SettingsView";
 import { TodayPlan } from "./components/TodayPlan";
 import { Layout, type AppTab } from "./components/Layout";
 
@@ -94,9 +97,11 @@ export function App() {
           <TodayPlan plan={todayPlan} finishing={finishLoading} onFinishWorkout={handleFinishTodayWorkout} />
         </section>
       )}
-      {activeTab === "records" && <RecordsPlaceholder />}
-      {activeTab === "posture" && <PosturePlaceholder />}
-      {activeTab === "settings" && <SettingsPlaceholder onLogout={() => handleLogout(setAuthUser)} />}
+      {activeTab === "records" && <RecordsView />}
+      {activeTab === "posture" && <PostureView />}
+      {activeTab === "settings" && (
+        <SettingsView username={authUser.username} onLogout={() => handleLogout(setAuthUser)} />
+      )}
     </Layout>
   );
 }
@@ -167,45 +172,6 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
         </div>
       </form>
     </div>
-  );
-}
-
-function RecordsPlaceholder() {
-  return (
-    <section className="stack">
-      <div className="hero-card">
-        <p className="eyebrow">记录</p>
-        <h2>趋势比单日更重要</h2>
-        <p>这里会展示腰酸、睡眠、精神、体重和训练完成率。</p>
-      </div>
-    </section>
-  );
-}
-
-function PosturePlaceholder() {
-  return (
-    <section className="stack">
-      <div className="hero-card">
-        <p className="eyebrow">体态</p>
-        <h2>每周固定角度留档</h2>
-        <p>后续支持正面、侧面、背面照片并排对比。</p>
-      </div>
-    </section>
-  );
-}
-
-function SettingsPlaceholder({ onLogout }: { onLogout: () => void }) {
-  return (
-    <section className="stack">
-      <div className="hero-card">
-        <p className="eyebrow">设置</p>
-        <h2>本地服务器和隐私</h2>
-        <p>DeepSeek 默认关闭，照片不发第三方 AI。</p>
-        <button className="secondary-button" type="button" onClick={onLogout}>
-          退出登录
-        </button>
-      </div>
-    </section>
   );
 }
 

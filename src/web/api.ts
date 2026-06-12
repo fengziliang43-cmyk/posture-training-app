@@ -37,6 +37,42 @@ export interface WorkoutResponse {
   };
 }
 
+export interface RecordsSummaryResponse {
+  summary: {
+    checkins: Array<DailyCheckinInput & { id: number; createdAt: string }>;
+    weeklyTrainingCount: number;
+    progressionRecords: Array<{
+      id: number;
+      date: string;
+      templateId: string;
+      reason: string;
+    }>;
+  };
+}
+
+export interface PhotoRecord {
+  id: number;
+  photoDate: string;
+  angle: string;
+  filePath: string;
+  mimeType: string;
+  createdAt: string;
+}
+
+export interface PhotosResponse {
+  photos: PhotoRecord[];
+}
+
+export interface SettingsRecord {
+  notificationsEnabled: boolean;
+  deepseekEnabled: boolean;
+  [key: string]: unknown;
+}
+
+export interface SettingsResponse {
+  settings: SettingsRecord;
+}
+
 export async function getMe(): Promise<AuthResponse> {
   return apiRequest<AuthResponse>("/api/auth/me");
 }
@@ -87,13 +123,52 @@ export async function completeWorkout(
   });
 }
 
+export async function getRecordsSummary(date?: string): Promise<RecordsSummaryResponse> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  return apiRequest<RecordsSummaryResponse>(`/api/records/summary${query}`);
+}
+
+export async function listPhotos(): Promise<PhotosResponse> {
+  return apiRequest<PhotosResponse>("/api/photos");
+}
+
+export async function uploadPhoto(formData: FormData): Promise<{ photo: PhotoRecord }> {
+  const response = await fetch("/api/photos", {
+    method: "POST",
+    credentials: "include",
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw new Error(`API ${response.status}`);
+  }
+
+  return response.json() as Promise<{ photo: PhotoRecord }>;
+}
+
+export async function getSettings(): Promise<SettingsResponse> {
+  return apiRequest<SettingsResponse>("/api/settings");
+}
+
+export async function updateSettings(
+  settings: Record<string, unknown>
+): Promise<SettingsResponse> {
+  return apiRequest<SettingsResponse>("/api/settings", {
+    method: "PUT",
+    body: JSON.stringify(settings)
+  });
+}
+
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const hasFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
   const response = await fetch(path, {
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...init.headers
-    },
+    headers: hasFormDataBody
+      ? { ...init.headers }
+      : {
+          "Content-Type": "application/json",
+          ...init.headers
+        },
     ...init
   });
 
