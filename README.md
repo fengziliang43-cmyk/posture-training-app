@@ -12,6 +12,7 @@
 - 体态页：上传正面、侧面、背面照片，并支持同角度对比。
 - 设置页：本地服务器、Tailscale、通知和 DeepSeek 关闭状态。
 - PWA 离线缓存：缓存应用外壳和最近一次今日计划，离线完成训练后联网同步。
+- Android debug APK：通过 Capacitor 封装，供 OPPO 手机本地测试安装。
 
 ## 本地运行
 
@@ -55,6 +56,18 @@ PATH="/Users/liang/.openclaw/tools/node-v22.22.0/bin:$PATH" npm run build
 
 手机访问方式见 [Tailscale Setup](docs/setup/tailscale.md)。
 
+## Android APK
+
+APK 打包和安装说明见 [Android APK Setup](docs/setup/android-apk.md)。
+
+当前 debug APK 输出路径：
+
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+这是本地测试用 debug 包，不是应用商店发布包。手机端同步、登录、照片上传和记录页仍需要 Mac server 可通过 Tailscale 访问。
+
 ## 设计与计划
 
 - 设计规格：`docs/superpowers/specs/2026-06-11-posture-training-app-design.md`
@@ -62,6 +75,6 @@ PATH="/Users/liang/.openclaw/tools/node-v22.22.0/bin:$PATH" npm run build
 
 ## 后续
 
-- 端到端移动端验收。
-- APK 包装：Capacitor + Android debug APK。
+- 真机安装测试 APK。
+- 按手机端反馈修 UI 和交互细节。
 - 更完整的照片对比交互和离线同步提示。
