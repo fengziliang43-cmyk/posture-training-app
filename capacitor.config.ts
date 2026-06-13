@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "锻体修容",
   webDir: "dist/web",
   server: {
-    androidScheme: "https"
+    androidScheme: "http"
   }
 };
 

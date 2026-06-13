@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import {
   completeWorkout,
   createTodayPlan,
+  describeApiError,
+  describeServerConnectionResult,
   flushQueuedOfflineActions,
   getApiBaseUrl,
   getMe,
@@ -150,12 +152,17 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
     setPendingAction(action);
 
     try {
-      setApiBaseUrl(serverUrl);
+      const normalized = setApiBaseUrl(serverUrl);
+      setServerUrl(normalized);
       const response =
         action === "login" ? await login(username, password) : await setup(username, password);
       onAuthed(response.user);
-    } catch {
-      setError(action === "login" ? "登录失败，检查密码或先完成本地账号设置。" : "设置失败，可能账号已存在。");
+    } catch (error) {
+      setError(
+        action === "login"
+          ? `登录失败：${describeApiError(error)}`
+          : `首次设置失败：${describeApiError(error)}`
+      );
     } finally {
       setPendingAction(null);
     }
@@ -168,10 +175,16 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
 
     try {
       const normalized = setApiBaseUrl(serverUrl);
-      const ok = await testServerConnection(normalized);
-      setInfo(ok ? "Mac server 可以连接。" : "Mac server 没有响应。");
-    } catch {
-      setError("Mac server 连接失败，请检查地址、Tailscale 和后端服务。");
+      setServerUrl(normalized);
+      const result = await testServerConnection(normalized);
+      const message = describeServerConnectionResult(result);
+      if (result.ok) {
+        setInfo(message);
+      } else {
+        setError(message);
+      }
+    } catch (error) {
+      setError(`Mac server 测试异常：${describeApiError(error)}`);
     } finally {
       setPendingAction(null);
     }

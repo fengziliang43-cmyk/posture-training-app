@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import {
+  describeApiError,
+  describeServerConnectionResult,
   getApiBaseUrl,
   getMe,
   getSettings,
@@ -52,10 +54,15 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
     try {
       const normalized = setApiBaseUrl(serverUrl);
       setServerUrlState(normalized);
-      const ok = await testServerConnection(normalized);
-      setInfo(ok ? "Mac server 地址已保存，连接正常。" : "地址已保存，但 server 未响应。");
-    } catch {
-      setError("Mac server 连接失败，请检查地址、Tailscale 和后端服务。");
+      const result = await testServerConnection(normalized);
+      const message = describeServerConnectionResult(result);
+      if (result.ok) {
+        setInfo(`地址已保存，连接正常。${message}`);
+      } else {
+        setError(`地址已保存，但连接失败。${message}`);
+      }
+    } catch (error) {
+      setError(`Mac server 测试异常：${describeApiError(error)}`);
     } finally {
       setSaving(false);
     }

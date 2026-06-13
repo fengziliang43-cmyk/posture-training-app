@@ -80,6 +80,14 @@ export interface SettingsResponse {
   settings: SettingsRecord;
 }
 
+export interface ServerConnectionTestResult {
+  ok: boolean;
+  url: string;
+  status?: number;
+  statusText?: string;
+  error?: string;
+}
+
 const API_BASE_URL_KEY = "posture-training.api-base-url";
 const AUTH_TOKEN_KEY = "posture-training.auth-token";
 
@@ -97,12 +105,33 @@ export function setApiBaseUrl(value: string): string {
   return normalized;
 }
 
-export async function testServerConnection(value = getApiBaseUrl()): Promise<boolean> {
-  const response = await fetch(apiUrl("/api/health", value), {
-    headers: authHeaders(),
-    credentials: "include"
-  });
-  return response.ok;
+export async function testServerConnection(value = getApiBaseUrl()): Promise<ServerConnectionTestResult> {
+  const url = apiUrl("/api/health", value);
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetch(url, {
+      headers: authHeaders(),
+      credentials: "include",
+      signal: controller.signal
+    });
+
+    return {
+      ok: response.ok,
+      url,
+      status: response.status,
+      statusText: response.statusText
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      url,
+      error: describeApiError(error)
+    };
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export async function getMe(): Promise<AuthResponse> {
@@ -222,18 +251,123 @@ export async function listPhotos(): Promise<PhotosResponse> {
 }
 
 export async function uploadPhoto(formData: FormData): Promise<{ photo: PhotoRecord }> {
-  const response = await fetch(apiUrl("/api/photos"), {
-    method: "POST",
-    credentials: "include",
-    headers: authHeaders(),
-    body: formData
-  });
+  const url = apiUrl("/api/photos");
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: authHeaders(),
+      body: formData
+    });
+  } catch (error) {
+    throw new Error(`网络请求失败：${describeApiError(error)}；请求地址：${url}`);
+  }
 
   if (!response.ok) {
-    throw new Error(`API ${response.status}`);
+    throw new Error(`API ${response.status}；请求地址：${url}`);
   }
 
   return response.json() as Promise<{ photo: PhotoRecord }>;
+}
+
+export function describeServerConnectionResult(result: ServerConnectionTestResult): string {
+  if (result.ok) {
+    return `Mac server 可以连接。测试地址：${result.url}`;
+  }
+
+  if (result.status) {
+    return `Mac server 有响应但状态异常：HTTP ${result.status} ${result.statusText ?? ""}。测试地址：${result.url}`;
+  }
+
+  return `Mac server 连接失败：${result.error ?? "未知网络错误"}。测试地址：${result.url}`;
+}
+
+export function describeApiError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+
+  return String(error);
+}
+
+async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const hasFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
+  const headers = hasFormDataBody
+    ? { ...authHeaders(), ...init.headers }
+    : {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+        ...init.headers
+      };
+  const url = apiUrl(path);
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      credentials: "include",
+      ...init,
+      headers
+    });
+  } catch (error) {
+    throw new Error(`网络请求失败：${describeApiError(error)}；请求地址：${url}`);
+  }
+
+  if (!response.ok) {
+    throw new Error(`API ${response.status}；请求地址：${url}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function apiUrl(path: string, baseUrl = getApiBaseUrl()): string {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  const normalizedBaseUrl = normalizeApiBaseUrl(baseUrl);
+  if (!normalizedBaseUrl) {
+    return path;
+  }
+
+  return `${normalizedBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+export function normalizeApiBaseUrl(value: string): string {
+  const normalized = toHalfWidth(value).replace(/\s+/g, "").replace(/\/+$/, "");
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return normalized;
+  }
+
+  if (/^[a-z0-9.-]+(:\d+)?(\/.*)?$/i.test(normalized)) {
+    return `http://${normalized}`;
+  }
+
+  return normalized;
+}
+
+function toHalfWidth(value: string): string {
+  return value
+    .trim()
+    .replace(/[！-～]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+    .replace(/\u3000/g, " ");
+}
+
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function storeAuthToken(token?: string): void {
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+  }
 }
 
 export async function getSettings(): Promise<SettingsResponse> {
@@ -247,54 +381,4 @@ export async function updateSettings(
     method: "PUT",
     body: JSON.stringify(settings)
   });
-}
-
-async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const hasFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
-  const headers = hasFormDataBody
-    ? { ...authHeaders(), ...init.headers }
-    : {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-        ...init.headers
-      };
-  const response = await fetch(apiUrl(path), {
-    credentials: "include",
-    ...init,
-    headers
-  });
-
-  if (!response.ok) {
-    throw new Error(`API ${response.status}`);
-  }
-
-  return response.json() as Promise<T>;
-}
-
-function apiUrl(path: string, baseUrl = getApiBaseUrl()): string {
-  if (/^https?:\/\//.test(path)) {
-    return path;
-  }
-
-  const normalizedBaseUrl = normalizeApiBaseUrl(baseUrl);
-  if (!normalizedBaseUrl) {
-    return path;
-  }
-
-  return `${normalizedBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
-}
-
-function normalizeApiBaseUrl(value: string): string {
-  return value.trim().replace(/\/+$/, "");
-}
-
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function storeAuthToken(token?: string): void {
-  if (token) {
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
-  }
 }
