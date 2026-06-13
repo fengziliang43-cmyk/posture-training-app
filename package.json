@@ -10,7 +10,8 @@
     "start": "tsx src/server/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "apk:desktop": "bash tools/android/copy-apk-to-desktop.sh"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.0",

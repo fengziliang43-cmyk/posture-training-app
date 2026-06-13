@@ -62,6 +62,18 @@ Expected output:
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Copy a Finder-visible APK to the Desktop:
+
+```bash
+PATH="/Users/liang/.openclaw/tools/node-v22.22.0/bin:$PATH" npm run apk:desktop
+```
+
+Desktop copy:
+
+```text
+/Users/liang/Desktop/锻体修容APK/锻体修容-新版-debug.apk
+```
+
 Stop Gradle after a build if the Mac is warm:
 
 ```bash
@@ -77,7 +89,7 @@ PATH="$JDK_HOME/bin:$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:
 
 ## Install On OPPO
 
-1. Send `android/app/build/outputs/apk/debug/app-debug.apk` to the OPPO phone.
+1. Send `/Users/liang/Desktop/锻体修容APK/锻体修容-新版-debug.apk` to the OPPO phone.
 2. Open the APK on the phone.
 3. If OPPO blocks it, enable installing from this source for the app you used to open the APK.
 4. Install and open `锻体修容`.

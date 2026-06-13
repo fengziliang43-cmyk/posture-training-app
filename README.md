@@ -85,6 +85,14 @@ APK 打包和安装说明见 [Android APK Setup](docs/setup/android-apk.md)。
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Finder 可见的桌面副本：
+
+```text
+/Users/liang/Desktop/锻体修容APK/锻体修容-新版-debug.apk
+```
+
+打包完成后可运行 `npm run apk:desktop`，自动把 APK 复制到桌面文件夹并在 Finder 里选中。
+
 这是本地测试用 debug 包，不是应用商店发布包。手机端同步、登录、照片上传和记录页仍需要 Mac server 可通过 Tailscale 访问。
 
 ## 设计与计划
