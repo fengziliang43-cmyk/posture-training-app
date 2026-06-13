@@ -5,6 +5,7 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { AppRepositories } from "../repositories";
 import { requireAuthenticatedUserId, type SessionStore } from "../auth";
+import { formatLocalDate } from "../../core/date";
 
 interface PhotosRouteContext {
   repositories: AppRepositories;
@@ -42,7 +43,7 @@ export function registerPhotoRoutes(app: FastifyInstance, context: PhotosRouteCo
     await writeFile(resolve(context.uploadDir, savedName), fileBuffer);
 
     const photo = await context.repositories.savePhoto({
-      photoDate: fields.photoDate ?? new Date().toISOString().slice(0, 10),
+      photoDate: fields.photoDate ?? formatLocalDate(),
       angle: fields.angle ?? "front",
       filePath: savedName,
       mimeType

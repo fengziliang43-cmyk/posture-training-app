@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { listPhotos, uploadPhoto, type PhotoRecord } from "../api";
+import { formatLocalDate } from "../../core/date";
 
 const angles = [
   { value: "front", label: "正面" },
@@ -74,7 +75,7 @@ export function PostureView() {
       <form className="card posture-form" onSubmit={handleUpload}>
         <label>
           拍摄日期
-          <input name="photoDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+          <input name="photoDate" type="date" defaultValue={formatLocalDate()} />
         </label>
 
         <label>

@@ -90,6 +90,8 @@ export interface ServerConnectionTestResult {
 
 const API_BASE_URL_KEY = "posture-training.api-base-url";
 const AUTH_TOKEN_KEY = "posture-training.auth-token";
+const API_TIMEOUT_MS = 8000;
+const CONNECTION_TEST_TIMEOUT_MS = 5000;
 
 export function getApiBaseUrl(): string {
   return localStorage.getItem(API_BASE_URL_KEY) ?? "";
@@ -108,7 +110,7 @@ export function setApiBaseUrl(value: string): string {
 export async function testServerConnection(value = getApiBaseUrl()): Promise<ServerConnectionTestResult> {
   const url = apiUrl("/api/health", value);
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), CONNECTION_TEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {
@@ -130,7 +132,7 @@ export async function testServerConnection(value = getApiBaseUrl()): Promise<Ser
       error: describeApiError(error)
     };
   } finally {
-    window.clearTimeout(timeout);
+    clearTimeout(timeout);
   }
 }
 
@@ -255,7 +257,7 @@ export async function uploadPhoto(formData: FormData): Promise<{ photo: PhotoRec
   let response: Response;
 
   try {
-    response = await fetch(url, {
+    response = await fetchWithTimeout(url, {
       method: "POST",
       credentials: "include",
       headers: authHeaders(),
@@ -305,7 +307,7 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
 
   try {
-    response = await fetch(url, {
+    response = await fetchWithTimeout(url, {
       credentials: "include",
       ...init,
       headers
@@ -319,6 +321,24 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = API_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: init.signal ?? controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function apiUrl(path: string, baseUrl = getApiBaseUrl()): string {

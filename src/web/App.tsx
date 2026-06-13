@@ -24,6 +24,7 @@ import { PostureView } from "./components/PostureView";
 import { SettingsView } from "./components/SettingsView";
 import { TodayPlan } from "./components/TodayPlan";
 import { Layout, type AppTab } from "./components/Layout";
+import { formatLocalDate } from "../core/date";
 
 export function App() {
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -81,7 +82,7 @@ export function App() {
   useEffect(() => {
     if (!authUser) return;
 
-    getTodayPlan(todayDate())
+    getTodayPlan(formatLocalDate())
       .then((response) => setTodayPlan(response.plan))
       .catch(() => undefined);
 
@@ -123,7 +124,7 @@ export function App() {
     <Layout activeTab={activeTab} username={authUser.username} onTabChange={setActiveTab}>
       {activeTab === "today" && (
         <section className="stack">
-          <StatusForm date={todayDate()} loading={planLoading} onSubmit={handleStatusSubmit} />
+          <StatusForm date={formatLocalDate()} loading={planLoading} onSubmit={handleStatusSubmit} />
           {todayError && <p className="error-text">{todayError}</p>}
           {todayInfo && <p className="success-text">{todayInfo}</p>}
           <TodayPlan plan={todayPlan} finishing={finishLoading} onFinishWorkout={handleFinishTodayWorkout} />
@@ -260,8 +261,4 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
 async function handleLogout(setAuthUser: (user: AuthUser | null) => void) {
   await logout().catch(() => undefined);
   setAuthUser(null);
-}
-
-function todayDate(): string {
-  return new Date().toISOString().slice(0, 10);
 }
