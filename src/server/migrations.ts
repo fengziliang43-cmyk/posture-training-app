@@ -55,7 +55,19 @@ export async function runMigrations(db: Database): Promise<void> {
       angle TEXT NOT NULL,
       file_path TEXT NOT NULL,
       mime_type TEXT NOT NULL,
+      note TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS plan_exercise_replacements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan_id INTEGER NOT NULL,
+      original_exercise_id TEXT NOT NULL,
+      replacement_exercise_id TEXT NOT NULL,
+      original_exercise_json TEXT NOT NULL,
+      replaced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      reverted_at TEXT,
+      FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS settings (
@@ -64,4 +76,18 @@ export async function runMigrations(db: Database): Promise<void> {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  await addColumnIfMissing(db, "posture_photos", "note", "TEXT");
+}
+
+async function addColumnIfMissing(
+  db: Database,
+  table: string,
+  column: string,
+  definition: string
+): Promise<void> {
+  const columns = await db.all<Array<{ name: string }>>(`PRAGMA table_info(${table})`);
+  if (!columns.some((item) => item.name === column)) {
+    await db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }

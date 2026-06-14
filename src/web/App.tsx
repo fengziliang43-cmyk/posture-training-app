@@ -127,7 +127,12 @@ export function App() {
           <StatusForm date={formatLocalDate()} loading={planLoading} onSubmit={handleStatusSubmit} />
           {todayError && <p className="error-text">{todayError}</p>}
           {todayInfo && <p className="success-text">{todayInfo}</p>}
-          <TodayPlan plan={todayPlan} finishing={finishLoading} onFinishWorkout={handleFinishTodayWorkout} />
+          <TodayPlan
+            plan={todayPlan}
+            finishing={finishLoading}
+            onFinishWorkout={handleFinishTodayWorkout}
+            onPlanChange={setTodayPlan}
+          />
         </section>
       )}
       {activeTab === "records" && <RecordsView />}
@@ -215,7 +220,7 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            minLength={8}
+            minLength={6}
           />
         </label>
 

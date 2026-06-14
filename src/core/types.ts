@@ -51,6 +51,7 @@ export interface TrainingTemplate {
 
 export interface GeneratedExercise {
   exerciseId: string;
+  replacedFromId?: string;
   name: string;
   sets: number;
   reps?: number;

@@ -7,7 +7,9 @@ import { resolve } from "node:path";
 import { loadConfig, type ServerConfig } from "./config";
 import { openAppDatabase } from "./db";
 import { createRepositories } from "./repositories";
+import { registerAiRoutes } from "./routes/ai";
 import { registerAuthRoutes } from "./routes/auth";
+import { registerBackupRoutes } from "./routes/backup";
 import { registerCheckinRoutes } from "./routes/checkins";
 import { registerPhotoRoutes } from "./routes/photos";
 import { registerPlanRoutes } from "./routes/plans";
@@ -28,7 +30,7 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
       reply.header("Access-Control-Allow-Origin", origin);
       reply.header("Access-Control-Allow-Credentials", "true");
       reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-      reply.header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
+      reply.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
       reply.header("Access-Control-Max-Age", "86400");
       reply.header("Vary", "Origin");
     }
@@ -65,6 +67,12 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
   registerRecordsRoutes(app, { repositories, sessions });
   registerPhotoRoutes(app, { repositories, sessions, uploadDir: config.uploadDir });
   registerSettingsRoutes(app, { repositories, sessions });
+  registerAiRoutes(app, { repositories, sessions });
+  registerBackupRoutes(app, {
+    sessions,
+    databaseFile: config.databaseFile,
+    uploadDir: config.uploadDir
+  });
   app.get("/api/health", async () => ({ ok: true }));
 
   return app;

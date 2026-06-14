@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { z } from "zod";
 import type { AppRepositories } from "../repositories";
 import { requireAuthenticatedUserId, type SessionStore } from "../auth";
 import { formatLocalDate } from "../../core/date";
@@ -46,7 +47,8 @@ export function registerPhotoRoutes(app: FastifyInstance, context: PhotosRouteCo
       photoDate: fields.photoDate ?? formatLocalDate(),
       angle: fields.angle ?? "front",
       filePath: savedName,
-      mimeType
+      mimeType,
+      note: fields.note
     });
 
     return { photo };
@@ -60,6 +62,30 @@ export function registerPhotoRoutes(app: FastifyInstance, context: PhotosRouteCo
 
     const photos = await context.repositories.listPhotos();
     return { photos };
+  });
+
+  app.put("/api/photos/:id/note", async (request, reply) => {
+    const userId = requireAuthenticatedUserId(request, reply, context.sessions);
+    if (!userId) {
+      return;
+    }
+
+    const photoId = Number((request.params as Record<string, string>).id);
+    if (!Number.isInteger(photoId) || photoId <= 0) {
+      return reply.code(400).send({ error: "invalid photo id" });
+    }
+
+    const parsed = z.object({ note: z.string().max(200).default("") }).safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid body" });
+    }
+
+    try {
+      const photo = await context.repositories.updatePhotoNote(photoId, parsed.data.note);
+      return { photo };
+    } catch {
+      return reply.code(404).send({ error: "photo not found" });
+    }
   });
 
   app.get("/api/photos/:id/file", async (request, reply) => {

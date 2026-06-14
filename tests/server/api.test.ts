@@ -85,6 +85,7 @@ describe("server app", () => {
     });
     expect(records.statusCode).toBe(200);
     expect(records.json().summary.checkins.length).toBeGreaterThan(0);
+    expect(records.json().summary.calendarCheckins[0].date).toBe("2026-06-11");
     expect(records.json().summary.weeklyTrainingCount).toBe(1);
 
     const photo = await app.inject({

@@ -1,4 +1,6 @@
+import type { PlanExplanation } from "../core/plan-explanation";
 import type { DailyStatus, GeneratedPlan } from "../core/types";
+import type { WeeklyReview } from "../core/weekly-review";
 import {
   cacheTodayPlan,
   flushOfflineActions,
@@ -27,6 +29,7 @@ export interface CheckinResponse {
 export interface PlanResponsePlan extends GeneratedPlan {
   id: number;
   createdAt: string;
+  explanation?: PlanExplanation;
 }
 
 export interface PlanResponse {
@@ -47,6 +50,8 @@ export interface WorkoutResponse {
 export interface RecordsSummaryResponse {
   summary: {
     checkins: Array<DailyCheckinInput & { id: number; createdAt: string }>;
+    calendarCheckins: Array<DailyCheckinInput & { id: number; createdAt: string }>;
+    weeklyReview: WeeklyReview;
     weeklyTrainingCount: number;
     progressionRecords: Array<{
       id: number;
@@ -63,6 +68,7 @@ export interface PhotoRecord {
   angle: string;
   filePath: string;
   mimeType: string;
+  note?: string | null;
   createdAt: string;
 }
 
@@ -73,6 +79,10 @@ export interface PhotosResponse {
 export interface SettingsRecord {
   notificationsEnabled: boolean;
   deepseekEnabled: boolean;
+  deepseekApiKeyConfigured: boolean;
+  deepseekModel: string;
+  deepseekLastTestAt?: string;
+  deepseekLastTestOk?: boolean;
   [key: string]: unknown;
 }
 
@@ -88,10 +98,25 @@ export interface ServerConnectionTestResult {
   error?: string;
 }
 
+export interface AiTextResponse {
+  explanation?: string;
+  summary?: string;
+  source: "local" | "deepseek";
+}
+
+export interface DeepSeekTestResponse {
+  ok: boolean;
+  checkedAt?: string;
+  error?: string;
+}
+
 const API_BASE_URL_KEY = "posture-training.api-base-url";
 const AUTH_TOKEN_KEY = "posture-training.auth-token";
 const API_TIMEOUT_MS = 8000;
+const AI_API_TIMEOUT_MS = 25000;
 const CONNECTION_TEST_TIMEOUT_MS = 5000;
+
+type ApiRequestInit = RequestInit & { timeoutMs?: number };
 
 export function getApiBaseUrl(): string {
   return localStorage.getItem(API_BASE_URL_KEY) ?? "";
@@ -196,6 +221,20 @@ export async function getTodayPlan(date?: string): Promise<PlanResponse> {
   }
 }
 
+export async function replacePlanExercise(planId: number, exerciseId: string): Promise<PlanResponse> {
+  return apiRequest<PlanResponse>(`/api/plans/${planId}/exercises/${encodeURIComponent(exerciseId)}/replace`, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
+export async function revertPlanExercise(planId: number, exerciseId: string): Promise<PlanResponse> {
+  return apiRequest<PlanResponse>(`/api/plans/${planId}/exercises/${encodeURIComponent(exerciseId)}/revert`, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
 export async function completeWorkout(
   planId: number,
   payload: { completionStatus?: string; notes?: string; lowBackPainAfter?: number } = {},
@@ -274,6 +313,13 @@ export async function uploadPhoto(formData: FormData): Promise<{ photo: PhotoRec
   return response.json() as Promise<{ photo: PhotoRecord }>;
 }
 
+export async function updatePhotoNote(photoId: number, note: string): Promise<{ photo: PhotoRecord }> {
+  return apiRequest<{ photo: PhotoRecord }>(`/api/photos/${photoId}/note`, {
+    method: "PUT",
+    body: JSON.stringify({ note })
+  });
+}
+
 export function describeServerConnectionResult(result: ServerConnectionTestResult): string {
   if (result.ok) {
     return `Mac server 可以连接。测试地址：${result.url}`;
@@ -294,14 +340,15 @@ export function describeApiError(error: unknown): string {
   return String(error);
 }
 
-async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const hasFormDataBody = typeof FormData !== "undefined" && init.body instanceof FormData;
+async function apiRequest<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
+  const { timeoutMs, ...requestInit } = init;
+  const hasFormDataBody = typeof FormData !== "undefined" && requestInit.body instanceof FormData;
   const headers = hasFormDataBody
-    ? { ...authHeaders(), ...init.headers }
+    ? { ...authHeaders(), ...requestInit.headers }
     : {
         "Content-Type": "application/json",
         ...authHeaders(),
-        ...init.headers
+        ...requestInit.headers
       };
   const url = apiUrl(path);
   let response: Response;
@@ -309,18 +356,35 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
     response = await fetchWithTimeout(url, {
       credentials: "include",
-      ...init,
+      ...requestInit,
       headers
-    });
+    }, timeoutMs);
   } catch (error) {
     throw new Error(`网络请求失败：${describeApiError(error)}；请求地址：${url}`);
   }
 
   if (!response.ok) {
-    throw new Error(`API ${response.status}；请求地址：${url}`);
+    const detail = await readErrorDetail(response);
+    throw new Error(`API ${response.status}${detail ? `：${detail}` : ""}；请求地址：${url}`);
   }
 
   return response.json() as Promise<T>;
+}
+
+async function readErrorDetail(response: Response): Promise<string> {
+  try {
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const body = (await response.json()) as { error?: unknown; message?: unknown };
+      const value = body.error ?? body.message;
+      return typeof value === "string" ? value : "";
+    }
+
+    const text = await response.text();
+    return text.slice(0, 160);
+  } catch {
+    return "";
+  }
 }
 
 async function fetchWithTimeout(
@@ -401,4 +465,54 @@ export async function updateSettings(
     method: "PUT",
     body: JSON.stringify(settings)
   });
+}
+
+export async function saveDeepSeekApiKey(apiKey: string, model?: string): Promise<SettingsResponse> {
+  return apiRequest<SettingsResponse>("/api/settings/deepseek-key", {
+    method: "PUT",
+    body: JSON.stringify({ apiKey, model })
+  });
+}
+
+export async function clearDeepSeekApiKey(): Promise<SettingsResponse> {
+  return apiRequest<SettingsResponse>("/api/settings/deepseek-key", {
+    method: "DELETE"
+  });
+}
+
+export async function testDeepSeekConnection(): Promise<DeepSeekTestResponse> {
+  return apiRequest<DeepSeekTestResponse>("/api/ai/deepseek/test", {
+    method: "POST",
+    body: JSON.stringify({}),
+    timeoutMs: AI_API_TIMEOUT_MS
+  });
+}
+
+export async function generateDailyExplanation(planId: number): Promise<AiTextResponse> {
+  return apiRequest<AiTextResponse>("/api/ai/daily-explanation", {
+    method: "POST",
+    body: JSON.stringify({ planId }),
+    timeoutMs: AI_API_TIMEOUT_MS
+  });
+}
+
+export async function generateWeeklyReview(date?: string): Promise<AiTextResponse> {
+  return apiRequest<AiTextResponse>("/api/ai/weekly-review", {
+    method: "POST",
+    body: JSON.stringify({ date }),
+    timeoutMs: AI_API_TIMEOUT_MS
+  });
+}
+
+export async function downloadBackup(): Promise<Blob> {
+  const url = apiUrl("/api/backup/export");
+  const response = await fetchWithTimeout(url, {
+    method: "GET",
+    credentials: "include",
+    headers: authHeaders()
+  });
+  if (!response.ok) {
+    throw new Error(`API ${response.status}；请求地址：${url}`);
+  }
+  return response.blob();
 }

@@ -53,4 +53,24 @@ describe("auth", () => {
 
     await app.close();
   });
+
+  it("accepts a six-character local password", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+
+    const setup = await app.inject({
+      method: "POST",
+      url: "/api/auth/setup",
+      payload: { username: "liang", password: "123456" }
+    });
+    expect(setup.statusCode).toBe(200);
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { username: "liang", password: "123456" }
+    });
+    expect(login.statusCode).toBe(200);
+
+    await app.close();
+  });
 });

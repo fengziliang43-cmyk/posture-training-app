@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { listPhotos, uploadPhoto, type PhotoRecord } from "../api";
+import { listPhotos, updatePhotoNote, uploadPhoto, type PhotoRecord } from "../api";
 import { formatLocalDate } from "../../core/date";
 
 const angles = [
@@ -11,7 +11,9 @@ const angles = [
 export function PostureView() {
   const [photos, setPhotos] = useState<PhotoRecord[]>([]);
   const [selectedAngle, setSelectedAngle] = useState<(typeof angles)[number]["value"]>("front");
+  const [compareMode, setCompareMode] = useState<"latest" | "month">("latest");
   const [compareBlend, setCompareBlend] = useState(50);
+  const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -21,8 +23,8 @@ export function PostureView() {
 
   const groupedPhotos = useMemo(() => groupPhotosByDate(photos), [photos]);
   const anglePhotos = useMemo(
-    () => photos.filter((photo) => photo.angle === selectedAngle).slice(0, 2),
-    [photos, selectedAngle]
+    () => selectComparisonPhotos(photos.filter((photo) => photo.angle === selectedAngle), compareMode),
+    [photos, selectedAngle, compareMode]
   );
 
   async function refreshPhotos() {
@@ -41,6 +43,7 @@ export function PostureView() {
     const fileInput = form.elements.namedItem("photoFile") as HTMLInputElement | null;
     const dateInput = form.elements.namedItem("photoDate") as HTMLInputElement | null;
     const angleInput = form.elements.namedItem("angle") as HTMLSelectElement | null;
+    const noteInput = form.elements.namedItem("note") as HTMLInputElement | null;
 
     if (!fileInput?.files?.[0] || !dateInput || !angleInput) {
       return;
@@ -51,12 +54,26 @@ export function PostureView() {
       const formData = new FormData();
       formData.append("photoDate", dateInput.value);
       formData.append("angle", angleInput.value);
+      formData.append("note", noteInput?.value ?? "");
       formData.append("file", fileInput.files[0]);
       await uploadPhoto(formData);
       form.reset();
       await refreshPhotos();
     } catch {
       setError("照片上传失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveNote(photoId: number) {
+    setBusy(true);
+    try {
+      const note = noteDrafts[photoId] ?? photos.find((photo) => photo.id === photoId)?.note ?? "";
+      await updatePhotoNote(photoId, note);
+      await refreshPhotos();
+    } catch {
+      setError("备注保存失败。");
     } finally {
       setBusy(false);
     }
@@ -94,6 +111,11 @@ export function PostureView() {
           <input name="photoFile" type="file" accept="image/*" />
         </label>
 
+        <label>
+          备注
+          <input name="note" maxLength={200} placeholder="比如：自然站姿、训练后、腰酸低" />
+        </label>
+
         <button type="submit" disabled={busy}>
           {busy ? "上传中" : "上传照片"}
         </button>
@@ -101,6 +123,22 @@ export function PostureView() {
 
       <section className="card">
         <h3 className="section-title">对比视图</h3>
+        <div className="chip-row">
+          <button
+            type="button"
+            className={compareMode === "latest" ? "secondary-button active-chip" : "secondary-button"}
+            onClick={() => setCompareMode("latest")}
+          >
+            最新对比
+          </button>
+          <button
+            type="button"
+            className={compareMode === "month" ? "secondary-button active-chip" : "secondary-button"}
+            onClick={() => setCompareMode("month")}
+          >
+            本月对比
+          </button>
+        </div>
         {anglePhotos.length >= 2 ? (
           <div className="compare-wrap">
             <div className="compare-stage">
@@ -120,7 +158,8 @@ export function PostureView() {
               onChange={(event) => setCompareBlend(Number(event.target.value))}
             />
             <p className="muted small">
-              正在对比 {angles.find((angle) => angle.value === selectedAngle)?.label} 的两张最新照片。
+              正在对比 {angles.find((angle) => angle.value === selectedAngle)?.label} 的
+              {compareMode === "latest" ? "两张最新照片" : "本月第一张和最新照片"}。
             </p>
           </div>
         ) : (
@@ -163,6 +202,28 @@ export function PostureView() {
                     <figcaption>
                       {photo.angle} · {photo.createdAt.slice(11, 16)}
                     </figcaption>
+                    {photo.note && <p className="muted small">{photo.note}</p>}
+                    <div className="photo-note-row">
+                      <input
+                        value={noteDrafts[photo.id] ?? photo.note ?? ""}
+                        onChange={(event) =>
+                          setNoteDrafts((current) => ({
+                            ...current,
+                            [photo.id]: event.target.value
+                          }))
+                        }
+                        maxLength={200}
+                        placeholder="备注"
+                      />
+                      <button
+                        type="button"
+                        className="secondary-button compact-button"
+                        disabled={busy}
+                        onClick={() => void saveNote(photo.id)}
+                      >
+                        保存
+                      </button>
+                    </div>
                   </figure>
                 ))}
               </div>
@@ -172,6 +233,18 @@ export function PostureView() {
       </section>
     </section>
   );
+}
+
+function selectComparisonPhotos(photos: PhotoRecord[], mode: "latest" | "month"): PhotoRecord[] {
+  if (mode === "latest" || photos.length < 2) {
+    return photos.slice(0, 2);
+  }
+
+  const latest = photos[0];
+  const month = latest.photoDate.slice(0, 7);
+  const monthPhotos = photos.filter((photo) => photo.photoDate.startsWith(month));
+  const oldestThisMonth = monthPhotos[monthPhotos.length - 1];
+  return oldestThisMonth && oldestThisMonth.id !== latest.id ? [latest, oldestThisMonth] : photos.slice(0, 2);
 }
 
 function groupPhotosByDate(photos: PhotoRecord[]) {
