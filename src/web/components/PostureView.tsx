@@ -89,40 +89,14 @@ export function PostureView() {
 
       {error && <p className="error-text">{error}</p>}
 
-      <form className="card posture-form" onSubmit={handleUpload}>
-        <label>
-          拍摄日期
-          <input name="photoDate" type="date" defaultValue={formatLocalDate()} />
-        </label>
-
-        <label>
-          角度
-          <select name="angle" defaultValue="front">
-            {angles.map((angle) => (
-              <option key={angle.value} value={angle.value}>
-                {angle.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          照片文件
-          <input name="photoFile" type="file" accept="image/*" />
-        </label>
-
-        <label>
-          备注
-          <input name="note" maxLength={200} placeholder="比如：自然站姿、训练后、腰酸低" />
-        </label>
-
-        <button type="submit" disabled={busy}>
-          {busy ? "上传中" : "上传照片"}
-        </button>
-      </form>
-
       <section className="card">
-        <h3 className="section-title">对比视图</h3>
+        <div className="mini-head">
+          <div>
+            <p className="eyebrow">对比视图</p>
+            <h3 className="section-title">{angles.find((angle) => angle.value === selectedAngle)?.label} · 最新</h3>
+          </div>
+          <span className="date-pill">{compareBlend}%</span>
+        </div>
         <div className="chip-row">
           <button
             type="button"
@@ -185,6 +159,41 @@ export function PostureView() {
           })}
         </div>
       </section>
+
+      <details className="status-drawer">
+        <summary>上传照片</summary>
+        <form className="posture-form" onSubmit={handleUpload}>
+          <label>
+            拍摄日期
+            <input name="photoDate" type="date" defaultValue={formatLocalDate()} />
+          </label>
+
+          <label>
+            角度
+            <select name="angle" defaultValue="front">
+              {angles.map((angle) => (
+                <option key={angle.value} value={angle.value}>
+                  {angle.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            照片文件
+            <input name="photoFile" type="file" accept="image/*" />
+          </label>
+
+          <label>
+            备注
+            <input name="note" maxLength={200} placeholder="比如：自然站姿、训练后、腰酸低" />
+          </label>
+
+          <button type="submit" disabled={busy}>
+            {busy ? "上传中" : "上传照片"}
+          </button>
+        </form>
+      </details>
 
       <section className="card">
         <h3 className="section-title">每周照片组</h3>

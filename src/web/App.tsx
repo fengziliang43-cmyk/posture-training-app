@@ -18,11 +18,10 @@ import {
   type DailyCheckinInput,
   type PlanResponsePlan
 } from "./api";
-import { StatusForm } from "./components/StatusForm";
 import { RecordsView } from "./components/RecordsView";
 import { PostureView } from "./components/PostureView";
 import { SettingsView } from "./components/SettingsView";
-import { TodayPlan } from "./components/TodayPlan";
+import { TodayView } from "./components/TodayView";
 import { Layout, type AppTab } from "./components/Layout";
 import { formatLocalDate } from "../core/date";
 
@@ -31,6 +30,8 @@ export function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [todayPlan, setTodayPlan] = useState<PlanResponsePlan | null>(null);
+  const [todayMode, setTodayMode] = useState<"overview" | "task">("overview");
+  const [latestStatus, setLatestStatus] = useState<DailyCheckinInput | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [finishLoading, setFinishLoading] = useState(false);
   const [todayError, setTodayError] = useState<string | null>(null);
@@ -44,7 +45,9 @@ export function App() {
     try {
       await submitCheckin(status);
       const result = await createTodayPlan(status.date);
+      setLatestStatus(status);
       setTodayPlan(result.plan);
+      setTodayMode("overview");
       setTodayInfo("今天任务已生成。");
     } catch {
       setTodayError("今天任务生成失败，请检查服务器连接。");
@@ -69,6 +72,13 @@ export function App() {
       setTodayError("训练完成记录提交失败。");
     } finally {
       setFinishLoading(false);
+    }
+  }
+
+  function handleTabChange(tab: AppTab) {
+    setActiveTab(tab);
+    if (tab === "today") {
+      setTodayMode("overview");
     }
   }
 
@@ -121,19 +131,22 @@ export function App() {
   }
 
   return (
-    <Layout activeTab={activeTab} username={authUser.username} onTabChange={setActiveTab}>
+    <Layout activeTab={activeTab} username={authUser.username} onTabChange={handleTabChange}>
       {activeTab === "today" && (
-        <section className="stack">
-          <StatusForm date={formatLocalDate()} loading={planLoading} onSubmit={handleStatusSubmit} />
-          {todayError && <p className="error-text">{todayError}</p>}
-          {todayInfo && <p className="success-text">{todayInfo}</p>}
-          <TodayPlan
-            plan={todayPlan}
-            finishing={finishLoading}
-            onFinishWorkout={handleFinishTodayWorkout}
-            onPlanChange={setTodayPlan}
-          />
-        </section>
+        <TodayView
+          date={formatLocalDate()}
+          plan={todayPlan}
+          loading={planLoading}
+          finishing={finishLoading}
+          error={todayError}
+          info={todayInfo}
+          mode={todayMode}
+          latestStatus={latestStatus}
+          onModeChange={setTodayMode}
+          onSubmitStatus={handleStatusSubmit}
+          onFinishWorkout={handleFinishTodayWorkout}
+          onPlanChange={setTodayPlan}
+        />
       )}
       {activeTab === "records" && <RecordsView />}
       {activeTab === "posture" && <PostureView />}

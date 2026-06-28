@@ -13,11 +13,12 @@ const exerciseNameById = new Map(exerciseLibrary.map((exercise) => [exercise.id,
 interface TodayPlanProps {
   plan: PlanResponsePlan | null;
   finishing: boolean;
+  onBack?: () => void;
   onFinishWorkout: () => Promise<void> | void;
   onPlanChange?: (plan: PlanResponsePlan) => void;
 }
 
-export function TodayPlan({ plan, finishing, onFinishWorkout, onPlanChange }: TodayPlanProps) {
+export function TodayPlan({ plan, finishing, onBack, onFinishWorkout, onPlanChange }: TodayPlanProps) {
   const [completedExerciseKeys, setCompletedExerciseKeys] = useState<string[]>([]);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [planInfo, setPlanInfo] = useState<string | null>(null);
@@ -36,8 +37,16 @@ export function TodayPlan({ plan, finishing, onFinishWorkout, onPlanChange }: To
   if (!plan) {
     return (
       <section className="plan-card card">
-        <p className="eyebrow">今日任务</p>
-        <h2>还没有生成计划</h2>
+        <div className="plan-topline">
+          {onBack && (
+            <button type="button" className="text-button" onClick={onBack}>
+              返回今日
+            </button>
+          )}
+          <span className="date-pill">任务详情</span>
+        </div>
+        <p className="eyebrow">今日 / 任务详情</p>
+        <h2>还没有生成任务</h2>
         <p>先填状态，再点“生成今天任务”。</p>
       </section>
     );
@@ -45,21 +54,29 @@ export function TodayPlan({ plan, finishing, onFinishWorkout, onPlanChange }: To
 
   return (
     <section className="plan-card card">
+      <div className="plan-topline">
+        {onBack && (
+          <button type="button" className="text-button" onClick={onBack}>
+            返回今日
+          </button>
+        )}
+        <span className="date-pill">今日内页</span>
+      </div>
       <div className="plan-head">
         <div>
-          <p className="eyebrow">今日任务</p>
-          <h2>{describePlanType(plan.type)}</h2>
+          <p className="eyebrow">今日 / 任务详情</p>
+          <h2>{describePlanFocus(plan)}</h2>
         </div>
         <span className="date-pill">{describeTimeVersion(plan.timeVersion)}</span>
       </div>
 
       <p className="reason-text">{plan.reason}</p>
 
-      <section className="explanation-card">
+      <section className="explanation-card task-brief-card">
         <div className="mini-head">
           <div>
-            <p className="eyebrow">今日解释</p>
-            <h3>{plan.explanation?.title ?? describePlanType(plan.type)}</h3>
+            <p className="eyebrow">计划类型</p>
+            <h3>{plan.explanation?.title ?? `${describePlanType(plan.type)}，守住执行`}</h3>
           </div>
           <button
             type="button"
@@ -75,88 +92,92 @@ export function TodayPlan({ plan, finishing, onFinishWorkout, onPlanChange }: To
       {planInfo && <p className="success-text">{planInfo}</p>}
       {planError && <p className="error-text">{planError}</p>}
 
-      <div className="progress-pill">
-        已完成 {completedCount}/{plan.exercises.length} 个动作
-      </div>
+      <section className="action-list-card">
+        <div className="mini-head">
+          <div>
+            <p className="eyebrow">动作顺序</p>
+            <h3>{plan.exercises.length} 个动作</h3>
+          </div>
+          <span className="date-pill">已完成 {completedCount}/{plan.exercises.length}</span>
+        </div>
 
-      <div className="exercise-stack">
-        {plan.exercises.map((exercise, index) => {
-          const exerciseKey = getExerciseInstanceKey(plan.id, index, exercise);
-          const done = completedExerciseKeys.includes(exerciseKey);
+        <div className="exercise-stack">
+          {plan.exercises.map((exercise, index) => {
+            const exerciseKey = getExerciseInstanceKey(plan.id, index, exercise);
+            const done = completedExerciseKeys.includes(exerciseKey);
 
-          return (
-            <article className={done ? "exercise-card done" : "exercise-card"} key={exerciseKey}>
-              <div className="exercise-head">
-                <div>
-                  <h3>{exercise.name}</h3>
-                  <p className="muted">
-                    {formatVolume(exercise)} · 组间休息 {formatRest(exercise.restSeconds)}
-                  </p>
-                  {exercise.replacedFromId && (
-                    <p className="muted small">已从 {formatReplacement(exercise.replacedFromId)} 替换</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() =>
-                    setCompletedExerciseKeys((current) =>
-                      current.includes(exerciseKey)
-                        ? current.filter((key) => key !== exerciseKey)
-                        : [...current, exerciseKey]
-                    )
-                  }
-                >
-                  {done ? "已完成" : "完成"}
-                </button>
-              </div>
-
-              <ul className="note-list">
-                {exercise.notes.map((note, noteIndex) => (
-                  <li key={`${exerciseKey}-note-${noteIndex}`}>{note}</li>
-                ))}
-              </ul>
-
-              <div className="detail-grid">
-                <div>
-                  <span className="detail-label">替代动作</span>
-                  <p>{formatReplacement(exercise.replacementId)}</p>
-                </div>
-                <div>
-                  <span className="detail-label">组间休息</span>
-                  <p>{formatRest(exercise.restSeconds)}</p>
-                </div>
-                <div>
-                  <span className="detail-label">停止条件</span>
-                  <p>{exercise.stopCondition}</p>
-                </div>
-              </div>
-
-              <div className="button-row">
-                {exercise.replacedFromId ? (
+            return (
+              <article className={done ? "exercise-card done" : "exercise-card"} key={exerciseKey}>
+                <div className="exercise-row">
+                  <span className="exercise-index">{index + 1}</span>
+                  <div className="exercise-copy">
+                    <h3>{exercise.name}</h3>
+                    <p className="muted">{formatVolume(exercise)} · 休息 {formatRest(exercise.restSeconds)}</p>
+                    {exercise.replacedFromId && (
+                      <p className="muted small">已从 {formatReplacement(exercise.replacedFromId)} 替换</p>
+                    )}
+                  </div>
                   <button
                     type="button"
-                    className="secondary-button"
-                    disabled={actionBusyKey === exerciseKey}
-                    onClick={() => void handleRevert(plan.id, exercise.exerciseId, exerciseKey)}
+                    className="secondary-button compact-button"
+                    onClick={() =>
+                      setCompletedExerciseKeys((current) =>
+                        current.includes(exerciseKey)
+                          ? current.filter((key) => key !== exerciseKey)
+                          : [...current, exerciseKey]
+                      )
+                    }
                   >
-                    撤回替换
+                    {done ? "已完" : "完成"}
                   </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    disabled={!exercise.replacementId || actionBusyKey === exerciseKey}
-                    onClick={() => void handleReplace(plan.id, exercise.exerciseId, exerciseKey)}
-                  >
-                    换成替代动作
-                  </button>
-                )}
-              </div>
-            </article>
-          );
-        })}
-      </div>
+                </div>
+
+                <details className="exercise-details">
+                  <summary>动作要点</summary>
+                  <ul className="note-list">
+                    {exercise.notes.map((note, noteIndex) => (
+                      <li key={`${exerciseKey}-note-${noteIndex}`}>{note}</li>
+                    ))}
+                  </ul>
+
+                  <div className="detail-grid">
+                    <div>
+                      <span className="detail-label">替代动作</span>
+                      <p>{formatReplacement(exercise.replacementId)}</p>
+                    </div>
+                    <div>
+                      <span className="detail-label">停止条件</span>
+                      <p>{exercise.stopCondition}</p>
+                    </div>
+                  </div>
+
+                  <div className="button-row">
+                    {exercise.replacedFromId ? (
+                      <button
+                        type="button"
+                        className="secondary-button compact-button"
+                        disabled={actionBusyKey === exerciseKey}
+                        onClick={() => void handleRevert(plan.id, exercise.exerciseId, exerciseKey)}
+                      >
+                        撤回替换
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="secondary-button compact-button"
+                        disabled={!exercise.replacementId || actionBusyKey === exerciseKey}
+                        onClick={() => void handleReplace(plan.id, exercise.exerciseId, exerciseKey)}
+                      >
+                        换成替代动作
+                      </button>
+                    )}
+                  </div>
+                </details>
+              </article>
+            );
+          })}
+        </div>
+      </section>
 
       <button type="button" disabled={finishing || completedCount === 0} onClick={onFinishWorkout}>
         {finishing ? "提交中" : "完成训练"}
@@ -225,6 +246,12 @@ function describeTimeVersion(timeVersion: PlanResponsePlan["timeVersion"]): stri
   if (timeVersion === "full") return "完整版";
   if (timeVersion === "short") return "短版";
   return "压缩版";
+}
+
+function describePlanFocus(plan: PlanResponsePlan): string {
+  if (plan.type === "recovery") return "恢复 + 稳定";
+  if (plan.type === "reduced") return "轻量激活 + 核心";
+  return "上背 + 核心";
 }
 
 function formatVolume(exercise: PlanResponsePlan["exercises"][number]): string {

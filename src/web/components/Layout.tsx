@@ -17,14 +17,19 @@ interface LayoutProps {
 }
 
 export function Layout({ activeTab, username, children, onTabChange }: LayoutProps) {
+  const displayName = username === "liang" ? "良" : username ?? "未登录";
+
   return (
     <div className="app-shell">
       <header className="top-bar">
-        <div>
-          <p className="eyebrow">状态档案型训练教练</p>
-          <h1>锻体修容</h1>
+        <div className="brand-lockup">
+          <span className="app-mark" aria-hidden="true">锻</span>
+          <div className="brand-copy">
+            <strong>锻体修容</strong>
+            <span>状态档案型教练</span>
+          </div>
         </div>
-        <div className="user-pill">{username ?? "未登录"}</div>
+        <div className="user-pill">{displayName}</div>
       </header>
 
       <main className="page-content">{children}</main>

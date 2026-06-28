@@ -9,6 +9,7 @@ const templateNameById: Map<string, string> = new Map(
 
 export function RecordsView() {
   const [summary, setSummary] = useState<RecordsSummaryResponse["summary"] | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [weeklyAiSummary, setWeeklyAiSummary] = useState<string | null>(null);
   const [weeklyAiInfo, setWeeklyAiInfo] = useState<string | null>(null);
@@ -27,6 +28,15 @@ export function RecordsView() {
     () => chronologicalCheckins.filter((checkin) => typeof checkin.weightKg === "number"),
     [chronologicalCheckins]
   );
+  const checkinByDate = useMemo(
+    () => new Map((summary?.calendarCheckins ?? []).map((checkin) => [checkin.date, checkin])),
+    [summary]
+  );
+
+  useEffect(() => {
+    if (!summary || selectedDate) return;
+    setSelectedDate(summary.calendarCheckins[0]?.date ?? formatLocalDate());
+  }, [selectedDate, summary]);
 
   if (!summary && !error) {
     return (
@@ -41,12 +51,15 @@ export function RecordsView() {
 
   return (
     <section className="stack">
-      {summary && <MonthlyStatusCalendar checkins={summary.calendarCheckins} />}
-
-      <div className="hero-card">
-        <p className="eyebrow">记录</p>
-        <h2>趋势看板</h2>
-        <p>腰酸、睡眠、精神和体重都按时间看，不只看某一天。</p>
+      <div className="hero-card record-hero-card">
+        <div className="mini-head">
+          <div>
+            <p className="eyebrow">记录</p>
+            <h2>本周稳住</h2>
+          </div>
+          {summary && <span className="date-pill">已记录 {summary.calendarCheckins.length} 天</span>}
+        </div>
+        <p>腰酸、睡眠、精神和训练量放在一起看，避免被某一天带偏。</p>
       </div>
 
       {error && <p className="error-text">{error}</p>}
@@ -54,14 +67,30 @@ export function RecordsView() {
 
       {summary && (
         <>
-          <div className="card-grid">
+          <MonthlyStatusCalendar
+            checkins={summary.calendarCheckins}
+            selectedDate={selectedDate ?? formatLocalDate()}
+            onSelectDate={setSelectedDate}
+          />
+
+          <SelectedDayCard
+            date={selectedDate ?? formatLocalDate()}
+            checkin={checkinByDate.get(selectedDate ?? formatLocalDate())}
+            progressionRecords={summary.progressionRecords}
+          />
+
+          <div className="metric-grid">
             <article className="card">
               <span className="metric">{summary.weeklyTrainingCount}</span>
-              <p>本周已完成主训练次数</p>
+              <p>主训练</p>
             </article>
             <article className="card">
-              <span className="metric">{summary.progressionRecords.length}</span>
-              <p>进阶记录</p>
+              <span className="metric">{summary.weeklyReview.highestLowBackPain ?? "-"}/10</span>
+              <p>最高腰酸</p>
+            </article>
+            <article className="card">
+              <span className="metric">{summary.weeklyReview.averageSleepHours ?? "-"}h</span>
+              <p>平均睡眠</p>
             </article>
           </div>
 
@@ -185,9 +214,13 @@ function WeeklyReviewCard({
 }
 
 function MonthlyStatusCalendar({
-  checkins
+  checkins,
+  selectedDate,
+  onSelectDate
 }: {
   checkins: RecordsSummaryResponse["summary"]["calendarCheckins"];
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
 }) {
   const anchorDate = checkins[0]?.date ?? formatLocalDate();
   const days = buildCalendarDays(anchorDate);
@@ -198,9 +231,9 @@ function MonthlyStatusCalendar({
       <div className="calendar-head">
         <div>
           <p className="eyebrow">月历</p>
-          <h2>{formatMonthTitle(anchorDate)}</h2>
+          <h2>状态分布</h2>
         </div>
-        <span className="date-pill">已记录 {checkins.length} 天</span>
+        <span className="date-pill">{formatMonthTitle(anchorDate)}</span>
       </div>
 
       <div className="calendar-weekdays" aria-hidden="true">
@@ -214,17 +247,21 @@ function MonthlyStatusCalendar({
           const checkin = checkinByDate.get(day.date);
           const isToday = day.date === formatLocalDate();
           return (
-            <div
+            <button
+              type="button"
               className={[
                 "status-day",
                 day.inMonth ? "" : "outside-month",
                 checkin ? "has-checkin" : "",
                 checkin ? statusClass(checkin.lowBackPain, checkin.energy) : "",
-                isToday ? "today" : ""
+                isToday ? "today" : "",
+                day.date === selectedDate ? "selected" : ""
               ]
                 .filter(Boolean)
                 .join(" ")}
               key={day.date}
+              aria-pressed={day.date === selectedDate}
+              onClick={() => onSelectDate(day.date)}
             >
               <div className="status-day-head">
                 <span>{day.dayNumber}</span>
@@ -239,11 +276,68 @@ function MonthlyStatusCalendar({
               ) : (
                 <span className="status-empty">-</span>
               )}
-            </div>
+            </button>
           );
         })}
       </div>
     </section>
+  );
+}
+
+function SelectedDayCard({
+  date,
+  checkin,
+  progressionRecords
+}: {
+  date: string;
+  checkin?: RecordsSummaryResponse["summary"]["calendarCheckins"][number];
+  progressionRecords: RecordsSummaryResponse["summary"]["progressionRecords"];
+}) {
+  const dayProgressions = progressionRecords.filter((record) => record.date === date);
+
+  return (
+    <section className="card selected-day-card">
+      <div className="mini-head">
+        <div>
+          <p className="eyebrow">当天状态</p>
+          <h3>{formatDisplayDate(date)}</h3>
+        </div>
+        <span className="date-pill">{checkin ? "已记录" : "未记录"}</span>
+      </div>
+
+      {checkin ? (
+        <>
+          <div className="selected-day-grid">
+            <MetricPill label="腰酸" value={`${checkin.lowBackPain}/10`} />
+            <MetricPill label="精神" value={`${checkin.energy}/5`} />
+            <MetricPill label="睡眠" value={formatSleep(checkin.sleepHours)} />
+            <MetricPill label="时间" value={`${checkin.availableMinutes} 分`} />
+          </div>
+          <div className="selected-day-list">
+            <span>肩颈 {formatOptionalScore(checkin.neckShoulderPain)}</span>
+            <span>步数 {typeof checkin.steps === "number" ? checkin.steps : "-"}</span>
+            <span>饮食 {formatEatingStatus(checkin.eatingStatus)}</span>
+            <span>体重 {typeof checkin.weightKg === "number" ? `${checkin.weightKg}kg` : "-"}</span>
+          </div>
+          {dayProgressions.length > 0 && (
+            <p className="muted small">
+              当天训练：{dayProgressions.map((record) => formatTemplateName(record.templateId)).join("、")}
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="muted">这一天还没有状态记录。后面数据多了，直接点日期就能定位，不用往下翻最近记录。</p>
+      )}
+    </section>
+  );
+}
+
+function MetricPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="selected-day-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 
@@ -299,12 +393,28 @@ function buildCalendarDays(anchorDate: string): Array<{ date: string; dayNumber:
 }
 
 function formatMonthTitle(anchorDate: string): string {
-  const [year, month] = anchorDate.slice(0, 7).split("-").map(Number);
-  return `${year} 年 ${month} 月`;
+  const [, month] = anchorDate.slice(0, 7).split("-").map(Number);
+  return `${month} 月`;
+}
+
+function formatDisplayDate(date: string): string {
+  const [, month, day] = date.split("-");
+  return `${Number(month)} 月 ${Number(day)} 日`;
 }
 
 function formatSleep(hours?: number): string {
   return typeof hours === "number" ? `${Math.round(hours * 10) / 10}h` : "-";
+}
+
+function formatOptionalScore(score?: number): string {
+  return typeof score === "number" ? `${score}/10` : "-";
+}
+
+function formatEatingStatus(status?: "poor" | "normal" | "good"): string {
+  if (status === "poor") return "偏差";
+  if (status === "good") return "好";
+  if (status === "normal") return "一般";
+  return "-";
 }
 
 function statusClass(lowBackPain: number, energy: number): string {
