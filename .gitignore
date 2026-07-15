@@ -1,0 +1,15 @@
+.superpowers/
+.worktrees/
+.DS_Store
+node_modules/
+dist/
+.env
+.env.*
+*.log
+data/*.sqlite
+data/*.sqlite-*
+data/*.db
+data/*.db-*
+uploads/*
+!uploads/.gitkeep
+backups/
