@@ -20,7 +20,7 @@ Safety -> Posture -> Fat loss -> Muscle gain -> Conditioning
 ```
 
 > [!IMPORTANT]
-> This project is a training aid, not a medical diagnostic or treatment tool. Stop training and seek timely medical care for red-flag symptoms such as numbness, radiating pain, marked weakness, bowel or bladder changes, or sudden sharp pain. A worsening condition or increased pain should downgrade the plan, not be pushed through.
+> This project is a training aid, not a medical diagnostic or treatment tool. Stop training and seek appropriate medical assessment for red-flag symptoms. A worsening condition or increased pain should downgrade the plan, not be pushed through.
 
 ## Current Status
 
@@ -60,7 +60,7 @@ Daily status -> Readiness decision -> Train / Deload / Recover -> Check in -> Re
 
 The first version is designed around:
 
-- Daily status: lower-back discomfort, energy, available training time, and optional sleep, steps, diet, and weight inputs.
+- Daily status: discomfort, energy, available training time, and optional sleep, steps, diet, and weight inputs.
 - Plan generation: template selection based on red flags, discomfort, energy, sleep, time, and weekly progress.
 - Exercise library: pulling, scapular control, core stability, hip and pelvic stability, and recovery work.
 - Records: trends, calendar states, training frequency, and exercise progression.
@@ -84,7 +84,7 @@ The first version is designed around:
 | Backend | Node.js + Fastify |
 | Data | SQLite + local file system |
 | Mobile | Android browser first, then Capacitor APK packaging after stabilization |
-| Access | A local Mac server reached from the phone through a private Tailscale network |
+| Access | A local server reached from the phone through a trusted private network |
 | AI | DeepSeek for explanations and reviews only; local rules continue to decide training |
 
 ## Documentation
@@ -104,10 +104,10 @@ Do not commit:
 - `.env` files, API keys, tokens, passwords, or other credentials.
 - APKs, build output, caches, or `node_modules/`.
 
-Posture photos should remain on personal devices and must not be sent to third-party AI services. Do not expose the service directly to the public internet; use a private network such as Tailscale for remote access. Account passwords must be securely hashed and never stored as plaintext.
+Posture photos should remain on personal devices and must not be sent to third-party AI services. Do not expose the service directly to the public internet; use a trusted private network for remote access. Account passwords must be securely hashed and never stored as plaintext.
 
 ## Next Steps
 
-- Continue validating the latest APK on a real phone.
+- Continue validating the latest APK on a test phone.
 - Refine the Today, Records, and Posture views from actual use.
 - Keep the training rules conservative and do not trade safety for visual or feature complexity.

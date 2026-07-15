@@ -1,10 +1,10 @@
 .superpowers/
 .worktrees/
-.DS_Store
 node_modules/
 dist/
 .env
 .env.*
+!.env.example
 *.log
 data/*.sqlite
 data/*.sqlite-*
@@ -12,4 +12,6 @@ data/*.db
 data/*.db-*
 uploads/*
 !uploads/.gitkeep
+uploads-test/
 backups/
+.DS_Store

@@ -1,0 +1,8 @@
+import { buildApp } from "./app";
+import { loadConfig } from "./config";
+
+const config = loadConfig();
+const app = await buildApp(config);
+
+await app.listen({ host: config.host, port: config.port });
+console.log(`Posture training app server listening on http://${config.host}:${config.port}`);
