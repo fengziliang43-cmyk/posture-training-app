@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 
-export type AppTab = "today" | "records" | "posture" | "settings";
+export type AppTab = "today" | "records" | "posture" | "me";
 
-const tabs: Array<{ id: AppTab; label: string }> = [
+export const mainTabs: ReadonlyArray<{ id: AppTab; label: string }> = [
   { id: "today", label: "今日" },
   { id: "records", label: "记录" },
   { id: "posture", label: "体态" },
-  { id: "settings", label: "设置" }
+  { id: "me", label: "我的" }
 ];
 
 interface LayoutProps {
@@ -35,7 +35,7 @@ export function Layout({ activeTab, username, children, onTabChange }: LayoutPro
       <main className="page-content">{children}</main>
 
       <nav className="bottom-nav" aria-label="主导航">
-        {tabs.map((tab) => (
+        {mainTabs.map((tab) => (
           <button
             key={tab.id}
             className={tab.id === activeTab ? "nav-item active" : "nav-item"}
@@ -56,7 +56,7 @@ function NavIcon({ tab }: { tab: AppTab }) {
     today: "M4 10.5h16M7 3v3m10-3v3M6 5h12a2 2 0 0 1 2 2v12H4V7a2 2 0 0 1 2-2Zm2 9 2.2 2.2L16 10.5",
     records: "M5 19V9m7 10V4m7 15v-6M3 21h18",
     posture: "M12 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM7 9l5-2 5 2m-5-2v6m0 0-4 8m4-8 4 8",
-    settings: "M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Zm8-3.2 1.3-1.1-1.8-3.1-1.7.6a7 7 0 0 0-1.5-.9L16 5.7h-3.6L12 7.5a7 7 0 0 0-1.5.9l-1.7-.6L7 10.9 8.3 12a7 7 0 0 0 0 1.9L7 15l1.8 3.1 1.7-.6a7 7 0 0 0 1.5.9l.4 1.8H16l.4-1.8a7 7 0 0 0 1.5-.9l1.7.6 1.8-3.1-1.3-1.1a7 7 0 0 0 0-1.9Z"
+    me: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0"
   }[tab];
 
   return (

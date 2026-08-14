@@ -30,9 +30,10 @@ describe("resolveApiBaseUrl", () => {
     expect(resolveApiBaseUrl(null, true)).toBe(DEFAULT_NATIVE_API_BASE_URL);
   });
 
-  it("keeps websites on same-origin requests and preserves a native override", () => {
+  it("keeps websites on same-origin requests and ignores stale native overrides", () => {
     expect(resolveApiBaseUrl(null, false)).toBe("");
-    expect(resolveApiBaseUrl("https://test.example/", true)).toBe("https://test.example");
+    expect(resolveApiBaseUrl("https://test.example/", true)).toBe(DEFAULT_NATIVE_API_BASE_URL);
+    expect(resolveApiBaseUrl("http://10.0.0.8:8787", true)).toBe(DEFAULT_NATIVE_API_BASE_URL);
   });
 });
 

@@ -32,7 +32,8 @@ export function AiCoachCard({ plan, onOpenSettings }: AiCoachCardProps) {
 
   const configured = settings?.deepseekApiKeyConfigured === true;
   const enabled = settings?.deepseekEnabled === true;
-  const ready = configured && enabled;
+  const available = settings !== null && settings.deepseekAvailable !== false;
+  const ready = available && configured && enabled;
   const source = result?.source === "deepseek" ? "DeepSeek" : "本地规则";
   const state = loading
     ? "loading"
@@ -68,7 +69,7 @@ export function AiCoachCard({ plan, onOpenSettings }: AiCoachCardProps) {
         </div>
         <div>
           <p className="eyebrow">AI 教练解读</p>
-          <h3>{aiTitle(state, configured, enabled)}</h3>
+          <h3>{aiTitle(state, available, configured, enabled)}</h3>
         </div>
         <span className={`source-badge source-${result?.source ?? "local"}`}>{source}</span>
       </div>
@@ -96,7 +97,11 @@ export function AiCoachCard({ plan, onOpenSettings }: AiCoachCardProps) {
       )}
       {!ready && !result && (
         <p className="ai-state-note">
-          {configured ? "DeepSeek 当前已关闭；本地规则仍正常生成训练。" : "尚未配置 DeepSeek API Key。"}
+          {!available
+            ? "当前正式版暂未开放个人 API Key，训练计划继续由本地规则生成。"
+            : configured
+              ? "DeepSeek 当前已关闭；本地规则仍正常生成训练。"
+              : "尚未配置 DeepSeek API Key。"}
         </p>
       )}
 
@@ -109,7 +114,7 @@ export function AiCoachCard({ plan, onOpenSettings }: AiCoachCardProps) {
         </div>
         {!ready && !result ? (
           <button type="button" className="glass-button" onClick={onOpenSettings}>
-            去设置
+            {available ? "去配置" : "查看说明"}
           </button>
         ) : (
           <button type="button" className="glass-button" disabled={!plan || loading} onClick={() => void generate()}>
@@ -123,6 +128,7 @@ export function AiCoachCard({ plan, onOpenSettings }: AiCoachCardProps) {
 
 function aiTitle(
   state: "loading" | "error" | "success" | "fallback" | "ready" | "setup",
+  available: boolean,
   configured: boolean,
   enabled: boolean
 ): string {
@@ -131,6 +137,7 @@ function aiTitle(
   if (state === "success") return "DeepSeek 解读已生成";
   if (state === "fallback") return "已切回本地规则说明";
   if (state === "ready") return "让 DeepSeek 解释今天为什么这样练";
+  if (!available) return "当前使用本地规则";
   if (!configured) return "连接你的 DeepSeek";
   if (!enabled) return "DeepSeek 当前已关闭";
   return "AI 教练待命";

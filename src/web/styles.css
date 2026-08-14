@@ -178,9 +178,11 @@ label {
 }
 
 .user-pill {
-  width: 34px;
+  width: auto;
+  min-width: 44px;
+  max-width: 108px;
   height: 34px;
-  padding: 0;
+  padding: 0 11px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -2652,6 +2654,376 @@ label,
   clip: rect(0, 0, 0, 0);
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.me-view {
+  gap: 12px;
+}
+
+.me-page-heading {
+  display: grid;
+  gap: 6px;
+  padding: 8px 4px 4px;
+}
+
+.me-page-heading h2,
+.me-subpage-header h2 {
+  margin: 0;
+  color: var(--ink, #17201d);
+  font-size: 28px;
+  line-height: 1.08;
+}
+
+.me-page-heading p:last-child {
+  margin: 0;
+  color: var(--muted-ink, #64726e);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.me-subpage-header {
+  position: relative;
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+}
+
+.me-subpage-header h2 {
+  font-size: 22px;
+  text-align: center;
+}
+
+.me-back-button {
+  position: absolute;
+  left: -4px;
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 2px;
+  border-radius: 14px;
+  padding: 0 8px;
+  color: #625a92;
+  background: transparent;
+  box-shadow: none;
+  font-size: 13px;
+}
+
+.me-back-button span {
+  margin-top: -2px;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.me-profile-card {
+  display: grid;
+  gap: 14px;
+}
+
+.me-profile-card .section-title {
+  margin-bottom: 0;
+}
+
+.me-profile-card .text-button {
+  flex: 0 0 auto;
+}
+
+.me-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.me-metric {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 17px;
+  padding: 11px 9px;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+.me-metric span {
+  color: #777281;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.me-metric strong {
+  overflow: hidden;
+  color: var(--ink, #17201d);
+  font-size: 15px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.me-goal-tags,
+.profile-list-block > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.me-goal-tags span,
+.profile-list-block strong {
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #615a87;
+  background: rgba(229, 225, 255, 0.62);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.me-shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.me-shortcut-card.card {
+  display: grid;
+  min-width: 0;
+  min-height: 132px;
+  align-content: start;
+  justify-items: start;
+  gap: 7px;
+  border-radius: 22px;
+  padding: 15px;
+  color: var(--ink, #17201d);
+  text-align: left;
+}
+
+.me-shortcut-card strong {
+  font-size: 16px;
+}
+
+.me-shortcut-card small {
+  color: var(--muted-ink, #64726e);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.me-shortcut-icon,
+.me-entry-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 14px;
+  color: #4d4963;
+  background:
+    radial-gradient(circle at 25% 15%, rgba(255, 255, 255, 0.98), transparent 38%),
+    linear-gradient(145deg, rgba(205, 199, 255, 0.8), rgba(179, 228, 242, 0.68));
+  box-shadow: 0 8px 18px rgba(105, 96, 145, 0.14);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.me-entry-list.card {
+  display: grid;
+  overflow: hidden;
+  padding: 0;
+}
+
+.me-entry-button {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-height: 74px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-radius: 0;
+  padding: 11px 14px;
+  color: var(--ink, #17201d);
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.me-entry-button + .me-entry-button {
+  border-top: 1px solid rgba(119, 112, 139, 0.12);
+}
+
+.me-entry-button:active,
+.me-shortcut-card:active {
+  transform: scale(0.985);
+}
+
+.me-entry-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.me-entry-copy strong {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.me-entry-copy small {
+  overflow: hidden;
+  color: var(--muted-ink, #64726e);
+  font-size: 11px;
+  font-weight: 730;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.me-entry-chevron {
+  color: #8a8495;
+  font-size: 28px;
+  font-weight: 400;
+}
+
+.profile-detail-card {
+  gap: 16px;
+}
+
+.profile-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.profile-value {
+  display: grid;
+  gap: 5px;
+  border-radius: 16px;
+  padding: 11px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.profile-value span,
+.profile-list-block > span {
+  color: #777281;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.profile-value strong {
+  color: var(--ink, #17201d);
+  font-size: 14px;
+}
+
+.profile-list-block {
+  display: grid;
+  gap: 8px;
+}
+
+.deepseek-unavailable-card {
+  gap: 14px;
+}
+
+.deepseek-boundary-note {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(177, 168, 225, 0.25);
+  border-radius: 18px;
+  padding: 13px;
+  background: rgba(235, 232, 255, 0.5);
+}
+
+.deepseek-boundary-note strong {
+  color: #554f78;
+  font-size: 13px;
+}
+
+.deepseek-boundary-note p {
+  font-size: 12px;
+}
+
+.setup-step-list {
+  display: grid;
+  gap: 8px;
+}
+
+.setup-step-list span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #56515f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.setup-step-list b {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(145deg, #8e86d4, #72bfd7);
+  font-size: 10px;
+}
+
+.deepseek-settings-page {
+  gap: 14px;
+}
+
+.deepseek-settings-page .setting-input {
+  margin-top: 0;
+}
+
+.deepseek-action-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.deepseek-action-row button {
+  min-width: 0;
+  padding-inline: 8px;
+  font-size: 11px;
+}
+
+.privacy-summary-card .secondary-button {
+  justify-self: stretch;
+}
+
+.rule-card-list {
+  display: grid;
+  gap: 10px;
+}
+
+.rule-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.rule-card div {
+  display: grid;
+  gap: 5px;
+}
+
+.rule-card strong {
+  color: var(--ink, #17201d);
+  font-size: 14px;
+}
+
+.rule-card p {
+  font-size: 12px;
+}
+
+.rule-check {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 10px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #8e86d4, #72bfd7);
+  font-size: 12px;
+  font-weight: 950;
 }
 
 @keyframes ai-shimmer {

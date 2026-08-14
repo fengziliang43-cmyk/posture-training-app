@@ -126,14 +126,6 @@ export interface SettingsResponse {
   settings: SettingsRecord;
 }
 
-export interface ServerConnectionTestResult {
-  ok: boolean;
-  url: string;
-  status?: number;
-  statusText?: string;
-  error?: string;
-}
-
 export interface AiTextResponse {
   explanation?: string;
   summary?: string;
@@ -160,62 +152,19 @@ export class ApiRequestError extends Error {
   }
 }
 
-const API_BASE_URL_KEY = "posture-training.api-base-url";
 const AUTH_TOKEN_KEY = "posture-training.auth-token";
 export const DEFAULT_NATIVE_API_BASE_URL = "https://body.liang111.top";
 const API_TIMEOUT_MS = 8000;
 const AI_API_TIMEOUT_MS = 25000;
-const CONNECTION_TEST_TIMEOUT_MS = 5000;
 
 type ApiRequestInit = RequestInit & { timeoutMs?: number };
 
 export function getApiBaseUrl(): string {
-  return resolveApiBaseUrl(localStorage.getItem(API_BASE_URL_KEY), isNativeClient());
+  return resolveApiBaseUrl(null, isNativeClient());
 }
 
-export function resolveApiBaseUrl(storedValue: string | null, nativeClient: boolean): string {
-  const storedUrl = normalizeApiBaseUrl(storedValue ?? "");
-  if (storedUrl) return storedUrl;
+export function resolveApiBaseUrl(_storedValue: string | null, nativeClient: boolean): string {
   return nativeClient ? DEFAULT_NATIVE_API_BASE_URL : "";
-}
-
-export function setApiBaseUrl(value: string): string {
-  const normalized = normalizeApiBaseUrl(value);
-  if (normalized) {
-    localStorage.setItem(API_BASE_URL_KEY, normalized);
-  } else {
-    localStorage.removeItem(API_BASE_URL_KEY);
-  }
-  return normalized;
-}
-
-export async function testServerConnection(value = getApiBaseUrl()): Promise<ServerConnectionTestResult> {
-  const url = apiUrl("/api/health", value);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), CONNECTION_TEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      headers: authHeaders(),
-      credentials: "include",
-      signal: controller.signal
-    });
-
-    return {
-      ok: response.ok,
-      url,
-      status: response.status,
-      statusText: response.statusText
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      url,
-      error: describeApiError(error)
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 export async function getMe(): Promise<AuthResponse> {
@@ -464,18 +413,6 @@ export async function downloadPhotoFile(photoId: number): Promise<Blob> {
   }
 
   return response.blob();
-}
-
-export function describeServerConnectionResult(result: ServerConnectionTestResult): string {
-  if (result.ok) {
-    return `服务器可以连接。测试地址：${result.url}`;
-  }
-
-  if (result.status) {
-    return `服务器有响应但状态异常：HTTP ${result.status} ${result.statusText ?? ""}。测试地址：${result.url}`;
-  }
-
-  return `服务器连接失败：${result.error ?? "未知网络错误"}。测试地址：${result.url}`;
 }
 
 export function describeApiError(error: unknown): string {
