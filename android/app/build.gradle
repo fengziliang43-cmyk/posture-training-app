@@ -1,5 +1,18 @@
 apply plugin: 'com.android.application'
 
+def releaseSigningValues = [
+    storeFile: System.getenv('ZIXU_ANDROID_KEYSTORE_PATH'),
+    storePassword: System.getenv('ZIXU_ANDROID_KEYSTORE_PASSWORD'),
+    keyAlias: System.getenv('ZIXU_ANDROID_KEY_ALIAS'),
+    keyPassword: System.getenv('ZIXU_ANDROID_KEY_PASSWORD')
+]
+def hasReleaseSigning = releaseSigningValues.values().every { it != null && !it.isBlank() }
+def requestedReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+
+if (requestedReleaseTask && !hasReleaseSigning) {
+    throw new GradleException('Release builds require the ZIXU_ANDROID_KEYSTORE_* environment variables.')
+}
+
 android {
     namespace = "local.posture.training"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +29,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseSigningValues.storeFile)
+                storePassword releaseSigningValues.storePassword
+                keyAlias releaseSigningValues.keyAlias
+                keyPassword releaseSigningValues.keyPassword
+                enableV1Signing true
+                enableV2Signing true
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

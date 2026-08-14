@@ -17,7 +17,8 @@ const productionConfig: ServerConfig = {
   sessionTtlHours: 24 * 30,
   isProduction: true,
   deepseekUserKeysEnabled: false,
-  registrationEnabled: false
+  registrationEnabled: false,
+  trafficDashboardUrl: null
 };
 
 describe("production configuration", () => {

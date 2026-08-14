@@ -31,7 +31,9 @@ export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
       releaseNotes: [
         "重新整理“我的”与设置入口",
         "增加检查更新和友好的登录失败提示",
-        "增加仅管理员可见的运营数据页"
+        "增加仅管理员可见的运营数据页",
+        "接入仅管理员可访问的网站流量统计",
+        "更新侧弯风险自查的站立与前屈示意图"
       ],
       installUrl: `https://body.liang111.top/releases/zixu-android-${CURRENT_APP_VERSION}.apk`
     },
@@ -42,7 +44,9 @@ export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
       releaseNotes: [
         "重新整理“我的”与设置入口",
         "增加检查更新和友好的登录失败提示",
-        "增加仅管理员可见的运营数据页"
+        "增加仅管理员可见的运营数据页",
+        "接入仅管理员可访问的网站流量统计",
+        "更新侧弯风险自查的站立与前屈示意图"
       ],
       installUrl: null
     },
@@ -53,7 +57,9 @@ export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
       releaseNotes: [
         "重新整理“我的”与设置入口",
         "增加检查更新和友好的登录失败提示",
-        "增加仅管理员可见的运营数据页"
+        "增加仅管理员可见的运营数据页",
+        "接入仅管理员可访问的网站流量统计",
+        "更新侧弯风险自查的站立与前屈示意图"
       ],
       installUrl: null
     }

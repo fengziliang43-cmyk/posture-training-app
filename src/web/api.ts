@@ -158,6 +158,7 @@ export interface AdminStatsResponse {
   traffic: {
     available: boolean;
     provider: "goaccess";
+    dashboardUrl: string | null;
   };
 }
 

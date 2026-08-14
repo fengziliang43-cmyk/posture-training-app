@@ -709,15 +709,29 @@ function AdminAnalyticsDashboard({ stats }: { stats: AdminStatsResponse }) {
         </div>
       </section>
 
-      <section className="card setting-panel traffic-pending-card">
+      <section className={`card setting-panel ${stats.traffic.available ? "traffic-ready-card" : "traffic-pending-card"}`}>
         <div className="mini-head">
           <div>
             <p className="eyebrow">网站访问</p>
-            <h3 className="section-title">访问统计尚未接入</h3>
+            <h3 className="section-title">{stats.traffic.available ? "GoAccess 访问统计" : "访问统计尚未接入"}</h3>
           </div>
-          <span className="date-pill">待配置</span>
+          <span className="date-pill">{stats.traffic.available ? "已接入" : "待配置"}</span>
         </div>
-        <p className="muted small">当前数据库没有页面浏览记录，所以这里不显示假 0。服务器授权接入 GoAccess 后，可显示真实访问量、访客趋势和热门页面。</p>
+        <p className="muted small">
+          {stats.traffic.available
+            ? "统计来自服务器 Nginx 访问日志，可查看真实访问量、访客趋势和热门页面；仅管理员登录后可打开。"
+            : "当前数据库没有页面浏览记录，所以这里不显示假 0。服务器授权接入 GoAccess 后，可显示真实访问量、访客趋势和热门页面。"}
+        </p>
+        {stats.traffic.available && stats.traffic.dashboardUrl && (
+          <a
+            className="secondary-button update-install-link"
+            href={stats.traffic.dashboardUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            打开访问统计
+          </a>
+        )}
       </section>
 
       <p className="muted small admin-generated-at">数据生成于 {formatAdminTimestamp(stats.generatedAt)}；本页只显示聚合数字，不显示账号和健康明细。</p>

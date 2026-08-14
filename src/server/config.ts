@@ -11,6 +11,7 @@ export interface ServerConfig {
   isProduction: boolean;
   deepseekUserKeysEnabled: boolean;
   registrationEnabled: boolean;
+  trafficDashboardUrl: string | null;
 }
 
 export function loadConfig(): ServerConfig {
@@ -32,7 +33,8 @@ export function loadConfig(): ServerConfig {
     registrationEnabled: parseBoolean(
       process.env.REGISTRATION_ENABLED,
       process.env.NODE_ENV !== "production"
-    )
+    ),
+    trafficDashboardUrl: parseSameOriginPath(process.env.TRAFFIC_DASHBOARD_URL)
   };
 }
 
@@ -81,4 +83,13 @@ function parsePositiveNumber(value: string | undefined, fallback: number): numbe
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) return fallback;
   return value.trim().toLowerCase() === "true";
+}
+
+function parseSameOriginPath(value: string | undefined): string | null {
+  const path = value?.trim();
+  if (!path) return null;
+  if (!/^\/(?!\/)[A-Za-z0-9/_-]*$/.test(path)) {
+    throw new Error("TRAFFIC_DASHBOARD_URL must be a same-origin path.");
+  }
+  return path;
 }

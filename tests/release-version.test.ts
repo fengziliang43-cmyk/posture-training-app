@@ -19,6 +19,8 @@ describe("release version consistency", () => {
     expect(packageJson.version).toBe(CURRENT_APP_VERSION);
     expect(androidGradle).toContain(`versionName "${CURRENT_APP_VERSION}"`);
     expect(androidGradle).toContain(`versionCode ${CURRENT_APP_BUILDS.android}`);
+    expect(androidGradle).toContain("ZIXU_ANDROID_KEYSTORE_PATH");
+    expect(androidGradle).not.toMatch(/storePassword\s+["'][^$]/);
     expect(iosProject.match(new RegExp(`MARKETING_VERSION = ${CURRENT_APP_VERSION.replaceAll(".", "\\.")};`, "g"))).toHaveLength(2);
     expect(iosProject.match(new RegExp(`CURRENT_PROJECT_VERSION = ${CURRENT_APP_BUILDS.ios};`, "g"))).toHaveLength(2);
     expect(LATEST_RELEASE_MANIFEST.platforms.android.version).toBe(CURRENT_APP_VERSION);

@@ -56,14 +56,51 @@ describe("admin analytics", () => {
       active7d: 2,
       active30d: 2
     });
-    expect(stats.traffic).toEqual({ available: false, provider: "goaccess" });
+    expect(stats.traffic).toEqual({ available: false, provider: "goaccess", dashboardUrl: null });
     expect(JSON.stringify(stats)).not.toMatch(/owner|member|password|photo|pain|weight/i);
+
+    const memberAccess = await app.inject({
+      method: "GET",
+      url: "/api/admin/access",
+      headers: { cookie: memberCookie }
+    });
+    expect(memberAccess.statusCode).toBe(403);
+
+    const adminAccess = await app.inject({
+      method: "GET",
+      url: "/api/admin/access",
+      headers: { cookie: adminCookie }
+    });
+    expect(adminAccess.statusCode).toBe(204);
   });
 
   it("requires authentication", async () => {
     app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads" });
     const response = await app.inject({ method: "GET", url: "/api/admin/stats" });
     expect(response.statusCode).toBe(401);
+  });
+
+  it("publishes the same-origin GoAccess dashboard only when configured", async () => {
+    app = await buildApp({
+      databaseFile: ":memory:",
+      uploadDir: "uploads",
+      trafficDashboardUrl: "/ops/traffic/"
+    });
+    const setup = await app.inject({
+      method: "POST",
+      url: "/api/auth/setup",
+      payload: { username: "owner", password: "strong-password-123" }
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/stats",
+      headers: { cookie: sessionCookie(setup.headers["set-cookie"]) }
+    });
+    expect(response.json().traffic).toEqual({
+      available: true,
+      provider: "goaccess",
+      dashboardUrl: "/ops/traffic/"
+    });
   });
 });
 

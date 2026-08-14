@@ -67,6 +67,29 @@ Expected output:
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+## Public release signing
+
+官网 APK 必须使用仓库外的长期证书签名。Gradle 只从本次进程的环境变量读取路径和密码，不允许把证书或密码写入仓库：
+
+```bash
+export ZIXU_ANDROID_KEYSTORE_PATH="/absolute/private/path/zixu-release.jks"
+export ZIXU_ANDROID_KEYSTORE_PASSWORD="<from-password-manager>"
+export ZIXU_ANDROID_KEY_ALIAS="zixu-release"
+export ZIXU_ANDROID_KEY_PASSWORD="<from-password-manager>"
+```
+
+随后运行：
+
+```bash
+cd android
+JAVA_HOME="$JDK_HOME" \
+ANDROID_HOME="$SDK_ROOT" \
+ANDROID_SDK_ROOT="$SDK_ROOT" \
+./gradlew assembleRelease
+```
+
+输出为 `android/app/build/outputs/apk/release/app-release.apk`。发布前必须用 `apksigner verify --verbose --print-certs`、`aapt dump badging`、SHA-256 和实际安装测试核验。长期证书一旦丢失，后续版本将无法覆盖更新，因此应同时保留加密备份；证书和密码均不得上传 GitHub 或服务器。
+
 Copy a Finder-visible APK to the Desktop:
 
 ```bash

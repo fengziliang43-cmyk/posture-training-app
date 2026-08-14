@@ -91,7 +91,11 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
     sessionTtlHours: config.sessionTtlHours
   });
   registerReleaseRoutes(app);
-  registerAdminRoutes(app, { db, sessions });
+  registerAdminRoutes(app, {
+    db,
+    sessions,
+    trafficDashboardUrl: config.trafficDashboardUrl
+  });
   registerAccountRoutes(app, {
     db,
     sessions,

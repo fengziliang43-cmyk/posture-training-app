@@ -1,0 +1,27 @@
+[Unit]
+Description=Generate the private Zixu GoAccess report
+After=nginx.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+SupplementaryGroups=adm
+StateDirectory=posture-goaccess
+StateDirectoryMode=0750
+ExecStart=/bin/sh -c '/usr/bin/zcat -f /var/log/nginx/access.log* | /usr/bin/goaccess - --log-format=COMBINED --ignore-crawlers --anonymize-ip --exclude-ip=127.0.0.1 --html-report-title="姿序网站访问统计" --output=/var/lib/posture-goaccess/index.html'
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+ReadOnlyPaths=/var/log/nginx
+ReadWritePaths=/var/lib/posture-goaccess

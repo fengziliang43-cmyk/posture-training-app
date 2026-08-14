@@ -5,6 +5,7 @@ import { requireAuthenticatedUserId, type SessionStore } from "../auth";
 interface AdminRouteContext {
   db: AppDatabase;
   sessions: SessionStore;
+  trafficDashboardUrl: string | null;
 }
 
 interface AdminStatsRow {
@@ -20,6 +21,20 @@ interface AdminStatsRow {
 }
 
 export function registerAdminRoutes(app: FastifyInstance, context: AdminRouteContext): void {
+  app.get("/api/admin/access", async (request, reply) => {
+    const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
+    if (!userId) return;
+
+    const admin = await context.db.get<{ role: string; status: string }>(
+      "SELECT role, status FROM users WHERE id = ?",
+      userId
+    );
+    if (!admin || admin.role !== "admin" || admin.status !== "active") {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    return reply.code(204).send();
+  });
+
   app.get("/api/admin/stats", async (request, reply) => {
     const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
     if (!userId) return;
@@ -61,8 +76,9 @@ export function registerAdminRoutes(app: FastifyInstance, context: AdminRouteCon
         completedWorkoutsTotal: row?.completed_workouts_total ?? 0
       },
       traffic: {
-        available: false,
-        provider: "goaccess"
+        available: Boolean(context.trafficDashboardUrl),
+        provider: "goaccess",
+        dashboardUrl: context.trafficDashboardUrl
       }
     };
   });

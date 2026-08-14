@@ -12,6 +12,10 @@ describe("ScoliosisRiskGuide", () => {
     expect(markup).toContain("不能排除或确诊脊柱侧弯");
     expect(markup).toContain("站立位脊柱影像");
     expect(markup).toContain("大小便异常");
+    expect(markup).toContain("/illustrations/scoliosis-standing-reference.jpg");
+    expect(markup).toContain("/illustrations/scoliosis-standing-asymmetry.jpg");
+    expect(markup).toContain("/illustrations/scoliosis-forward-bend-asymmetry.jpg");
+    expect(markup).not.toContain("<svg");
     expect(markup).not.toContain("AI 诊断");
   });
 });

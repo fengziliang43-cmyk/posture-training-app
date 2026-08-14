@@ -116,27 +116,27 @@ export function ScoliosisRiskGuide() {
 
 function StandingComparison() {
   return (
-    <div className="standing-comparison" role="img" aria-label="自然站立时对称参考与需要评估的肩线、腰线不对称示意">
+    <div className="standing-comparison" role="group" aria-label="自然站立时对称参考与需要评估的肩线、腰线不对称示意">
       <figure>
-        <svg viewBox="0 0 150 190" aria-hidden="true">
-          <circle cx="75" cy="27" r="17" />
-          <path className="body-shape" d="M51 51c8-7 40-7 48 0 7 22 12 51 9 79-2 20-9 34-15 46H57c-6-12-13-26-15-46-3-28 2-57 9-79Z" />
-          <path className="spine-line" d="M75 48v119" />
-          <path className="guide-line good" d="M37 65h76M45 118h60" />
-          <circle className="guide-dot good" cx="48" cy="65" r="4" />
-          <circle className="guide-dot good" cx="102" cy="65" r="4" />
-        </svg>
+        <img
+          src="/illustrations/scoliosis-standing-reference.jpg"
+          alt="自然站立背面参考，双肩和两侧腰线大致对称"
+          width="720"
+          height="900"
+          loading="lazy"
+          decoding="async"
+        />
         <figcaption><strong>对称参考</strong><span>肩线、腰线大致水平</span></figcaption>
       </figure>
       <figure>
-        <svg viewBox="0 0 150 190" aria-hidden="true">
-          <circle cx="78" cy="27" r="17" />
-          <path className="body-shape" d="M51 48c10-7 39-3 49 6 5 23 10 53 6 79-3 20-9 32-15 43H58c-7-13-15-30-16-51-2-27 3-55 9-77Z" />
-          <path className="spine-line alert" d="M77 47c-19 27 21 47 1 73-14 19-5 34 10 47" />
-          <path className="guide-line alert" d="M37 61l77 11M45 120l61-8" />
-          <circle className="guide-dot alert" cx="48" cy="63" r="4" />
-          <circle className="guide-dot alert" cx="102" cy="70" r="4" />
-        </svg>
+        <img
+          src="/illustrations/scoliosis-standing-asymmetry.jpg"
+          alt="自然站立背面示意，可见肩线倾斜、两侧腰线不对称和躯干偏移"
+          width="720"
+          height="900"
+          loading="lazy"
+          decoding="async"
+        />
         <figcaption><strong>需要评估</strong><span>肩线、腰线持续不对称</span></figcaption>
       </figure>
     </div>
@@ -145,22 +145,15 @@ function StandingComparison() {
 
 function ForwardBendIllustration() {
   return (
-    <div className="bend-illustration" role="img" aria-label="Adam 前屈试验动作和一侧肋背隆起示意">
-      <svg viewBox="0 0 340 190" aria-hidden="true">
-        <defs>
-          <linearGradient id="bendBody" x1="0" y1="0" x2="1" y2="1">
-            <stop stopColor="#b9b4ff" />
-            <stop offset="1" stopColor="#9bdcf2" />
-          </linearGradient>
-        </defs>
-        <circle cx="63" cy="50" r="18" />
-        <path className="bend-person" d="M78 58c40 12 70 29 100 54 18 15 31 19 52 17l39-4 6 24-53 12c-25 6-51-1-71-18-32-27-57-39-91-49L39 84l12-26 27 0Z" />
-        <path className="bend-arm" d="M125 86 94 145M146 98l-23 57" />
-        <path className="bend-leg" d="M57 85 41 166M78 91l15 75" />
-        <path className="bend-back-line" d="M79 67c41 10 67 24 97 50 18 15 36 17 56 13" />
-        <ellipse className="rib-rise" cx="183" cy="115" rx="28" ry="13" />
-        <path className="look-arrow" d="M307 78c-24 2-41 13-53 31m52-31-13-9m13 9-8 14" />
-      </svg>
+    <div className="bend-illustration">
+      <img
+        src="/illustrations/scoliosis-forward-bend-asymmetry.jpg"
+        alt="Adam 前屈试验背面示意，画面右侧肋背隆起，左侧相邻区域较低"
+        width="1200"
+        height="675"
+        loading="lazy"
+        decoding="async"
+      />
       <div>
         <strong>观察者从后方、接近背部水平看</strong>
         <span>比较两侧肋背和腰背高度，而不是用手机猜测脊柱角度。</span>

@@ -72,7 +72,10 @@ SESSION_TTL_HOURS=720
 PHOTO_MAX_BYTES=10485760
 DEEPSEEK_USER_KEYS_ENABLED=false
 REGISTRATION_ENABLED=false
+TRAFFIC_DASHBOARD_URL=
 ```
+
+安装并启用私有 GoAccess 报告后，将最后一项设置为 `/ops/traffic/`。该值只接受同源路径；报告由 Nginx 通过姿序管理员会话保护，不能配置成外部网站地址。
 
 可在服务器的私密终端用 `openssl rand -hex 32` 生成 Cookie secret，不要把输出粘贴进聊天、代码、日志或提交记录。
 
