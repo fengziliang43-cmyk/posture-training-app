@@ -1,0 +1,22 @@
+[Unit]
+Description=Back up Posture Training data
+After=posture-training.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/posture-backup
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+ReadOnlyPaths=/var/lib/posture-training
+ReadWritePaths=/var/backups/posture-training

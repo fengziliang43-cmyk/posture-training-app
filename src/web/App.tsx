@@ -159,7 +159,7 @@ export function App() {
 }
 
 function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
-  const [username, setUsername] = useState("demo-user");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
   const [error, setError] = useState<string | null>(null);
@@ -226,16 +226,25 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
 
           <label>
             账号
-            <input value={username} onChange={(event) => setUsername(event.target.value)} />
+            <input
+              name="username"
+              autoComplete="username"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              required
+            />
           </label>
 
           <label>
             密码
             <input
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               minLength={6}
+              required
             />
           </label>
 

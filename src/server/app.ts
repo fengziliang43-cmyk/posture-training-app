@@ -2,6 +2,7 @@ import cookie from "@fastify/cookie";
 import multipart from "@fastify/multipart";
 import Fastify, { type FastifyInstance } from "fastify";
 import { mkdir } from "node:fs/promises";
+import type { SessionStore } from "./auth";
 import { loadConfig, type ServerConfig } from "./config";
 import { openAppDatabase } from "./db";
 import { createRepositories } from "./repositories";
@@ -19,7 +20,7 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
   const config: ServerConfig = { ...loadConfig(), ...options };
   const db = await openAppDatabase(config.databaseFile);
   const repositories = createRepositories(db);
-  const sessions = new Map<string, number>();
+  const sessions: SessionStore = new Map();
   const app = Fastify({ logger: false });
 
   app.addHook("onRequest", (request, reply, done) => {

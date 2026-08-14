@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AppDatabase } from "../db";
 import {
-  createSessionToken,
+  createSession,
   getAuthenticatedUserId,
   getSessionToken,
   hashPassword,
@@ -43,8 +43,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
       passwordHash
     );
 
-    const sessionToken = createSessionToken();
-    context.sessions.set(sessionToken, result.lastID ?? 0);
+    const sessionToken = createSession(context.sessions, result.lastID ?? 0);
     setSessionCookie(reply, sessionToken, context.cookieSecure);
 
     return { user: { id: result.lastID, username: body.username }, sessionToken };
@@ -71,8 +70,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
       return reply.code(401).send({ error: "invalid credentials" });
     }
 
-    const sessionToken = createSessionToken();
-    context.sessions.set(sessionToken, user.id);
+    const sessionToken = createSession(context.sessions, user.id);
     setSessionCookie(reply, sessionToken, context.cookieSecure);
 
     return { user: { id: user.id, username: user.username }, sessionToken };
@@ -110,8 +108,9 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
 function setSessionCookie(reply: FastifyReply, sessionToken: string, secure: boolean): void {
   reply.setCookie(SESSION_COOKIE_NAME, sessionToken, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure,
+    maxAge: 7 * 24 * 60 * 60,
     path: "/"
   });
 }

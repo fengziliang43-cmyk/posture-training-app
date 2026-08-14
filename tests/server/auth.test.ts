@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/server/app";
+import {
+  createSession,
+  getAuthenticatedUserId,
+  SESSION_TTL_MS,
+  type SessionStore
+} from "../../src/server/auth";
+import type { FastifyRequest } from "fastify";
 
 describe("auth", () => {
   it("creates a local user and logs in without storing plaintext password", async () => {
@@ -87,7 +94,24 @@ describe("auth", () => {
       payload: { username: "demo-user", password: "test-password-123" }
     });
 
-    expect(setup.headers["set-cookie"]).toContain("Secure");
+    const cookie = setup.headers["set-cookie"];
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Strict");
+    expect(cookie).toContain("Max-Age=604800");
     await app.close();
+  });
+
+  it("expires server-side sessions after seven days", () => {
+    const sessions: SessionStore = new Map();
+    const token = createSession(sessions, 42, 1_000);
+    const request = {
+      headers: { authorization: `Bearer ${token}` },
+      cookies: {}
+    } as unknown as FastifyRequest;
+
+    expect(getAuthenticatedUserId(request, sessions, 1_000 + SESSION_TTL_MS - 1)).toBe(42);
+    expect(getAuthenticatedUserId(request, sessions, 1_000 + SESSION_TTL_MS)).toBeNull();
+    expect(sessions.has(token)).toBe(false);
   });
 });
