@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SiteFooter } from "./SiteFooter";
 
 export type AppTab = "today" | "records" | "posture" | "settings";
 
@@ -25,7 +26,7 @@ export function Layout({ activeTab, username, children, onTabChange }: LayoutPro
         <div className="brand-lockup">
           <span className="app-mark" aria-hidden="true">锻</span>
           <div className="brand-copy">
-            <strong>锻体修容</strong>
+            <strong>姿序个人训练</strong>
             <span>状态档案型教练</span>
           </div>
         </div>
@@ -33,6 +34,8 @@ export function Layout({ activeTab, username, children, onTabChange }: LayoutPro
       </header>
 
       <main className="page-content">{children}</main>
+
+      <SiteFooter />
 
       <nav className="bottom-nav" aria-label="主导航">
         {tabs.map((tab) => (

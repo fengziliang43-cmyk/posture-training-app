@@ -88,7 +88,7 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
         setError(`地址已保存，但连接失败。${message}`);
       }
     } catch (error) {
-      setError(`Mac server 测试异常：${describeApiError(error)}`);
+      setError(`训练服务器测试异常：${describeApiError(error)}`);
     } finally {
       setSaving(false);
     }
@@ -219,13 +219,13 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
         <div className="mini-head">
           <div>
             <p className="eyebrow">连接</p>
-            <h3 className="section-title">Mac server</h3>
+            <h3 className="section-title">训练服务器</h3>
           </div>
           <span className="date-pill">{serverUrl ? "已配置" : "当前设备"}</span>
         </div>
         <p className="muted">手机和 Mac 在同一网络或 Tailscale 下，用这个地址连接本地服务。</p>
         <label className="setting-input">
-          Mac server 地址
+          训练服务器地址
           <input
             value={serverUrl}
             onChange={(event) => setServerUrlState(event.target.value)}

@@ -31,6 +31,29 @@ describe("server app", () => {
     await app.close();
   });
 
+  it("does not grant CORS access to unknown origins", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/auth/login",
+      headers: { origin: "https://attacker.example" }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+
+    await app.close();
+  });
+
+  it("does not expose uploaded files through a public static directory", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const response = await app.inject({ method: "GET", url: "/uploads/private-photo.jpg" });
+
+    expect(response.statusCode).toBe(404);
+
+    await app.close();
+  });
+
   it("handles the authenticated training API flow", async () => {
     const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
     const cookie = await createAuthenticatedCookie(app);

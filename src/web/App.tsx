@@ -23,6 +23,7 @@ import { PostureView } from "./components/PostureView";
 import { SettingsView } from "./components/SettingsView";
 import { TodayView } from "./components/TodayView";
 import { Layout, type AppTab } from "./components/Layout";
+import { SiteFooter } from "./components/SiteFooter";
 import { formatLocalDate } from "../core/date";
 
 export function App() {
@@ -118,8 +119,8 @@ export function App() {
     return (
       <div className="center-screen">
         <div className="status-card">
-          <p className="eyebrow">正在连接本地服务器</p>
-          <h1>锻体修容</h1>
+          <p className="eyebrow">正在连接训练服务器</p>
+          <h1>姿序个人训练</h1>
           <p>检查登录状态中。</p>
         </div>
       </div>
@@ -203,7 +204,7 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
         setError(message);
       }
     } catch (error) {
-      setError(`Mac server 测试异常：${describeApiError(error)}`);
+      setError(`训练服务器测试异常：${describeApiError(error)}`);
     } finally {
       setPendingAction(null);
     }
@@ -211,46 +212,47 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
 
   return (
     <div className="center-screen">
-      <form
-        className="auth-card"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void runAuth("login");
-        }}
-      >
-        <p className="eyebrow">本地私有训练 App</p>
-        <h1>锻体修容</h1>
-        <p className="muted">Mac 做服务器，手机通过 Tailscale 访问。照片和训练数据只走本地。</p>
+      <div className="auth-shell">
+        <form
+          className="auth-card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void runAuth("login");
+          }}
+        >
+          <p className="eyebrow">个人专属训练 App</p>
+          <h1>姿序个人训练</h1>
+          <p className="muted">体态照片和训练记录保存在你的专属服务器中，登录后才能访问。</p>
 
-        <label>
-          账号
-          <input value={username} onChange={(event) => setUsername(event.target.value)} />
-        </label>
+          <label>
+            账号
+            <input value={username} onChange={(event) => setUsername(event.target.value)} />
+          </label>
 
-        <label>
-          密码
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            minLength={6}
-          />
-        </label>
+          <label>
+            密码
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              minLength={6}
+            />
+          </label>
 
-        <label>
-          Mac server 地址
-          <input
-            value={serverUrl}
-            onChange={(event) => setServerUrl(event.target.value)}
-            placeholder="浏览器留空；APK 填 http://Tailscale-IP:8787"
-          />
-        </label>
-        <p className="muted small">浏览器开发时可以留空；手机 APK 需要填 Mac 的 Tailscale 地址。</p>
+          <label>
+            训练服务器地址
+            <input
+              value={serverUrl}
+              onChange={(event) => setServerUrl(event.target.value)}
+              placeholder="浏览器留空；APK 填 https://liang111.top"
+            />
+          </label>
+          <p className="muted small">浏览器使用当前网站地址；手机 APK 可填写 https://liang111.top。</p>
 
-        {error && <p className="error-text">{error}</p>}
-        {info && <p className="success-text">{info}</p>}
+          {error && <p className="error-text">{error}</p>}
+          {info && <p className="success-text">{info}</p>}
 
-        <div className="button-row">
+          <div className="button-row">
           <button type="submit" disabled={pendingAction !== null}>
             {pendingAction === "login" ? "登录中" : "登录"}
           </button>
@@ -270,8 +272,10 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
           >
             测试连接
           </button>
-        </div>
-      </form>
+          </div>
+        </form>
+        <SiteFooter />
+      </div>
     </div>
   );
 }

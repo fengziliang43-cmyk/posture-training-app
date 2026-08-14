@@ -73,4 +73,21 @@ describe("auth", () => {
 
     await app.close();
   });
+
+  it("marks session cookies secure in production", async () => {
+    const app = await buildApp({
+      databaseFile: ":memory:",
+      uploadDir: "uploads-test",
+      cookieSecure: true
+    });
+
+    const setup = await app.inject({
+      method: "POST",
+      url: "/api/auth/setup",
+      payload: { username: "demo-user", password: "test-password-123" }
+    });
+
+    expect(setup.headers["set-cookie"]).toContain("Secure");
+    await app.close();
+  });
 });

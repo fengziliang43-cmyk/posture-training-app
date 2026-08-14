@@ -1,9 +1,7 @@
 import cookie from "@fastify/cookie";
 import multipart from "@fastify/multipart";
-import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance } from "fastify";
 import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
 import { loadConfig, type ServerConfig } from "./config";
 import { openAppDatabase } from "./db";
 import { createRepositories } from "./repositories";
@@ -26,7 +24,7 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
 
   app.addHook("onRequest", (request, reply, done) => {
     const origin = request.headers.origin;
-    if (origin) {
+    if (origin && config.allowedOrigins.includes(origin)) {
       reply.header("Access-Control-Allow-Origin", origin);
       reply.header("Access-Control-Allow-Credentials", "true");
       reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -54,13 +52,8 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
   await mkdir(config.uploadDir, { recursive: true });
   await app.register(cookie, { secret: config.cookieSecret });
   await app.register(multipart);
-  await app.register(fastifyStatic, {
-    root: resolve(config.uploadDir),
-    prefix: "/uploads/",
-    decorateReply: false
-  });
 
-  registerAuthRoutes(app, { db, sessions });
+  registerAuthRoutes(app, { db, sessions, cookieSecure: config.cookieSecure });
   registerCheckinRoutes(app, { repositories, sessions });
   registerPlanRoutes(app, { repositories, sessions });
   registerWorkoutRoutes(app, { repositories, sessions });

@@ -322,14 +322,14 @@ export async function updatePhotoNote(photoId: number, note: string): Promise<{ 
 
 export function describeServerConnectionResult(result: ServerConnectionTestResult): string {
   if (result.ok) {
-    return `Mac server 可以连接。测试地址：${result.url}`;
+    return `训练服务器可以连接。测试地址：${result.url}`;
   }
 
   if (result.status) {
-    return `Mac server 有响应但状态异常：HTTP ${result.status} ${result.statusText ?? ""}。测试地址：${result.url}`;
+    return `训练服务器有响应但状态异常：HTTP ${result.status} ${result.statusText ?? ""}。测试地址：${result.url}`;
   }
 
-  return `Mac server 连接失败：${result.error ?? "未知网络错误"}。测试地址：${result.url}`;
+  return `训练服务器连接失败：${result.error ?? "未知网络错误"}。测试地址：${result.url}`;
 }
 
 export function describeApiError(error: unknown): string {

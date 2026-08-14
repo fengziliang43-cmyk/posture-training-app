@@ -19,6 +19,7 @@ const credentialsSchema = z.object({
 interface AuthRouteContext {
   db: AppDatabase;
   sessions: SessionStore;
+  cookieSecure: boolean;
 }
 
 export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteContext): void {
@@ -44,7 +45,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
 
     const sessionToken = createSessionToken();
     context.sessions.set(sessionToken, result.lastID ?? 0);
-    setSessionCookie(reply, sessionToken);
+    setSessionCookie(reply, sessionToken, context.cookieSecure);
 
     return { user: { id: result.lastID, username: body.username }, sessionToken };
   });
@@ -72,7 +73,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
 
     const sessionToken = createSessionToken();
     context.sessions.set(sessionToken, user.id);
-    setSessionCookie(reply, sessionToken);
+    setSessionCookie(reply, sessionToken, context.cookieSecure);
 
     return { user: { id: user.id, username: user.username }, sessionToken };
   });
@@ -106,10 +107,11 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
   });
 }
 
-function setSessionCookie(reply: FastifyReply, sessionToken: string): void {
+function setSessionCookie(reply: FastifyReply, sessionToken: string, secure: boolean): void {
   reply.setCookie(SESSION_COOKIE_NAME, sessionToken, {
     httpOnly: true,
     sameSite: "lax",
+    secure,
     path: "/"
   });
 }
