@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 APK_SOURCE="$PROJECT_DIR/android/app/build/outputs/apk/debug/app-debug.apk"
 DESKTOP_DIR="$HOME/Desktop/锻体修容APK"
-APK_DEST="$DESKTOP_DIR/锻体修容-新版-debug.apk"
+APK_DEST="$DESKTOP_DIR/姿序-新版-debug.apk"
 
 if [[ ! -f "$APK_SOURCE" ]]; then
   echo "没有找到 APK：$APK_SOURCE"

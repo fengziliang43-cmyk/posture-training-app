@@ -1,17 +1,17 @@
 [中文](README.md) | [English](README_EN.md)
 
-# Posture & Training Companion
+# Zixu
 
-> A local-first personal posture and training planner that brings daily readiness, workouts, posture records, and long-term trends into one low-friction loop.
+> A safety-first, account-isolated posture and training planner that combines onboarding, daily readiness, workouts, posture records, and long-term trends.
 
-![Status](https://img.shields.io/badge/status-MVP%20on%20feature%2Fmvp-2f855a)
-![App](https://img.shields.io/badge/app-PWA%20%2B%20Android%20APK-2563eb)
-![Privacy](https://img.shields.io/badge/privacy-local%20first-7c3aed)
+![Status](https://img.shields.io/badge/status-release%20candidate-2f855a)
+![App](https://img.shields.io/badge/app-PWA%20%2B%20Android%20%2B%20iOS-2563eb)
+![Privacy](https://img.shields.io/badge/privacy-account%20isolated-7c3aed)
 ![Safety](https://img.shields.io/badge/training-safety%20first-d97706)
 
 ## Purpose
 
-This project is a personal, record-oriented training companion. It evaluates daily readiness, suggests a conservative and progressive workout or recovery task, and tracks completion and posture trends over time.
+Zixu is a record-oriented training companion. Onboarding first limits the exercise pool and initial difficulty; daily readiness then selects a conservative workout or recovery task while longer-term feedback drives progression.
 
 Its priorities are fixed:
 
@@ -24,17 +24,14 @@ Safety -> Posture -> Fat loss -> Muscle gain -> Conditioning
 
 ## Current Status
 
-| Branch | Status | Description |
-| --- | --- | --- |
-| `main` | Documentation line | Contains the project rules, design specification, and implementation plan. |
-| `feature/mvp` | Runnable MVP | Contains the PWA, Fastify server, SQLite storage, local photo upload, Android debug APK workflow, and latest UI. |
+The current candidate contains the latest PWA, Fastify and SQLite application, Android/iOS Capacitor projects, onboarding, multi-user isolation, persistent sessions, personal export/deletion, Adaptive V3 planning, and exercise video links. A candidate branch is not evidence of a push, merge, or production deployment.
 
-To inspect or run the application, switch to `feature/mvp`:
+From the candidate directory:
 
 ```bash
-git checkout feature/mvp
-npm install
+npm ci
 npm test
+npm run lint
 npm run build
 ```
 
@@ -58,18 +55,20 @@ Web app:    http://localhost:5173
 Daily status -> Readiness decision -> Train / Deload / Recover -> Check in -> Review trends -> Compare posture
 ```
 
-The first version is designed around:
+The current candidate includes:
 
+- Accounts and onboarding: open registration is controlled by a production release gate; new users complete adult confirmation, goals, equipment, capacity, and limitations first.
 - Daily status: discomfort, energy, available training time, and optional sleep, steps, diet, and weight inputs.
-- Plan generation: template selection based on red flags, discomfort, energy, sleep, time, and weekly progress.
-- Exercise library: pulling, scapular control, core stability, hip and pelvic stability, and recovery work.
+- Plan generation: profile, daily readiness, and historical feedback form three matching layers; red flags always take priority.
+- Exercise library: pulling, scapular control, core stability, lower-body and recovery work with reviewed direct video links.
 - Records: trends, calendar states, training frequency, and exercise progression.
 - Posture: local front, side, and back photo records with manual same-angle comparison.
-- Settings: local server, connection status, reminders, reserved DeepSeek configuration, and backup export.
+- Settings: connection status, reminders, personal export, account deletion, and controlled DeepSeek explanations.
+- Clients: one React codebase for PWA, Android, and iOS.
 
 ## Product Principles
 
-- Local first: training records, photos, and configuration stay on the user's devices by default.
+- Data minimization: runtime data stays in controlled SQLite and file storage, isolated by account; posture photos are optional.
 - Safety first: automatically downgrade the session when readiness is poor.
 - Low friction: keep the essential daily input brief.
 - No diagnosis: support training without replacing medical assessment or treatment.
@@ -83,14 +82,18 @@ The first version is designed around:
 | Frontend | Vite + React + PWA |
 | Backend | Node.js + Fastify |
 | Data | SQLite + local file system |
-| Mobile | Android browser first, then Capacitor APK packaging after stabilization |
-| Access | A local server reached from the phone through a trusted private network |
+| Mobile | Capacitor Android + iOS |
+| Access | Trusted private network for local tests; HTTPS reverse proxy to a loopback-only API in production |
 | AI | DeepSeek for explanations and reviews only; local rules continue to decide training |
 
 ## Documentation
 
 - [Design specification](docs/superpowers/specs/2026-06-11-posture-training-app-design.md)
 - [Implementation plan](docs/superpowers/plans/2026-06-11-posture-training-app-implementation.md)
+- [Registration and onboarding specification](docs/superpowers/specs/2026-08-09-open-registration-onboarding-design.md)
+- [Adaptive V3 specification](docs/superpowers/specs/2026-07-15-adaptive-training-engine-design.md)
+- [Alibaba Cloud runbook](docs/setup/aliyun.md)
+- [Public deployment blockers](docs/setup/public-web-deployment.md)
 - [Project rules](AGENTS.md)
 
 The repository links above use relative paths and do not depend on a local path from any specific computer.
@@ -104,10 +107,10 @@ Do not commit:
 - `.env` files, API keys, tokens, passwords, or other credentials.
 - APKs, build output, caches, or `node_modules/`.
 
-Posture photos should remain on personal devices and must not be sent to third-party AI services. Do not expose the service directly to the public internet; use a trusted private network for remote access. Account passwords must be securely hashed and never stored as plaintext.
+Posture photos must not be sent to third-party AI services. The production API binds only to loopback and is reached through an HTTPS reverse proxy. Passwords use bcrypt hashes, and only SHA-256 token digests are stored for sessions. Production registration remains closed unless `REGISTRATION_ENABLED=true` is explicitly set.
 
 ## Next Steps
 
-- Continue validating the latest APK on a test phone.
-- Refine the Today, Records, and Posture views from actual use.
-- Keep the training rules conservative and do not trade safety for visual or feature complexity.
+- Validate migration, integrity, and rollback on an isolated copy of the production database.
+- Complete candidate tests, builds, privacy scans, and mobile project checks.
+- After compliance and deployment gates are satisfied, separately authorize the GitHub push, `body.liang111.top` DNS, and production release. The root domain remains the site entrance and `quant.liang111.top` remains reserved for the quant project.

@@ -1,35 +1,36 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requireAuthenticatedUserId, type SessionStore } from "../auth";
 import type { AppRepositories } from "../repositories";
+import { isoDateSchema } from "../validation";
 
 interface RecordsRouteContext {
   repositories: AppRepositories;
   sessions: SessionStore;
 }
 
+const recordsQuerySchema = z.object({ date: isoDateSchema.optional() });
+
 export function registerRecordsRoutes(app: FastifyInstance, context: RecordsRouteContext): void {
   app.get("/api/records/summary", async (request, reply) => {
-    const userId = requireAuthenticatedUserId(request, reply, context.sessions);
+    const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
     if (!userId) {
       return;
     }
 
-    const queryDate = getRequestDate(request.query);
-    const date = queryDate ?? (await context.repositories.getLatestCheckin())?.date;
+    const query = recordsQuerySchema.safeParse(request.query ?? {});
+    if (!query.success) {
+      return reply.code(400).send({ error: "invalid query" });
+    }
+
+    const queryDate = query.data.date;
+    const repositories = context.repositories.forUser(userId);
+    const date = queryDate ?? (await repositories.getLatestCheckin())?.date;
     if (!date) {
       return reply.code(404).send({ error: "no records" });
     }
 
-    const summary = await context.repositories.getRecordsSummary(date);
+    const summary = await repositories.getRecordsSummary(date);
     return { summary };
   });
-}
-
-function getRequestDate(query: unknown): string | undefined {
-  if (!query || typeof query !== "object") {
-    return undefined;
-  }
-
-  const value = (query as Record<string, unknown>).date;
-  return typeof value === "string" && value.length > 0 ? value : undefined;
 }

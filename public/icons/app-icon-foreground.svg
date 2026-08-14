@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" role="img" aria-labelledby="title desc">
+  <title id="title">姿序自适应应用图标前景</title>
+  <desc id="desc">为自适应裁切保留安全边距的水墨体态标志</desc>
+  <image href="app-icon-foreground-master.png" width="1000" height="1000" preserveAspectRatio="xMidYMid meet"/>
+</svg>

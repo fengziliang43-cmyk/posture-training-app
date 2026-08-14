@@ -1,3 +1,4 @@
+import type { ExerciseResult } from "../core/types";
 import type { PlanResponse } from "./api";
 
 const OFFLINE_ACTIONS_KEY = "posture-training.offline-actions";
@@ -12,6 +13,7 @@ export interface OfflineWorkoutCompletion {
     completionStatus: string;
     notes?: string;
     lowBackPainAfter?: number;
+    exerciseResults?: ExerciseResult[];
   };
 }
 

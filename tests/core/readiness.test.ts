@@ -52,4 +52,64 @@ describe("evaluateReadiness", () => {
     expect(result.planType).toBe("full");
     expect(result.timeVersion).toBe("compressed");
   });
+
+  it("reduces volume after repeated low completion", () => {
+    const result = evaluateReadiness(baseStatus, {
+      history: {
+        sessions: [
+          {
+            date: "2026-06-10",
+            planType: "full",
+            templateId: "adaptive-balanced",
+            exercises: [],
+            completionStatus: "partial",
+            exerciseResults: []
+          },
+          {
+            date: "2026-06-08",
+            planType: "full",
+            templateId: "adaptive-balanced",
+            exercises: [],
+            completionStatus: "skipped",
+            exerciseResults: []
+          }
+        ]
+      }
+    });
+
+    expect(result.planType).toBe("reduced");
+    expect(result.triggers).toContain("近期训练完成率偏低");
+  });
+
+  it("uses recovery after repeated post-workout pain increases", () => {
+    const result = evaluateReadiness(baseStatus, {
+      history: {
+        sessions: [
+          {
+            date: "2026-06-10",
+            planType: "full",
+            templateId: "adaptive-balanced",
+            exercises: [],
+            completionStatus: "completed",
+            lowBackPainBefore: 2,
+            lowBackPainAfter: 4,
+            exerciseResults: []
+          },
+          {
+            date: "2026-06-08",
+            planType: "full",
+            templateId: "adaptive-balanced",
+            exercises: [],
+            completionStatus: "completed",
+            lowBackPainBefore: 1,
+            lowBackPainAfter: 3,
+            exerciseResults: []
+          }
+        ]
+      }
+    });
+
+    expect(result.planType).toBe("recovery");
+    expect(result.triggers).toContain("近期训练后疼痛反应重复出现");
+  });
 });

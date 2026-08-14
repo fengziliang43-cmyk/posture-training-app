@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import {
   clearDeepSeekApiKey,
+  deleteAccount,
   describeApiError,
   describeServerConnectionResult,
   downloadBackup,
   getApiBaseUrl,
-  getMe,
   getSettings,
+  isNativeClient,
   saveDeepSeekApiKey,
   setApiBaseUrl,
   testDeepSeekConnection,
@@ -21,6 +22,7 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ username, onLogout }: SettingsViewProps) {
+  const nativeClient = isNativeClient();
   const [settings, setSettings] = useState<SettingsRecord>({
     notificationsEnabled: false,
     deepseekEnabled: false,
@@ -31,6 +33,9 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
   const [deepseekApiKeyInput, setDeepseekApiKeyInput] = useState("");
   const [deepseekModel, setDeepseekModel] = useState("deepseek-v4-flash");
   const [saving, setSaving] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
@@ -39,17 +44,16 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
       .then((response) => {
         setSettings(response.settings);
         setDeepseekModel(response.settings.deepseekModel ?? "deepseek-v4-flash");
-      })
+    })
       .catch(() => setError("设置加载失败。"));
     setServerUrlState(getApiBaseUrl());
-    getMe().catch(() => undefined);
   }, []);
 
   async function toggleNotifications(checked: boolean) {
     setSaving(true);
     setError(null);
     try {
-      const response = await updateSettings({ ...settings, notificationsEnabled: checked });
+      const response = await updateSettings({ notificationsEnabled: checked });
       setSettings(response.settings);
     } catch {
       setError("通知设置保存失败。");
@@ -63,7 +67,7 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
     setError(null);
     setInfo(null);
     try {
-      const response = await updateSettings({ ...settings, deepseekEnabled: checked, deepseekModel });
+      const response = await updateSettings({ deepseekEnabled: checked, deepseekModel });
       setSettings(response.settings);
       setInfo(checked ? "DeepSeek 已开启。" : "DeepSeek 已关闭，本地规则仍正常。");
     } catch {
@@ -88,7 +92,7 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
         setError(`地址已保存，但连接失败。${message}`);
       }
     } catch (error) {
-      setError(`训练服务器测试异常：${describeApiError(error)}`);
+      setError(`服务器连接测试异常：${describeApiError(error)}`);
     } finally {
       setSaving(false);
     }
@@ -110,6 +114,21 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
       setInfo("DeepSeek API key 已保存到 Mac 本地。");
     } catch (error) {
       setError(`DeepSeek API key 保存失败：${describeApiError(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveDeepSeekModel() {
+    setSaving(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const response = await updateSettings({ deepseekModel });
+      setSettings(response.settings);
+      setInfo("DeepSeek 模型已保存。");
+    } catch (requestError) {
+      setError(`模型保存失败：${describeApiError(requestError)}`);
     } finally {
       setSaving(false);
     }
@@ -160,7 +179,7 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `锻体修容备份-${new Date().toISOString().slice(0, 10)}.zip`;
+      link.download = `姿序备份-${new Date().toISOString().slice(0, 10)}.zip`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -173,13 +192,33 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
     }
   }
 
+  async function removeAccount() {
+    if (!deletePassword || deleteConfirmation !== username) {
+      setError(`请输入密码，并完整输入账号名 ${username}。`);
+      return;
+    }
+
+    setDeletingAccount(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await deleteAccount(deletePassword, deleteConfirmation);
+      onLogout();
+    } catch (requestError) {
+      setError(`账号注销失败：${describeApiError(requestError)}`);
+      setDeletingAccount(false);
+    }
+  }
+
   const displayName = username;
   const connectionLabel = serverUrl || window.location.origin;
   const aiStatus = settings.deepseekEnabled
     ? settings.deepseekApiKeyConfigured
       ? "已开启"
-      : "缺 key"
+      : "未配置"
     : "本地规则";
+  const deepseekAvailable = settings.deepseekAvailable !== false;
+  const modelOptions = Array.from(new Set(["deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner", deepseekModel]));
 
   return (
     <section className="stack settings-view">
@@ -187,11 +226,11 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
         <div className="mini-head">
           <div>
             <p className="eyebrow">设置</p>
-            <h2>本地与隐私</h2>
+            <h2>账号与隐私</h2>
           </div>
-          <span className="date-pill">本地保存</span>
+          <span className="date-pill">本人数据</span>
         </div>
-        <p>训练记录、照片和 AI key 都留在本机；规则训练不依赖云端判断。</p>
+        <p>训练记录和照片按账号隔离，个人导出只包含你自己的数据。训练计划始终由本地确定性规则生成。</p>
       </div>
 
       {error && <p className="error-text">{error}</p>}
@@ -201,21 +240,21 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
         <article className="settings-status-card">
           <span>账号</span>
           <strong>{displayName}</strong>
-          <p>本地档案</p>
+          <p>本地账号</p>
         </article>
         <article className="settings-status-card">
           <span>连接</span>
-          <strong>{serverUrl ? "Mac" : "本机"}</strong>
+          <strong>{nativeClient ? (serverUrl ? "服务器" : "未配置") : "网站"}</strong>
           <p>{shortConnectionLabel(connectionLabel)}</p>
         </article>
         <article className="settings-status-card">
           <span>AI</span>
-          <strong>{aiStatus}</strong>
-          <p>{settings.deepseekApiKeyConfigured ? "key 已存" : "规则可用"}</p>
+          <strong>{deepseekAvailable ? aiStatus : "本地规则"}</strong>
+          <p>{deepseekAvailable ? (settings.deepseekApiKeyConfigured ? "Key 已配置" : "Key 未配置") : "公开版不收集 Key"}</p>
         </article>
       </div>
 
-      <section className="card setting-panel">
+      {nativeClient && <section className="card setting-panel">
         <div className="mini-head">
           <div>
             <p className="eyebrow">连接</p>
@@ -223,19 +262,19 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
           </div>
           <span className="date-pill">{serverUrl ? "已配置" : "当前设备"}</span>
         </div>
-        <p className="muted">手机和 Mac 在同一网络或 Tailscale 下，用这个地址连接本地服务。</p>
+        <p className="muted">手机 App 测试时填写可访问的服务器地址；iOS 与公开版使用 HTTPS。</p>
         <label className="setting-input">
-          训练服务器地址
+          服务器地址
           <input
             value={serverUrl}
             onChange={(event) => setServerUrlState(event.target.value)}
-            placeholder="http://100.x.x.x:8787"
+            placeholder="https://你的服务器域名"
           />
         </label>
         <button type="button" className="secondary-button" disabled={saving} onClick={() => void saveServerUrl()}>
           保存并测试连接
         </button>
-      </section>
+      </section>}
 
       <section className="card setting-panel">
         <div className="setting-toggle-row">
@@ -256,18 +295,18 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
         </div>
       </section>
 
-      <section className="card setting-panel">
+      {deepseekAvailable && <section className="ai-settings-panel liquid-glass">
         <div className="mini-head">
           <div>
-            <p className="eyebrow">AI 路线</p>
-            <h3 className="section-title">解释与复盘</h3>
+            <p className="eyebrow">DeepSeek</p>
+            <h3 className="section-title">AI 教练解读</h3>
           </div>
           <span className="date-pill">{aiStatus}</span>
         </div>
         <div className="setting-toggle-row compact">
           <div>
-            <strong>DeepSeek 解释</strong>
-            <p className="muted small">训练决策仍由本地规则决定，AI 只解释和复盘。</p>
+            <strong>启用 DeepSeek</strong>
+            <p className="muted small">只解释本地规则已经生成的训练与恢复建议，不改变计划。</p>
           </div>
           <label className="switch-field" aria-label="开启 DeepSeek 解释和复盘">
             <input
@@ -280,35 +319,48 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
           </label>
         </div>
 
+        <div className="ai-privacy-note">
+          <strong>边界很明确</strong>
+          <p>不做医疗诊断；体态照片永不发送给 DeepSeek；API Key 只写入 Mac，手机端不回显任何字符。</p>
+        </div>
+
         <details className="settings-details">
-          <summary>DeepSeek 配置</summary>
+          <summary>配置密钥与模型</summary>
+          <div className="key-status-row">
+            <span>API Key 状态</span>
+            <strong>{settings.deepseekApiKeyConfigured ? "已配置" : "未配置"}</strong>
+          </div>
           <label className="setting-input">
             模型
-            <input
+            <select
               value={deepseekModel}
               onChange={(event) => setDeepseekModel(event.target.value)}
-              placeholder="deepseek-v4-flash"
-            />
+            >
+              {modelOptions.map((model) => <option key={model} value={model}>{model}</option>)}
+            </select>
           </label>
+          <button type="button" className="secondary-button" disabled={saving} onClick={() => void saveDeepSeekModel()}>
+            保存模型
+          </button>
           <label className="setting-input">
-            DeepSeek API key
+            新的 DeepSeek API Key
             <input
               type="password"
               value={deepseekApiKeyInput}
               onChange={(event) => setDeepseekApiKeyInput(event.target.value)}
-              placeholder={settings.deepseekApiKeyConfigured ? "已配置，留空不变" : "粘贴新的 API key"}
+              placeholder={settings.deepseekApiKeyConfigured ? "已配置；仅在更换时输入" : "粘贴 API Key"}
               autoComplete="off"
             />
           </label>
           <div className="button-row">
             <button type="button" className="secondary-button" disabled={saving} onClick={() => void saveDeepSeekKey()}>
-              保存 key
+              保存 Key
             </button>
-            <button type="button" className="secondary-button" disabled={saving} onClick={() => void runDeepSeekTest()}>
+            <button type="button" className="secondary-button" disabled={saving || !settings.deepseekApiKeyConfigured} onClick={() => void runDeepSeekTest()}>
               测试连接
             </button>
-            <button type="button" className="secondary-button" disabled={saving} onClick={() => void clearDeepSeekKey()}>
-              清除 key
+            <button type="button" className="secondary-button danger-button" disabled={saving || !settings.deepseekApiKeyConfigured} onClick={() => void clearDeepSeekKey()}>
+              清除 Key
             </button>
           </div>
         </details>
@@ -317,7 +369,7 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
             最近测试：{settings.deepseekLastTestOk ? "成功" : "失败"} · {settings.deepseekLastTestAt.slice(0, 16)}
           </p>
         )}
-      </section>
+      </section>}
 
       <section className="card setting-panel">
         <div className="mini-head">
@@ -325,13 +377,47 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
             <p className="eyebrow">备份</p>
             <h3 className="section-title">本地导出</h3>
           </div>
-          <span className="date-pill">不含 key</span>
+          <span className="date-pill">不含 Key</span>
         </div>
-        <p className="muted small">导出训练记录和体态照片；DeepSeek API key 默认不进入备份。</p>
+        <p className="muted small">导出仅属于当前账号的训练记录和体态照片；DeepSeek API Key 永不进入导出。</p>
         <button type="button" className="secondary-button" disabled={saving} onClick={() => void exportBackup()}>
           导出本地备份
         </button>
       </section>
+
+      <details className="card setting-panel account-danger-zone">
+        <summary>注销账号与删除数据</summary>
+        <div className="stack compact-stack">
+          <p className="muted small">
+            注销后，当前账号的档案、状态记录、训练记录、设置和体态照片会被永久删除。建议先导出备份。
+          </p>
+          <label className="setting-input">
+            当前密码
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(event) => setDeletePassword(event.target.value)}
+              autoComplete="current-password"
+            />
+          </label>
+          <label className="setting-input">
+            输入账号名 {username} 确认
+            <input
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              autoComplete="off"
+            />
+          </label>
+          <button
+            type="button"
+            className="secondary-button danger-button"
+            disabled={deletingAccount || saving || deleteConfirmation !== username || !deletePassword}
+            onClick={() => void removeAccount()}
+          >
+            {deletingAccount ? "正在注销…" : "永久注销当前账号"}
+          </button>
+        </div>
+      </details>
 
       <button type="button" className="secondary-button logout-button" onClick={onLogout}>
         退出登录

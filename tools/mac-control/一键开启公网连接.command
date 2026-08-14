@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 clear
-echo "锻体修容公网连接"
+echo "姿序公网连接"
 echo "================"
 echo
 
@@ -53,7 +53,7 @@ while true; do
   echo
   read -r -p "按回车继续..." _
   clear
-  echo "锻体修容公网连接"
+  echo "姿序公网连接"
   echo "================"
   echo
 done

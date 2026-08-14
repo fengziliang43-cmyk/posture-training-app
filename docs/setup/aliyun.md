@@ -1,6 +1,8 @@
-# 阿里云轻量应用服务器部署
+# 阿里云轻量应用服务器部署（姿序子域）
 
-本文档用于将个人版姿序训练应用部署到 Ubuntu 24.04 轻量应用服务器。服务仅监听本机 `127.0.0.1:8787`，公网流量统一通过 Nginx 和 HTTPS 进入。
+本文档用于把姿序候选部署到 Ubuntu 24.04 轻量应用服务器。服务仅监听本机 `127.0.0.1:8787`，公网流量统一通过 Nginx 和 HTTPS 进入。域名职责固定为：`liang111.top` 是网站入口，`body.liang111.top` 是姿序，`quant.liang111.top` 是量化。公安联网备案审核期间不修改现有线上 DNS 或页面。
+
+Cloudflare 可以继续托管域名 DNS，不需要迁移 nameserver。首次配置 `body.liang111.top` 时建议先用 **DNS only**，这样 Nginx 的 `$remote_addr`、限流和日志就是访客真实 IP；若以后开启橙云代理，必须先按 Cloudflare 当时的官方 IP 段配置可信 `real_ip`，再复核限流与日志，不能直接信任任意来源传入的 `CF-Connecting-IP`。
 
 ## 生产环境变量
 
@@ -13,10 +15,15 @@ PORT=8787
 DATABASE_FILE=/var/lib/posture-training/app.sqlite
 UPLOAD_DIR=/var/lib/posture-training/uploads
 COOKIE_SECRET=使用 openssl rand -hex 32 生成
-ALLOWED_ORIGINS=https://liang111.top,https://www.liang111.top,capacitor://localhost,http://localhost,https://localhost
+CORS_ORIGINS=https://body.liang111.top,capacitor://localhost,https://localhost
+SECURE_COOKIES=true
+SESSION_TTL_HOURS=720
+PHOTO_MAX_BYTES=10485760
+DEEPSEEK_USER_KEYS_ENABLED=false
+REGISTRATION_ENABLED=false
 ```
 
-该文件权限应为 `600`，数据目录权限应仅授予运行服务的 `admin` 用户。
+该文件权限应为 `600`，数据目录权限应仅授予运行服务的 `admin` 用户。真实随机值只在服务器私密终端生成，不粘贴到聊天、代码、提交或日志。
 
 ## 部署结构
 
@@ -24,11 +31,13 @@ ALLOWED_ORIGINS=https://liang111.top,https://www.liang111.top,capacitor://localh
 - SQLite 和照片：`/var/lib/posture-training`
 - 环境变量：`/etc/posture-training/posture-training.env`
 - systemd：`/etc/systemd/system/posture-training.service`
-- Nginx：`/etc/nginx/sites-available/liang111.top`
+- Nginx：`/etc/nginx/sites-available/body.liang111.top`
 - Nginx 全局限流：`/etc/nginx/conf.d/posture-security.conf`
 - 自动备份：`/usr/local/sbin/posture-backup`、`posture-backup.timer`
 
-首次上线时，必须先在仅本机可访问的 API 上创建唯一用户，再启用公网 Nginx，避免其他人抢先完成首次设置。
+仓库中的 Nginx 候选按 DNS-only 直连来源设计。证书路径必须在证书实际签发后再启用；使用 Cloudflare Origin CA 时，只替换服务器上的证书路径，不把私钥复制进仓库。
+
+生产环境关闭旧版 `/api/auth/setup`。现有数据库会通过兼容迁移保留原账号和数据；首次换版前必须先备份，并在生产数据库的隔离副本上完成迁移、登录、回滚和完整性验证。`REGISTRATION_ENABLED=false` 时现有账号可登录，但新账号注册入口和 API 都关闭。
 
 ## 上线后检查
 
@@ -36,7 +45,7 @@ ALLOWED_ORIGINS=https://liang111.top,https://www.liang111.top,capacitor://localh
 systemctl status posture-training --no-pager
 curl -fsS http://127.0.0.1:8787/api/health
 nginx -t
-curl -I https://liang111.top
+curl -I https://body.liang111.top
 ```
 
 首页底部必须保留 ICP 备案号及工信部链接。公安联网备案通过后，再加入公安备案图标、编号和官方查询链接。
@@ -48,11 +57,11 @@ curl -I https://liang111.top
 - UFW 默认拒绝入站，只放行 `22/tcp`、`80/tcp`、`443/tcp`；应用仅监听 `127.0.0.1:8787`。
 - SSH 仅允许 `admin` 通过密钥登录；禁止 root、密码登录、X11、端口转发和隧道。
 - Fail2ban 监控 `sshd`，10 分钟内失败 5 次后通过 UFW 封禁 1 小时。
-- 登录与首次设置接口按来源 IP 限制为每分钟 5 次；其余 API 为每秒 20 次并限制并发连接。
+- 登录、注册和旧版首次设置接口按来源 IP 限制为每分钟 5 次；其余 API 为每秒 20 次并限制并发连接。
 - HTTPS 响应发送 HSTS、CSP、`nosniff`、禁止嵌入和最小权限策略；API 额外发送 `Cache-Control: no-store`。
 - systemd 服务采用只读系统、独立临时目录、空 capability 集合、禁止命名空间和内核参数访问等沙箱限制。
 - 数据库权限为 `600`，上传目录权限为 `700`，服务环境文件权限为 `600`。
-- 会话仅保存在服务内存中，有效期 7 天，最多保留 100 个；服务重启会使现有登录失效。
+- session 持久化到 SQLite，只保存 token 的 SHA-256 摘要；默认有效期 30 天并与 Cookie `Max-Age` 一致，服务重启后仍可验证。网页 Cookie 使用 `Secure`、`HttpOnly`、`SameSite=Strict`。
 - `unattended-upgrades` 自动安装安全更新；云厂商锁定的 `cloud-init` 不应擅自解除 hold。
 
 对应的可审计配置都保存在 `deploy/`：
@@ -100,8 +109,8 @@ sudo fail2ban-client status sshd
 sudo ss -lntp
 sudo systemd-analyze security posture-training.service --no-pager
 sudo certbot renew --dry-run
-curl -I https://liang111.top
-curl -fsS https://liang111.top/api/health
+curl -I https://body.liang111.top
+curl -fsS https://body.liang111.top/api/health
 ```
 
-预期只有 22、80、443 监听公网地址，8787 只监听 `127.0.0.1`。证书续期模拟、健康检查、首次设置锁定、未登录 401 和备份恢复测试均应定期复验。
+预期只有 22、80、443 监听公网地址，8787 只监听 `127.0.0.1`。证书续期模拟、健康检查、注册闸门关闭、旧版设置接口 404、未登录 401 和备份恢复测试均应定期复验。

@@ -1,11 +1,11 @@
 # Tailscale Setup
 
-This app is designed for private local use. The first version should not be exposed directly to the public internet.
+This app supports private local testing. Tailscale is the preferred remote access path. A temporary Cloudflare Quick Tunnel can be used for short tests through `tools/mac-control/一键开启公网连接.command`, but it should be closed after testing.
 
 ## Devices
 
 1. Install Tailscale on the Mac.
-2. Install Tailscale on the Android phone.
+2. Install Tailscale on the OPPO phone.
 3. Log in to the same Tailscale account on both devices.
 4. Keep the Mac awake while training if the phone needs live sync.
 
@@ -29,7 +29,7 @@ Web app:    http://localhost:5173
 ## Open From The Phone
 
 1. Find the Mac's Tailscale IP in the Tailscale app.
-2. On the Android phone, open:
+2. On the OPPO phone, open:
 
 ```text
 http://<mac-tailscale-ip>:5173

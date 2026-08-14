@@ -2,12 +2,17 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { explainPlan } from "../../core/plan-explanation";
 import { generateDailyPlan } from "../../core/plan-generator";
-import type { AppRepositories } from "../repositories";
+import { hasRedFlag } from "../../core/readiness";
+import type { AppRepositories, StoredPlanRecord } from "../repositories";
 import { requireAuthenticatedUserId, type SessionStore } from "../auth";
+import { isoDateSchema } from "../validation";
+import { getProfile } from "./profile";
 
 const todayPlanSchema = z.object({
-  date: z.string().min(1).optional()
+  date: isoDateSchema.optional()
 });
+
+const planQuerySchema = z.object({ date: isoDateSchema.optional() });
 
 interface PlansRouteContext {
   repositories: AppRepositories;
@@ -16,11 +21,19 @@ interface PlansRouteContext {
 
 export function registerPlanRoutes(app: FastifyInstance, context: PlansRouteContext): void {
   app.post("/api/plans/today", async (request, reply) => {
-    const userId = requireAuthenticatedUserId(request, reply, context.sessions);
+    const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
     if (!userId) {
       return;
     }
 
+    const repositories = context.repositories.forUser(userId);
+    const profile = await getProfile(context.repositories.db, userId);
+    if (!profile?.completedAt) {
+      return reply.code(409).send({
+        error: "onboarding required",
+        code: "ONBOARDING_REQUIRED"
+      });
+    }
     const parsed = todayPlanSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       return reply.code(400).send({ error: "invalid body" });
@@ -28,53 +41,63 @@ export function registerPlanRoutes(app: FastifyInstance, context: PlansRouteCont
 
     const statusDate = parsed.data.date
       ? parsed.data.date
-      : (await context.repositories.getLatestCheckin())?.date;
+      : (await repositories.getLatestCheckin())?.date;
 
     if (!statusDate) {
       return reply.code(400).send({ error: "missing check-in" });
     }
 
-    const status = await context.repositories.getCheckinByDate(statusDate);
+    const status = await repositories.getCheckinByDate(statusDate);
     if (!status) {
       return reply.code(404).send({ error: "check-in not found" });
     }
 
-    const completedMainSessionsThisWeek = await context.repositories.countCompletedMainSessionsThisWeek(
+    const completedMainSessionsThisWeek = await repositories.countCompletedMainSessionsThisWeek(
       status.date
     );
-    const lastTemplateId = await context.repositories.getLastMainTemplateId(status.date);
+    const history = await repositories.getTrainingHistory(status.date);
     const plan = generateDailyPlan({
       status,
       completedMainSessionsThisWeek,
-      lastTemplateId
+      history,
+      profile
     });
 
-    const saved = await context.repositories.savePlan(plan);
-    return { plan: { ...saved, explanation: explainPlan(saved, status) } };
+    const saved = await repositories.savePlan(plan);
+    const visiblePlan = applySafetyOverlay(saved, status, plan);
+    return { plan: { ...visiblePlan, explanation: explainPlan(visiblePlan, status) } };
   });
 
   app.get("/api/plans/today", async (request, reply) => {
-    const userId = requireAuthenticatedUserId(request, reply, context.sessions);
+    const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
     if (!userId) {
       return;
     }
 
-    const date = getRequestDate(request.query);
-    const plan = date ? await context.repositories.getPlanByDate(date) : await context.repositories.getLatestPlan();
+    const repositories = context.repositories.forUser(userId);
+    const query = planQuerySchema.safeParse(request.query ?? {});
+    if (!query.success) {
+      return reply.code(400).send({ error: "invalid query" });
+    }
+
+    const date = query.data.date;
+    const plan = date ? await repositories.getPlanByDate(date) : await repositories.getLatestPlan();
     if (!plan) {
       return reply.code(404).send({ error: "plan not found" });
     }
 
-    const status = await context.repositories.getCheckinByDate(plan.date);
-    return { plan: { ...plan, explanation: explainPlan(plan, status) } };
+    const status = await repositories.getCheckinByDate(plan.date);
+    const visiblePlan = status ? applySafetyOverlay(plan, status) : plan;
+    return { plan: { ...visiblePlan, explanation: explainPlan(visiblePlan, status) } };
   });
 
   app.post("/api/plans/:planId/exercises/:exerciseId/replace", async (request, reply) => {
-    const userId = requireAuthenticatedUserId(request, reply, context.sessions);
+    const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
     if (!userId) {
       return;
     }
 
+    const repositories = context.repositories.forUser(userId);
     const { planId, exerciseId } = request.params as Record<string, string>;
     const parsedPlanId = Number(planId);
     if (!Number.isInteger(parsedPlanId) || parsedPlanId <= 0 || !exerciseId) {
@@ -82,20 +105,22 @@ export function registerPlanRoutes(app: FastifyInstance, context: PlansRouteCont
     }
 
     try {
-      const plan = await context.repositories.replacePlanExercise(parsedPlanId, exerciseId);
-      const status = await context.repositories.getCheckinByDate(plan.date);
-      return { plan: { ...plan, explanation: explainPlan(plan, status) } };
+      const plan = await repositories.replacePlanExercise(parsedPlanId, exerciseId);
+      const status = await repositories.getCheckinByDate(plan.date);
+      const visiblePlan = status ? applySafetyOverlay(plan, status) : plan;
+      return { plan: { ...visiblePlan, explanation: explainPlan(visiblePlan, status) } };
     } catch (error) {
       return reply.code(400).send({ error: error instanceof Error ? error.message : "replace failed" });
     }
   });
 
   app.post("/api/plans/:planId/exercises/:exerciseId/revert", async (request, reply) => {
-    const userId = requireAuthenticatedUserId(request, reply, context.sessions);
+    const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
     if (!userId) {
       return;
     }
 
+    const repositories = context.repositories.forUser(userId);
     const { planId, exerciseId } = request.params as Record<string, string>;
     const parsedPlanId = Number(planId);
     if (!Number.isInteger(parsedPlanId) || parsedPlanId <= 0 || !exerciseId) {
@@ -103,20 +128,40 @@ export function registerPlanRoutes(app: FastifyInstance, context: PlansRouteCont
     }
 
     try {
-      const plan = await context.repositories.revertPlanExercise(parsedPlanId, exerciseId);
-      const status = await context.repositories.getCheckinByDate(plan.date);
-      return { plan: { ...plan, explanation: explainPlan(plan, status) } };
+      const plan = await repositories.revertPlanExercise(parsedPlanId, exerciseId);
+      const status = await repositories.getCheckinByDate(plan.date);
+      const visiblePlan = status ? applySafetyOverlay(plan, status) : plan;
+      return { plan: { ...visiblePlan, explanation: explainPlan(visiblePlan, status) } };
     } catch (error) {
       return reply.code(400).send({ error: error instanceof Error ? error.message : "revert failed" });
     }
   });
 }
 
-function getRequestDate(query: unknown): string | undefined {
-  if (!query || typeof query !== "object") {
-    return undefined;
+function applySafetyOverlay(
+  savedPlan: StoredPlanRecord,
+  status: Parameters<typeof explainPlan>[1],
+  freshlyGenerated?: StoredPlanRecord | ReturnType<typeof generateDailyPlan>
+): StoredPlanRecord {
+  if (!status || !hasRedFlag(status)) {
+    return savedPlan;
+  }
+  if (savedPlan.exercises.length === 0 && savedPlan.safetyMessage?.includes("红旗")) {
+    return savedPlan;
   }
 
-  const value = (query as Record<string, unknown>).date;
-  return typeof value === "string" && value.length > 0 ? value : undefined;
+  const blocked = freshlyGenerated && freshlyGenerated.decision.readinessScore === 0
+    ? freshlyGenerated
+    : generateDailyPlan({
+        status,
+        completedMainSessionsThisWeek: 0,
+        history: { sessions: [] }
+      });
+
+  return {
+    ...savedPlan,
+    ...blocked,
+    id: savedPlan.id,
+    createdAt: savedPlan.createdAt
+  };
 }

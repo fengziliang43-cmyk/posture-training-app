@@ -1,0 +1,39 @@
+# Replace this host before deployment. Caddy obtains and renews HTTPS certificates.
+zixu.example.com {
+  encode zstd gzip
+
+  @api path /api/*
+  handle @api {
+    reverse_proxy 127.0.0.1:8787
+  }
+
+  handle {
+    root * /opt/zixu/current/dist/web
+    try_files {path} /index.html
+    file_server
+  }
+
+  @immutable path /assets/*
+  header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+  @noCache path / /index.html /sw.js /manifest.webmanifest
+  header @noCache Cache-Control "no-cache"
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "no-referrer"
+    Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+    -Server
+  }
+
+  log {
+    output file /var/log/caddy/zixu-access.log {
+      roll_size 20MiB
+      roll_keep 5
+      roll_keep_for 168h
+    }
+    format json
+  }
+}

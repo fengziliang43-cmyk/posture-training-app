@@ -1,4 +1,7 @@
 .superpowers/
+.DS_Store
+.playwright-cli/
+output/playwright/
 .worktrees/
 node_modules/
 dist/
@@ -8,10 +11,13 @@ dist/
 *.log
 data/*.sqlite
 data/*.sqlite-*
-data/*.db
-data/*.db-*
 uploads/*
 !uploads/.gitkeep
 uploads-test/
-backups/
-.DS_Store
+**/xcuserdata/
+DerivedData/
+*.xcarchive
+*.ipa
+*.p12
+*.mobileprovision
+ios/App/Pods/

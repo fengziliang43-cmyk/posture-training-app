@@ -1,5 +1,12 @@
+import { Capacitor } from "@capacitor/core";
 import type { PlanExplanation } from "../core/plan-explanation";
-import type { DailyStatus, GeneratedPlan } from "../core/types";
+import type {
+  DailyStatus,
+  ExerciseResult,
+  GeneratedPlan,
+  PlanDecision,
+  TrainingProfile
+} from "../core/types";
 import type { WeeklyReview } from "../core/weekly-review";
 import {
   cacheTodayPlan,
@@ -11,6 +18,24 @@ import {
 export interface AuthUser {
   id: number;
   username: string;
+  onboardingCompleted: boolean;
+}
+
+export interface RegistrationInput {
+  username: string;
+  password: string;
+  adultConfirmed: boolean;
+  termsAccepted: boolean;
+}
+
+export interface TrainingProfileInput
+  extends Omit<TrainingProfile, "onboardingVersion" | "completedAt"> {
+  adultConfirmed: boolean;
+  healthConsent: boolean;
+}
+
+export interface ProfileResponse {
+  profile: TrainingProfile | null;
 }
 
 export interface DailyCheckinInput extends Omit<DailyStatus, "redFlags"> {
@@ -20,6 +45,10 @@ export interface DailyCheckinInput extends Omit<DailyStatus, "redFlags"> {
 export interface AuthResponse {
   user: AuthUser;
   sessionToken?: string;
+}
+
+export interface AuthCapabilitiesResponse {
+  registrationEnabled: boolean;
 }
 
 export interface CheckinResponse {
@@ -37,6 +66,7 @@ export interface PlanResponse {
 }
 
 export interface WorkoutResponse {
+  queued?: boolean;
   workoutLog: {
     id: number;
     planId: number;
@@ -44,7 +74,12 @@ export interface WorkoutResponse {
     completionStatus: string;
     notes?: string | null;
     lowBackPainAfter?: number | null;
+    exerciseResults?: ExerciseResult[];
   };
+}
+
+export interface RecentCheckinsResponse {
+  checkins: Array<DailyCheckinInput & { id: number; createdAt: string }>;
 }
 
 export interface RecordsSummaryResponse {
@@ -78,6 +113,7 @@ export interface PhotosResponse {
 
 export interface SettingsRecord {
   notificationsEnabled: boolean;
+  deepseekAvailable?: boolean;
   deepseekEnabled: boolean;
   deepseekApiKeyConfigured: boolean;
   deepseekModel: string;
@@ -102,12 +138,26 @@ export interface AiTextResponse {
   explanation?: string;
   summary?: string;
   source: "local" | "deepseek";
+  fallbackReason?: "disabled" | "not_configured" | "request_failed" | "safety_blocked";
+  generatedAt?: string;
 }
 
 export interface DeepSeekTestResponse {
   ok: boolean;
   checkedAt?: string;
   error?: string;
+}
+
+export class ApiRequestError extends Error {
+  readonly status?: number;
+  readonly retryable: boolean;
+
+  constructor(message: string, options: { status?: number; retryable: boolean }) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = options.status;
+    this.retryable = options.retryable;
+  }
 }
 
 const API_BASE_URL_KEY = "posture-training.api-base-url";
@@ -165,10 +215,23 @@ export async function getMe(): Promise<AuthResponse> {
   return apiRequest<AuthResponse>("/api/auth/me");
 }
 
+export async function getAuthCapabilities(): Promise<AuthCapabilitiesResponse> {
+  return apiRequest<AuthCapabilitiesResponse>("/api/auth/capabilities");
+}
+
 export async function login(username: string, password: string): Promise<AuthResponse> {
   const response = await apiRequest<AuthResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ username, password })
+  });
+  storeAuthToken(response.sessionToken);
+  return response;
+}
+
+export async function register(input: RegistrationInput): Promise<AuthResponse> {
+  const response = await apiRequest<AuthResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(input)
   });
   storeAuthToken(response.sessionToken);
   return response;
@@ -191,6 +254,25 @@ export async function logout(): Promise<void> {
   }
 }
 
+export async function deleteAccount(password: string, confirmation: string): Promise<void> {
+  await apiRequest("/api/account", {
+    method: "DELETE",
+    body: JSON.stringify({ password, confirmation })
+  });
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+export async function getProfile(): Promise<ProfileResponse> {
+  return apiRequest<ProfileResponse>("/api/profile");
+}
+
+export async function saveProfile(profile: TrainingProfileInput): Promise<ProfileResponse> {
+  return apiRequest<ProfileResponse>("/api/profile", {
+    method: "PUT",
+    body: JSON.stringify(profile)
+  });
+}
+
 export async function submitCheckin(checkin: DailyCheckinInput): Promise<CheckinResponse> {
   return apiRequest<CheckinResponse>("/api/checkins", {
     method: "POST",
@@ -203,48 +285,87 @@ export async function createTodayPlan(date: string): Promise<PlanResponse> {
     method: "POST",
     body: JSON.stringify({ date })
   });
-  cacheTodayPlan(response);
-  return response;
+  const normalized = normalizePlanResponse(response);
+  cacheTodayPlan(normalized);
+  return normalized;
 }
 
 export async function getTodayPlan(date?: string): Promise<PlanResponse> {
   const query = date ? `?date=${encodeURIComponent(date)}` : "";
 
   try {
-    const response = await apiRequest<PlanResponse>(`/api/plans/today${query}`);
+    const response = normalizePlanResponse(
+      await apiRequest<PlanResponse>(`/api/plans/today${query}`)
+    );
     cacheTodayPlan(response);
     return response;
   } catch (error) {
-    const cached = getCachedTodayPlan(date);
-    if (cached) return cached;
+    if (isRetryableApiError(error)) {
+      const cached = getCachedTodayPlan(date);
+      if (cached) return normalizePlanResponse(cached);
+    }
     throw error;
   }
 }
 
+function normalizePlanResponse(response: PlanResponse): PlanResponse {
+  const raw = response.plan as unknown as Partial<PlanResponsePlan> & {
+    reason?: string;
+    type?: PlanResponsePlan["type"];
+  };
+  const type = raw.type ?? "recovery";
+  const reason = raw.reason ?? "历史计划";
+  const decision: PlanDecision = raw.decision ?? {
+    readinessScore: 50,
+    volumeMultiplier: 1,
+    focusLabel: type === "recovery" ? "历史恢复计划" : "历史训练计划",
+    reasons: [reason],
+    avoidedReasons: [],
+    cycleWeek: 1
+  };
+
+  return {
+    plan: {
+      ...response.plan,
+      algorithmVersion: raw.algorithmVersion ?? "legacy-v1",
+      estimatedMinutes: raw.estimatedMinutes ?? 0,
+      decision
+    }
+  };
+}
+
 export async function replacePlanExercise(planId: number, exerciseId: string): Promise<PlanResponse> {
-  return apiRequest<PlanResponse>(`/api/plans/${planId}/exercises/${encodeURIComponent(exerciseId)}/replace`, {
+  const response = await apiRequest<PlanResponse>(`/api/plans/${planId}/exercises/${encodeURIComponent(exerciseId)}/replace`, {
     method: "POST",
     body: JSON.stringify({})
   });
+  return normalizePlanResponse(response);
 }
 
 export async function revertPlanExercise(planId: number, exerciseId: string): Promise<PlanResponse> {
-  return apiRequest<PlanResponse>(`/api/plans/${planId}/exercises/${encodeURIComponent(exerciseId)}/revert`, {
+  const response = await apiRequest<PlanResponse>(`/api/plans/${planId}/exercises/${encodeURIComponent(exerciseId)}/revert`, {
     method: "POST",
     body: JSON.stringify({})
   });
+  return normalizePlanResponse(response);
 }
 
 export async function completeWorkout(
   planId: number,
-  payload: { completionStatus?: string; notes?: string; lowBackPainAfter?: number } = {},
+  payload: {
+    completionStatus?: string;
+    notes?: string;
+    lowBackPainAfter?: number;
+    exerciseResults?: ExerciseResult[];
+  } = {},
   options: { queueOnFailure?: boolean } = {}
 ): Promise<WorkoutResponse> {
   const normalizedPayload = {
     planId,
     completionStatus: payload.completionStatus ?? "completed",
     notes: payload.notes,
-    lowBackPainAfter: payload.lowBackPainAfter
+    lowBackPainAfter: payload.lowBackPainAfter,
+    exerciseResults: payload.exerciseResults
   };
 
   try {
@@ -253,7 +374,7 @@ export async function completeWorkout(
       body: JSON.stringify(normalizedPayload)
     });
   } catch (error) {
-    if (options.queueOnFailure === false) {
+    if (options.queueOnFailure === false || !isRetryableApiError(error)) {
       throw error;
     }
 
@@ -263,6 +384,7 @@ export async function completeWorkout(
     });
 
     return {
+      queued: true,
       workoutLog: {
         id: -1,
         planId,
@@ -287,30 +409,20 @@ export async function getRecordsSummary(date?: string): Promise<RecordsSummaryRe
   return apiRequest<RecordsSummaryResponse>(`/api/records/summary${query}`);
 }
 
+export async function getRecentCheckins(): Promise<RecentCheckinsResponse> {
+  return apiRequest<RecentCheckinsResponse>("/api/checkins/recent");
+}
+
 export async function listPhotos(): Promise<PhotosResponse> {
   return apiRequest<PhotosResponse>("/api/photos");
 }
 
 export async function uploadPhoto(formData: FormData): Promise<{ photo: PhotoRecord }> {
-  const url = apiUrl("/api/photos");
-  let response: Response;
-
-  try {
-    response = await fetchWithTimeout(url, {
-      method: "POST",
-      credentials: "include",
-      headers: authHeaders(),
-      body: formData
-    });
-  } catch (error) {
-    throw new Error(`网络请求失败：${describeApiError(error)}；请求地址：${url}`);
-  }
-
-  if (!response.ok) {
-    throw new Error(`API ${response.status}；请求地址：${url}`);
-  }
-
-  return response.json() as Promise<{ photo: PhotoRecord }>;
+  return apiRequest<{ photo: PhotoRecord }>("/api/photos", {
+    method: "POST",
+    body: formData,
+    timeoutMs: 30000
+  });
 }
 
 export async function updatePhotoNote(photoId: number, note: string): Promise<{ photo: PhotoRecord }> {
@@ -320,16 +432,43 @@ export async function updatePhotoNote(photoId: number, note: string): Promise<{ 
   });
 }
 
+export async function downloadPhotoFile(photoId: number): Promise<Blob> {
+  const url = apiUrl(`/api/photos/${photoId}/file`);
+  let response: Response;
+
+  try {
+    response = await fetchWithTimeout(url, {
+      method: "GET",
+      credentials: "include",
+      headers: authHeaders()
+    }, 30000);
+  } catch (error) {
+    throw new ApiRequestError(`网络请求失败：${describeApiError(error)}；请求地址：${url}`, {
+      retryable: true
+    });
+  }
+
+  if (!response.ok) {
+    const detail = await readErrorDetail(response);
+    throw new ApiRequestError(
+      `API ${response.status}${detail ? `：${detail}` : ""}；请求地址：${url}`,
+      { status: response.status, retryable: response.status >= 500 }
+    );
+  }
+
+  return response.blob();
+}
+
 export function describeServerConnectionResult(result: ServerConnectionTestResult): string {
   if (result.ok) {
-    return `训练服务器可以连接。测试地址：${result.url}`;
+    return `服务器可以连接。测试地址：${result.url}`;
   }
 
   if (result.status) {
-    return `训练服务器有响应但状态异常：HTTP ${result.status} ${result.statusText ?? ""}。测试地址：${result.url}`;
+    return `服务器有响应但状态异常：HTTP ${result.status} ${result.statusText ?? ""}。测试地址：${result.url}`;
   }
 
-  return `训练服务器连接失败：${result.error ?? "未知网络错误"}。测试地址：${result.url}`;
+  return `服务器连接失败：${result.error ?? "未知网络错误"}。测试地址：${result.url}`;
 }
 
 export function describeApiError(error: unknown): string {
@@ -360,12 +499,23 @@ async function apiRequest<T>(path: string, init: ApiRequestInit = {}): Promise<T
       headers
     }, timeoutMs);
   } catch (error) {
-    throw new Error(`网络请求失败：${describeApiError(error)}；请求地址：${url}`);
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
+    throw new ApiRequestError(`网络请求失败：${describeApiError(error)}；请求地址：${url}`, {
+      retryable: true
+    });
   }
 
   if (!response.ok) {
     const detail = await readErrorDetail(response);
-    throw new Error(`API ${response.status}${detail ? `：${detail}` : ""}；请求地址：${url}`);
+    throw new ApiRequestError(
+      `API ${response.status}${detail ? `：${detail}` : ""}；请求地址：${url}`,
+      {
+        status: response.status,
+        retryable: response.status === 408 || response.status === 429 || response.status >= 500
+      }
+    );
   }
 
   return response.json() as Promise<T>;
@@ -445,13 +595,22 @@ function toHalfWidth(value: string): string {
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem(AUTH_TOKEN_KEY);
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const headers: Record<string, string> = {};
+  if (isNativeClient()) headers["X-Zixu-Client"] = "native";
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 function storeAuthToken(token?: string): void {
-  if (token) {
+  if (isNativeClient() && token) {
     localStorage.setItem(AUTH_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
   }
+}
+
+export function isNativeClient(): boolean {
+  return Capacitor.isNativePlatform();
 }
 
 export async function getSettings(): Promise<SettingsResponse> {
@@ -510,9 +669,17 @@ export async function downloadBackup(): Promise<Blob> {
     method: "GET",
     credentials: "include",
     headers: authHeaders()
-  });
+  }, 60000);
   if (!response.ok) {
-    throw new Error(`API ${response.status}；请求地址：${url}`);
+    const detail = await readErrorDetail(response);
+    throw new ApiRequestError(
+      `API ${response.status}${detail ? `：${detail}` : ""}；请求地址：${url}`,
+      { status: response.status, retryable: response.status >= 500 }
+    );
   }
   return response.blob();
+}
+
+export function isRetryableApiError(error: unknown): boolean {
+  return error instanceof ApiRequestError && error.retryable;
 }

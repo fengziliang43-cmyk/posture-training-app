@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">锻体修容</string>
-    <string name="title_activity_main">锻体修容</string>
+    <string name="app_name">姿序</string>
+    <string name="title_activity_main">姿序</string>
     <string name="package_name">local.posture.training</string>
     <string name="custom_url_scheme">local.posture.training</string>
 </resources>

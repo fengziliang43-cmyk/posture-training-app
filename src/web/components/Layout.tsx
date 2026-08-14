@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { SiteFooter } from "./SiteFooter";
 
 export type AppTab = "today" | "records" | "posture" | "settings";
 
@@ -26,16 +25,14 @@ export function Layout({ activeTab, username, children, onTabChange }: LayoutPro
         <div className="brand-lockup">
           <span className="app-mark" aria-hidden="true">锻</span>
           <div className="brand-copy">
-            <strong>姿序个人训练</strong>
-            <span>状态档案型教练</span>
+            <strong>姿序</strong>
+            <span>体态训练与状态教练</span>
           </div>
         </div>
         <div className="user-pill">{displayName}</div>
       </header>
 
       <main className="page-content">{children}</main>
-
-      <SiteFooter />
 
       <nav className="bottom-nav" aria-label="主导航">
         {tabs.map((tab) => (
@@ -45,10 +42,26 @@ export function Layout({ activeTab, username, children, onTabChange }: LayoutPro
             type="button"
             onClick={() => onTabChange(tab.id)}
           >
-            {tab.label}
+            <NavIcon tab={tab.id} />
+            <span>{tab.label}</span>
           </button>
         ))}
       </nav>
     </div>
+  );
+}
+
+function NavIcon({ tab }: { tab: AppTab }) {
+  const path = {
+    today: "M4 10.5h16M7 3v3m10-3v3M6 5h12a2 2 0 0 1 2 2v12H4V7a2 2 0 0 1 2-2Zm2 9 2.2 2.2L16 10.5",
+    records: "M5 19V9m7 10V4m7 15v-6M3 21h18",
+    posture: "M12 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM7 9l5-2 5 2m-5-2v6m0 0-4 8m4-8 4 8",
+    settings: "M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Zm8-3.2 1.3-1.1-1.8-3.1-1.7.6a7 7 0 0 0-1.5-.9L16 5.7h-3.6L12 7.5a7 7 0 0 0-1.5.9l-1.7-.6L7 10.9 8.3 12a7 7 0 0 0 0 1.9L7 15l1.8 3.1 1.7-.6a7 7 0 0 0 1.5.9l.4 1.8H16l.4-1.8a7 7 0 0 0 1.5-.9l1.7.6 1.8-3.1-1.3-1.1a7 7 0 0 0 0-1.9Z"
+  }[tab];
+
+  return (
+    <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={path} />
+    </svg>
   );
 }

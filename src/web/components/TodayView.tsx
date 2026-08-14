@@ -1,7 +1,9 @@
 import type { CSSProperties } from "react";
+import type { ExerciseResult } from "../../core/types";
 import type { DailyCheckinInput, PlanResponsePlan } from "../api";
 import { StatusForm } from "./StatusForm";
 import { TodayPlan } from "./TodayPlan";
+import { AiCoachCard } from "./AiCoachCard";
 
 interface TodayViewProps {
   date: string;
@@ -14,8 +16,9 @@ interface TodayViewProps {
   latestStatus: DailyCheckinInput | null;
   onModeChange: (mode: "overview" | "task") => void;
   onSubmitStatus: (status: DailyCheckinInput) => Promise<void> | void;
-  onFinishWorkout: () => Promise<void> | void;
+  onFinishWorkout: (lowBackPainAfter: number, exerciseResults: ExerciseResult[]) => Promise<void> | void;
   onPlanChange: (plan: PlanResponsePlan) => void;
+  onOpenSettings: () => void;
 }
 
 export function TodayView({
@@ -30,7 +33,8 @@ export function TodayView({
   onModeChange,
   onSubmitStatus,
   onFinishWorkout,
-  onPlanChange
+  onPlanChange,
+  onOpenSettings
 }: TodayViewProps) {
   if (mode === "task") {
     return (
@@ -48,6 +52,22 @@ export function TodayView({
     );
   }
 
+  if (hasSafetyStop(latestStatus, plan)) {
+    return (
+      <section className="stack">
+        <SafetyStopCard latestStatus={latestStatus} message={plan?.safetyMessage} />
+        {error && <p className="error-text">{error}</p>}
+        {info && <p className="success-text">{info}</p>}
+        <StatusUpdateDrawer
+          date={date}
+          loading={loading}
+          latestStatus={latestStatus}
+          onSubmit={onSubmitStatus}
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="stack">
       <TodayOverviewCard
@@ -56,10 +76,94 @@ export function TodayView({
         plan={plan}
         onViewTask={() => onModeChange("task")}
       />
+      <AiCoachCard plan={plan} onOpenSettings={onOpenSettings} />
       {error && <p className="error-text">{error}</p>}
       {info && <p className="success-text">{info}</p>}
-      {!plan && <StatusForm date={date} loading={loading} onSubmit={onSubmitStatus} />}
+      {plan ? (
+        <StatusUpdateDrawer
+          date={date}
+          loading={loading}
+          latestStatus={latestStatus}
+          onSubmit={onSubmitStatus}
+        />
+      ) : (
+        <StatusForm date={date} loading={loading} initialStatus={latestStatus} onSubmit={onSubmitStatus} />
+      )}
     </section>
+  );
+}
+
+function StatusUpdateDrawer({
+  date,
+  loading,
+  latestStatus,
+  onSubmit
+}: {
+  date: string;
+  loading: boolean;
+  latestStatus: DailyCheckinInput | null;
+  onSubmit: (status: DailyCheckinInput) => Promise<void> | void;
+}) {
+  return (
+    <details className="status-drawer update-status-drawer">
+      <summary>更新今日状态或上报不适</summary>
+      <StatusForm
+        date={date}
+        loading={loading}
+        initialStatus={latestStatus}
+        submitLabel="更新状态并重新判断"
+        onSubmit={onSubmit}
+      />
+    </details>
+  );
+}
+
+function SafetyStopCard({
+  latestStatus,
+  message
+}: {
+  latestStatus: DailyCheckinInput | null;
+  message?: string;
+}) {
+  const activeFlags = Object.entries(latestStatus?.redFlags ?? {})
+    .filter(([, active]) => active)
+    .map(([key]) => redFlagLabels[key as keyof NonNullable<DailyCheckinInput["redFlags"]>]);
+  const displayMessage = activeFlags.length > 0
+    ? "当前状态出现红旗症状，今天不提供任何可执行训练。"
+    : message ?? "当前状态出现风险信号，今天不提供任何可执行训练。";
+
+  return (
+    <section className="safety-stop-card card" role="alert">
+      <div className="safety-icon" aria-hidden="true">!</div>
+      <p className="eyebrow">安全优先 · 今日计划已阻断</p>
+      <h2>今天停止训练</h2>
+      <p>{displayMessage}</p>
+      {activeFlags.length > 0 && (
+        <div className="safety-flag-list">
+          {activeFlags.map((flag) => <span key={flag}>{flag}</span>)}
+        </div>
+      )}
+      <div className="safety-advice">
+        <strong>现在怎么做</strong>
+        <p>停止负重、弯腰扭转和冲击动作；尽快联系医生做专业评估。若症状突然加重或出现大小便异常，请及时就医。</p>
+      </div>
+      <p className="muted small">这里不会生成 AI 解读或替代训练，避免把风险信号包装成可继续执行的建议。</p>
+    </section>
+  );
+}
+
+const redFlagLabels: Record<keyof NonNullable<DailyCheckinInput["redFlags"]>, string> = {
+  legNumbness: "腿麻或持续刺痛",
+  radiatingPain: "放射痛",
+  weakness: "明显无力",
+  bowelBladderChange: "大小便异常",
+  sharpSuddenPain: "突发锐痛"
+};
+
+function hasSafetyStop(latestStatus: DailyCheckinInput | null, plan: PlanResponsePlan | null): boolean {
+  return (
+    Object.values(latestStatus?.redFlags ?? {}).some(Boolean) ||
+    plan?.safetyMessage?.includes("红旗") === true
   );
 }
 
@@ -77,19 +181,23 @@ function TodayOverviewCard({
   const lowBackPain = latestStatus?.lowBackPain ?? 2;
   const energy = latestStatus?.energy ?? 4;
   const availableMinutes = latestStatus?.availableMinutes ?? 45;
-  const recoveryScore = Math.max(
+  const hasRedFlags = Object.values(latestStatus?.redFlags ?? {}).some(Boolean);
+  const safetyStop = hasRedFlags || plan?.safetyMessage?.includes("红旗") === true;
+  const recoveryScore = plan?.decision?.readinessScore || Math.max(
     30,
     Math.min(96, 72 + energy * 5 - lowBackPain * 4 + Math.min(8, Math.floor(availableMinutes / 10)))
   );
   const painRisk = Math.min(100, lowBackPain * 10);
-  const load = plan ? (plan.type === "full" ? 58 : plan.type === "reduced" ? 42 : 24) : 34;
+  const load = plan
+    ? Math.min(100, Math.round((plan.estimatedMinutes / Math.max(1, availableMinutes)) * 100))
+    : 34;
 
   return (
     <section className="today-overview-card card">
       <div className="today-hero-head">
         <div>
           <p className="eyebrow">今日</p>
-          <h2>{plan ? "可以练，别硬扛" : "先看状态，再定任务"}</h2>
+          <h2>{safetyStop ? "今天先停训" : plan ? "可以练，别硬扛" : "先看状态，再定任务"}</h2>
         </div>
         <span className="date-pill">{formatDisplayDate(date)}</span>
       </div>
@@ -105,7 +213,11 @@ function TodayOverviewCard({
         <div className="readiness-copy">
           <p className="eyebrow">今日判断</p>
           <h3>{plan ? describeTodayDecision(plan) : "等待生成"}</h3>
-          <p>{plan?.reason ?? "填写腰酸、精神和可训练时间后，生成今天的保守训练任务。"}</p>
+          <p>
+            {safetyStop
+              ? plan?.safetyMessage ?? "出现红旗症状，今天先暂停训练并考虑就医评估。"
+              : plan?.reason ?? "填写腰酸、精神和可训练时间后，生成今天的保守训练任务。"}
+          </p>
           <button type="button" className="primary-button" disabled={!plan} onClick={onViewTask}>
             {plan ? "查看任务" : "先生成任务"}
           </button>
@@ -124,7 +236,7 @@ function TodayOverviewCard({
             <p className="eyebrow">今日状态</p>
             <h3>三项决定强度</h3>
           </div>
-          <span className="date-pill">无红旗</span>
+          <span className="date-pill">{safetyStop ? "有红旗" : "无红旗"}</span>
         </div>
         <SignalBar label="睡眠与精神" value={Math.min(100, energy * 20)} />
         <SignalBar label="腰酸风险" value={painRisk} />

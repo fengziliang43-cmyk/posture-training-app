@@ -1,18 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { trainingTemplates } from "../../core/training-templates";
 import { recommendationLabel } from "../../core/weekly-review";
-import { describeApiError, generateWeeklyReview, getRecordsSummary, type RecordsSummaryResponse } from "../api";
+import {
+  describeApiError,
+  generateWeeklyReview,
+  getRecordsSummary,
+  type AiTextResponse,
+  type RecordsSummaryResponse
+} from "../api";
 
 const templateNameById: Map<string, string> = new Map(
-  trainingTemplates.map((template) => [template.id, template.name])
+  [
+    ...trainingTemplates.map((template) => [template.id, template.name] as const),
+    ["adaptive-balanced", "自适应平衡训练"] as const,
+    ["adaptive-reduced", "自适应降级训练"] as const,
+    ["adaptive-recovery", "自适应恢复日"] as const
+  ]
 );
 
 export function RecordsView() {
   const [summary, setSummary] = useState<RecordsSummaryResponse["summary"] | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [weeklyAiSummary, setWeeklyAiSummary] = useState<string | null>(null);
-  const [weeklyAiInfo, setWeeklyAiInfo] = useState<string | null>(null);
+  const [weeklyAiResult, setWeeklyAiResult] = useState<AiTextResponse | null>(null);
+  const [weeklyAiLoading, setWeeklyAiLoading] = useState(false);
+  const [weeklyAiError, setWeeklyAiError] = useState<string | null>(null);
 
   useEffect(() => {
     getRecordsSummary()
@@ -63,8 +75,6 @@ export function RecordsView() {
       </div>
 
       {error && <p className="error-text">{error}</p>}
-      {weeklyAiInfo && <p className="success-text">{weeklyAiInfo}</p>}
-
       {summary && (
         <>
           <MonthlyStatusCalendar
@@ -96,7 +106,9 @@ export function RecordsView() {
 
           <WeeklyReviewCard
             summary={summary}
-            aiSummary={weeklyAiSummary}
+            aiResult={weeklyAiResult}
+            loading={weeklyAiLoading}
+            error={weeklyAiError}
             onGenerate={() => void handleWeeklyAiSummary(summary.weeklyReview.weekEnd)}
           />
 
@@ -168,49 +180,82 @@ export function RecordsView() {
   );
 
   async function handleWeeklyAiSummary(date: string) {
-    setError(null);
-    setWeeklyAiInfo(null);
+    setWeeklyAiLoading(true);
+    setWeeklyAiError(null);
     try {
       const result = await generateWeeklyReview(date);
-      setWeeklyAiSummary(result.summary ?? "");
-      setWeeklyAiInfo(result.source === "deepseek" ? "AI 周复盘已生成。" : "当前使用本地周复盘。");
-    } catch (error) {
-      setError(`周复盘生成失败：${describeApiError(error)}`);
+      setWeeklyAiResult(result);
+    } catch (requestError) {
+      setWeeklyAiError(describeApiError(requestError));
+    } finally {
+      setWeeklyAiLoading(false);
     }
   }
 }
 
 function WeeklyReviewCard({
   summary,
-  aiSummary,
+  aiResult,
+  loading,
+  error,
   onGenerate
 }: {
   summary: RecordsSummaryResponse["summary"];
-  aiSummary: string | null;
+  aiResult: AiTextResponse | null;
+  loading: boolean;
+  error: string | null;
   onGenerate: () => void;
 }) {
   const review = summary.weeklyReview;
+  const sourceLabel = aiResult?.source === "deepseek" ? "DeepSeek" : "本地规则";
 
   return (
-    <section className="card weekly-review-card">
+    <section className="weekly-review-card liquid-glass" aria-live="polite">
       <div className="mini-head">
         <div>
-          <p className="eyebrow">本周复盘</p>
+          <p className="eyebrow">AI 周复盘</p>
           <h3>{recommendationLabel(review.recommendation)}</h3>
         </div>
-        <button type="button" className="secondary-button compact-button" onClick={onGenerate}>
-          AI 复盘
-        </button>
+        <span className={`source-badge source-${aiResult?.source ?? "local"}`}>{sourceLabel}</span>
       </div>
-      <p>{aiSummary ?? review.summary}</p>
+      {loading ? (
+        <div className="ai-skeleton compact" aria-label="正在生成周复盘">
+          <span /><span /><span />
+          <p>正在汇总本周状态…</p>
+        </div>
+      ) : (
+        <p>{error ? `生成失败：${error}` : aiResult?.summary ?? review.summary}</p>
+      )}
+      {aiResult?.source === "local" && (
+        <p className="ai-state-note">
+          {aiResult.fallbackReason === "request_failed"
+            ? "DeepSeek 本次不可用，已自动回退到本地复盘。"
+            : "当前展示本地保守复盘；可启用 DeepSeek 后重新生成。"}
+        </p>
+      )}
       <div className="review-grid">
         <span>主训练 {review.completedMainWorkouts} 次</span>
         <span>最高腰酸 {review.highestLowBackPain ?? "-"} / 10</span>
         <span>平均睡眠 {review.averageSleepHours ?? "-"}h</span>
         <span>平均精神 {review.averageEnergy ?? "-"} / 5</span>
       </div>
+      <div className="ai-card-footer">
+        <div>
+          <strong>只总结，不改规则</strong>
+          <span>{aiResult?.generatedAt ? `更新于 ${formatAiTime(aiResult.generatedAt)}` : "建议始终保持保守"}</span>
+        </div>
+        <button type="button" className="glass-button" disabled={loading} onClick={onGenerate}>
+          {loading ? "生成中" : aiResult || error ? "重新生成" : "生成 AI 周复盘"}
+        </button>
+      </div>
     </section>
   );
+}
+
+function formatAiTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(11, 16);
+  return date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
 }
 
 function MonthlyStatusCalendar({

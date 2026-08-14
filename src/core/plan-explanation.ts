@@ -9,9 +9,16 @@ export interface PlanExplanation {
 
 export function explainPlan(plan: GeneratedPlan, status?: DailyStatus): PlanExplanation {
   const title = describePlanType(plan.type);
+  const adaptiveDetails = plan.algorithmVersion === "legacy-v1"
+    ? ["这是旧版历史计划，暂无 readiness 和预计时长数据。"]
+    : [
+        `预计 ${plan.estimatedMinutes} 分钟，readiness ${plan.decision.readinessScore}/100。`,
+        plan.decision.focusLabel ? `今日重点：${plan.decision.focusLabel}。` : ""
+      ];
   const bullets = [
     plan.reason,
     describeTimeVersion(plan.timeVersion),
+    ...adaptiveDetails,
     describeStatusTrigger(plan, status)
   ].filter((item) => item.length > 0);
   const safetyNote = plan.safetyMessage ?? "训练中腰酸升高、动作变形或出现明显不适时停止。";

@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 clear
-echo "锻体修容控制台"
+echo "姿序控制台"
 echo "================"
 echo
 

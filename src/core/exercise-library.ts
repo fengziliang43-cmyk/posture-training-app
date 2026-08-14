@@ -1,6 +1,13 @@
-import type { Exercise } from "./types";
+import type {
+  Exercise,
+  ExerciseDifficulty,
+  ExerciseEquipment,
+  ExerciseRole,
+  LoadLevel,
+  PlanType
+} from "./types";
 
-export const exerciseLibrary = [
+const baseExerciseLibrary = [
   {
     id: "pull-up",
     name: "引体向上",
@@ -243,4 +250,295 @@ export const exerciseLibrary = [
     replacementId: "ninety-ninety-breathing",
     stopCondition: "腰腿疼痛、麻木、头晕或明显不适时停止。"
   }
-] satisfies Exercise[];
+] as const;
+
+type ExerciseProfile = Pick<
+  Exercise,
+  "roles" | "equipment" | "allowedPlanTypes" | "difficulty" | "load" | "goals" | "progression"
+>;
+
+const defaultLoad: ExerciseProfile["load"] = {
+  lowBack: 1,
+  shoulder: 1,
+  knee: 1,
+  balance: 1,
+  impact: 0
+};
+
+const defaultGoals: ExerciseProfile["goals"] = {
+  posture: 1,
+  strength: 1,
+  fatLoss: 0,
+  conditioning: 0
+};
+
+const defaultProgression: ExerciseProfile["progression"] = {
+  maxSets: 4,
+  minSets: 1
+};
+
+function profile(input: {
+  roles: ExerciseRole[];
+  equipment: ExerciseEquipment[];
+  allowedPlanTypes: PlanType[];
+  difficulty: ExerciseDifficulty;
+  load?: Partial<ExerciseProfile["load"]>;
+  goals?: Partial<ExerciseProfile["goals"]>;
+  progression?: Partial<ExerciseProfile["progression"]>;
+}): ExerciseProfile {
+  return {
+    roles: input.roles,
+    equipment: input.equipment,
+    allowedPlanTypes: input.allowedPlanTypes,
+    difficulty: input.difficulty,
+    load: { ...defaultLoad, ...input.load },
+    goals: { ...defaultGoals, ...input.goals },
+    progression: { ...defaultProgression, ...input.progression }
+  };
+}
+
+const exerciseProfiles: Record<string, ExerciseProfile> = {
+  "pull-up": profile({
+    roles: ["upper-pull"],
+    equipment: ["pull-up-bar", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 3,
+    load: { lowBack: 2, shoulder: 2, balance: 1 },
+    goals: { posture: 2, strength: 3, fatLoss: 1 },
+    progression: { repsStep: 1, maxReps: 8, maxSets: 4 }
+  }),
+  "band-lat-pulldown": profile({
+    roles: ["upper-pull"],
+    equipment: ["resistance-band"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 1,
+    load: { lowBack: 1, shoulder: 1 },
+    goals: { posture: 2, strength: 2, fatLoss: 1 },
+    progression: { repsStep: 2, maxReps: 18, maxSets: 4 }
+  }),
+  "band-row": profile({
+    roles: ["upper-pull", "scapular-control"],
+    equipment: ["resistance-band"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 1,
+    load: { lowBack: 1, shoulder: 1 },
+    goals: { posture: 3, strength: 2, fatLoss: 1 },
+    progression: { repsStep: 2, maxReps: 18, maxSets: 4 }
+  }),
+  "band-face-pull": profile({
+    roles: ["scapular-control"],
+    equipment: ["resistance-band"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 1,
+    load: { lowBack: 0, shoulder: 1 },
+    goals: { posture: 3, strength: 1 },
+    progression: { repsStep: 2, maxReps: 20, maxSets: 4 }
+  }),
+  "band-external-rotation": profile({
+    roles: ["scapular-control"],
+    equipment: ["resistance-band"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 1,
+    load: { lowBack: 0, shoulder: 1 },
+    goals: { posture: 3, strength: 1 },
+    progression: { repsStep: 2, maxReps: 18, maxSets: 3 }
+  }),
+  "prone-ytw": profile({
+    roles: ["scapular-control"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 2,
+    load: { lowBack: 1, shoulder: 1, balance: 1 },
+    goals: { posture: 3, strength: 1 },
+    progression: { repsStep: 1, maxReps: 12, maxSets: 3 }
+  }),
+  "dead-bug": profile({
+    roles: ["core-anti-extension"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 1,
+    load: { lowBack: 1, balance: 1 },
+    goals: { posture: 3, strength: 2 },
+    progression: { repsStep: 1, maxReps: 12, maxSets: 4 }
+  }),
+  "bird-dog": profile({
+    roles: ["core-anti-extension", "core-anti-rotation"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced", "recovery"],
+    difficulty: 1,
+    load: { lowBack: 1, balance: 2 },
+    goals: { posture: 3, strength: 1 },
+    progression: { repsStep: 1, maxReps: 12, maxSets: 3 }
+  }),
+  "side-plank": profile({
+    roles: ["core-anti-rotation"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 2,
+    load: { lowBack: 2, shoulder: 2, balance: 2 },
+    goals: { posture: 3, strength: 2 },
+    progression: { secondsStep: 5, maxSeconds: 40, maxSets: 4 }
+  }),
+  "front-plank": profile({
+    roles: ["core-anti-extension"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 2,
+    load: { lowBack: 2, shoulder: 1 },
+    goals: { posture: 2, strength: 2 },
+    progression: { secondsStep: 5, maxSeconds: 45, maxSets: 4 }
+  }),
+  "pallof-press": profile({
+    roles: ["core-anti-rotation"],
+    equipment: ["resistance-band"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 2,
+    load: { lowBack: 1, balance: 1 },
+    goals: { posture: 3, strength: 2 },
+    progression: { repsStep: 1, maxReps: 14, maxSets: 4 }
+  }),
+  "glute-bridge": profile({
+    roles: ["hip-stability", "lower-body"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced", "recovery"],
+    difficulty: 1,
+    load: { lowBack: 1, balance: 0 },
+    goals: { posture: 3, strength: 2 },
+    progression: { repsStep: 2, maxReps: 18, maxSets: 4 }
+  }),
+  "single-leg-bridge-regressed": profile({
+    roles: ["hip-stability", "lower-body"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 2,
+    load: { lowBack: 1, balance: 2 },
+    goals: { posture: 3, strength: 2 },
+    progression: { repsStep: 1, maxReps: 12, maxSets: 3 }
+  }),
+  "split-squat": profile({
+    roles: ["lower-body", "hip-stability"],
+    equipment: ["bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 2,
+    load: { lowBack: 2, knee: 2, balance: 2 },
+    goals: { posture: 2, strength: 3, fatLoss: 1 },
+    progression: { repsStep: 1, maxReps: 12, maxSets: 4 }
+  }),
+  "step-up": profile({
+    roles: ["lower-body", "hip-stability"],
+    equipment: ["step", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 2,
+    load: { lowBack: 1, knee: 2, balance: 2 },
+    goals: { posture: 2, strength: 3, fatLoss: 2 },
+    progression: { repsStep: 1, maxReps: 14, maxSets: 4 }
+  }),
+  "band-lateral-walk": profile({
+    roles: ["hip-stability"],
+    equipment: ["resistance-band", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 1,
+    load: { lowBack: 1, knee: 1, balance: 1 },
+    goals: { posture: 3, strength: 1 },
+    progression: { repsStep: 2, maxReps: 18, maxSets: 4 }
+  }),
+  "wall-sit": profile({
+    roles: ["lower-body"],
+    equipment: ["wall", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced"],
+    difficulty: 1,
+    load: { lowBack: 1, knee: 2, balance: 0 },
+    goals: { strength: 2, fatLoss: 1 },
+    progression: { secondsStep: 5, maxSeconds: 45, maxSets: 3 }
+  }),
+  "thoracic-extension": profile({
+    roles: ["reset", "mobility"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced", "recovery"],
+    difficulty: 1,
+    load: { lowBack: 1 },
+    goals: { posture: 3 },
+    progression: { secondsStep: 10, maxSeconds: 90, maxSets: 3 }
+  }),
+  "hip-flexor-stretch": profile({
+    roles: ["mobility", "reset"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced", "recovery"],
+    difficulty: 1,
+    load: { lowBack: 1 },
+    goals: { posture: 2 },
+    progression: { secondsStep: 5, maxSeconds: 60, maxSets: 3 }
+  }),
+  "child-pose-breathing": profile({
+    roles: ["reset", "mobility", "cooldown"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced", "recovery"],
+    difficulty: 1,
+    load: { lowBack: 0, knee: 1 },
+    goals: { posture: 2 },
+    progression: { secondsStep: 10, maxSeconds: 90, maxSets: 3 }
+  }),
+  "ninety-ninety-breathing": profile({
+    roles: ["reset", "cooldown"],
+    equipment: ["floor", "bodyweight"],
+    allowedPlanTypes: ["full", "reduced", "recovery"],
+    difficulty: 1,
+    load: { lowBack: 0 },
+    goals: { posture: 2 },
+    progression: { secondsStep: 10, maxSeconds: 90, maxSets: 3 }
+  }),
+  "brisk-walk": profile({
+    roles: ["conditioning", "cooldown"],
+    equipment: ["walking-space"],
+    allowedPlanTypes: ["full", "reduced", "recovery"],
+    difficulty: 1,
+    load: { lowBack: 1, impact: 1 },
+    goals: { fatLoss: 3, conditioning: 3 },
+    progression: { secondsStep: 60, maxSeconds: 1800, maxSets: 1 }
+  })
+};
+
+// Direct, public demonstration pages checked on 2026-08-09. The app's own
+// volume, stop conditions and safety prompts take precedence over third-party copy.
+const exerciseVideoUrls: Record<string, string> = {
+  "pull-up": "https://www.bilibili.com/video/BV1RX8bzeEjp/",
+  "band-lat-pulldown": "https://www.bilibili.com/video/BV1KG1MBjErA/?t=180",
+  "band-row": "https://www.bilibili.com/video/BV1KG1MBjErA/?t=330",
+  "band-face-pull": "https://www.bilibili.com/video/BV12z4y1x7m6/",
+  "band-external-rotation": "https://www.bilibili.com/video/BV19VtSesEYV/",
+  "prone-ytw": "https://www.bilibili.com/video/BV1qf4y1H7yk/",
+  "dead-bug": "https://www.bilibili.com/video/BV1zYL8zTEcV/",
+  "bird-dog": "https://www.bilibili.com/video/BV1bKKVzEEHP/",
+  "side-plank": "https://www.bilibili.com/video/BV1oP4y1Z7ee/",
+  "front-plank": "https://www.bilibili.com/video/BV14w411V7Yj/",
+  "pallof-press": "https://www.bilibili.com/video/BV1XK4y157wo/",
+  "glute-bridge": "https://www.bilibili.com/video/BV17m4y1r7mW/",
+  "single-leg-bridge-regressed": "https://www.bilibili.com/video/BV1ys421T7gZ/",
+  "split-squat": "https://www.bilibili.com/video/BV1fs4y1k7BP/",
+  "step-up": "https://www.bilibili.com/video/BV1xL4y1p7Pb/",
+  "band-lateral-walk": "https://www.bilibili.com/video/BV1XR4y1J7nB/",
+  "wall-sit": "https://www.bilibili.com/video/BV1JV411b7Ws/",
+  "thoracic-extension": "https://www.bilibili.com/video/BV1Ft4y117mq/",
+  "hip-flexor-stretch": "https://www.bilibili.com/video/BV1y8411Y71E/",
+  "child-pose-breathing": "https://www.bilibili.com/video/BV1g3411b71S/",
+  "ninety-ninety-breathing": "https://www.bilibili.com/video/BV1FY4y1p78s/",
+  "brisk-walk": "https://www.bilibili.com/video/BV1dU4y1X7om/"
+};
+
+export const exerciseLibrary: Exercise[] = baseExerciseLibrary.map((exercise) => {
+  const metadata = exerciseProfiles[exercise.id];
+  const videoUrl = exerciseVideoUrls[exercise.id];
+  if (!metadata) {
+    throw new Error(`Missing exercise profile: ${exercise.id}`);
+  }
+  if (!videoUrl) {
+    throw new Error(`Missing exercise video: ${exercise.id}`);
+  }
+  return {
+    ...exercise,
+    coachingNotes: [...exercise.coachingNotes],
+    videoUrl,
+    videoSource: "哔哩哔哩第三方动作示范",
+    ...metadata
+  };
+});

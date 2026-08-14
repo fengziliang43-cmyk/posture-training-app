@@ -31,25 +31,16 @@ describe("server app", () => {
     await app.close();
   });
 
-  it("does not grant CORS access to unknown origins", async () => {
+  it("rejects CORS preflight from an unknown origin", async () => {
     const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
     const response = await app.inject({
       method: "OPTIONS",
       url: "/api/auth/login",
-      headers: { origin: "https://attacker.example" }
+      headers: { origin: "https://untrusted.example", "access-control-request-method": "POST" }
     });
 
-    expect(response.statusCode).toBe(204);
+    expect(response.statusCode).toBe(403);
     expect(response.headers["access-control-allow-origin"]).toBeUndefined();
-
-    await app.close();
-  });
-
-  it("does not expose uploaded files through a public static directory", async () => {
-    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
-    const response = await app.inject({ method: "GET", url: "/uploads/private-photo.jpg" });
-
-    expect(response.statusCode).toBe(404);
 
     await app.close();
   });
@@ -74,6 +65,14 @@ describe("server app", () => {
     });
     expect(checkin.statusCode).toBe(200);
     expect(checkin.json().checkin.date).toBe("2026-06-11");
+
+    const recentCheckins = await app.inject({
+      method: "GET",
+      url: "/api/checkins/recent",
+      headers: { cookie }
+    });
+    expect(recentCheckins.statusCode).toBe(200);
+    expect(recentCheckins.json().checkins[0].date).toBe("2026-06-11");
 
     const plan = await app.inject({
       method: "POST",
@@ -101,6 +100,15 @@ describe("server app", () => {
     });
     expect(workout.statusCode).toBe(200);
 
+    const repeatedWorkout = await app.inject({
+      method: "POST",
+      url: `/api/workouts/${planId}/complete`,
+      headers: { cookie },
+      payload: { completionStatus: "completed", notes: "再次确认", lowBackPainAfter: 2 }
+    });
+    expect(repeatedWorkout.statusCode).toBe(200);
+    expect(repeatedWorkout.json().workoutLog.id).toBe(workout.json().workoutLog.id);
+
     const records = await app.inject({
       method: "GET",
       url: "/api/records/summary?date=2026-06-11",
@@ -123,6 +131,20 @@ describe("server app", () => {
     expect(photo.statusCode).toBe(200);
     expect(photo.json().photo.angle).toBe("front");
 
+    const privatePhotoFile = await app.inject({
+      method: "GET",
+      url: `/api/photos/${photo.json().photo.id}/file`,
+      headers: { cookie }
+    });
+    expect(privatePhotoFile.statusCode).toBe(200);
+    expect(privatePhotoFile.headers["content-type"]).toContain("image/jpeg");
+
+    const publicUploadPath = await app.inject({
+      method: "GET",
+      url: `/uploads/${photo.json().photo.filePath}`
+    });
+    expect(publicUploadPath.statusCode).toBe(404);
+
     const photos = await app.inject({ method: "GET", url: "/api/photos", headers: { cookie } });
     expect(photos.statusCode).toBe(200);
     expect(photos.json().photos.length).toBe(1);
@@ -133,6 +155,64 @@ describe("server app", () => {
 
     await app.close();
   });
+
+  it("validates dates, settings keys, and workout plan ids", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const cookie = await createAuthenticatedCookie(app);
+
+    const invalidDate = await app.inject({
+      method: "POST",
+      url: "/api/checkins",
+      headers: { cookie },
+      payload: {
+        date: "2026-02-30",
+        lowBackPain: 2,
+        energy: 4,
+        availableMinutes: 30
+      }
+    });
+    expect(invalidDate.statusCode).toBe(400);
+
+    const invalidSetting = await app.inject({
+      method: "PUT",
+      url: "/api/settings",
+      headers: { cookie },
+      payload: { unexpectedKey: true }
+    });
+    expect(invalidSetting.statusCode).toBe(400);
+
+    const missingPlan = await app.inject({
+      method: "POST",
+      url: "/api/workouts/999/complete",
+      headers: { cookie },
+      payload: { completionStatus: "completed" }
+    });
+    expect(missingPlan.statusCode).toBe(404);
+
+    await app.close();
+  });
+
+  it("limits posture photo uploads", async () => {
+    const app = await buildApp({
+      databaseFile: ":memory:",
+      uploadDir: "uploads-test",
+      photoMaxBytes: 5
+    });
+    const cookie = await createAuthenticatedCookie(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/photos",
+      headers: {
+        cookie,
+        "content-type": `multipart/form-data; boundary=${multipartBoundary}`
+      },
+      payload: createMultipartPhotoPayload()
+    });
+
+    expect(response.statusCode).toBe(413);
+    await app.close();
+  });
 });
 
 const multipartBoundary = "----codex-test-boundary";
@@ -141,13 +221,13 @@ async function createAuthenticatedCookie(app: Awaited<ReturnType<typeof buildApp
   await app.inject({
     method: "POST",
     url: "/api/auth/setup",
-    payload: { username: "demo-user", password: "test-password-123" }
+    payload: { username: "api-user", password: "test-password-123" }
   });
 
   const login = await app.inject({
     method: "POST",
     url: "/api/auth/login",
-    payload: { username: "demo-user", password: "test-password-123" }
+    payload: { username: "api-user", password: "test-password-123" }
   });
 
   const setCookie = login.headers["set-cookie"];

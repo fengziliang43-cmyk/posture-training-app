@@ -70,9 +70,125 @@ describe("v2 settings and safety", () => {
 
     await app.close();
   });
+
+  it("reports whether an AI explanation came from DeepSeek or a local fallback", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const cookie = await createAuthenticatedCookie(app);
+    await createCheckin(app, cookie);
+    const planResponse = await app.inject({
+      method: "POST",
+      url: "/api/plans/today",
+      headers: { cookie },
+      payload: { date: "2026-06-14" }
+    });
+    const planId = planResponse.json().plan.id;
+
+    const local = await app.inject({
+      method: "POST",
+      url: "/api/ai/daily-explanation",
+      headers: { cookie },
+      payload: { planId }
+    });
+    expect(local.json().source).toBe("local");
+    expect(local.json().fallbackReason).toBe("disabled");
+    expect(local.json().generatedAt).toBeTypeOf("string");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: "今天按原计划保守完成，不适立即停止。" } }] })))
+    );
+    await app.inject({
+      method: "PUT",
+      url: "/api/settings/deepseek-key",
+      headers: { cookie },
+      payload: { apiKey: "test-api-key-placeholder" }
+    });
+
+    const deepseek = await app.inject({
+      method: "POST",
+      url: "/api/ai/daily-explanation",
+      headers: { cookie },
+      payload: { planId }
+    });
+    expect(deepseek.json().source).toBe("deepseek");
+    expect(deepseek.json().explanation).toContain("不适立即停止");
+    expect(deepseek.body).not.toContain("test-api-key-placeholder");
+
+    await app.close();
+  });
 });
 
 describe("v2 plan and photo features", () => {
+  it("preserves completed history but overlays a later red flag as a blocked current plan", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const cookie = await createAuthenticatedCookie(app);
+    await createCheckin(app, cookie);
+
+    const firstPlanResponse = await app.inject({
+      method: "POST",
+      url: "/api/plans/today",
+      headers: { cookie },
+      payload: { date: "2026-06-14" }
+    });
+    const firstPlan = firstPlanResponse.json().plan;
+    expect(firstPlan.type).not.toBe("recovery");
+
+    const completed = await app.inject({
+      method: "POST",
+      url: `/api/workouts/${firstPlan.id}/complete`,
+      headers: { cookie },
+      payload: { completionStatus: "completed", lowBackPainAfter: 3 }
+    });
+    expect(completed.statusCode).toBe(200);
+
+    await app.inject({
+      method: "POST",
+      url: "/api/checkins",
+      headers: { cookie },
+      payload: {
+        date: "2026-06-14",
+        lowBackPain: 4,
+        energy: 3,
+        availableMinutes: 30,
+        redFlags: { legNumbness: true }
+      }
+    });
+
+    const regenerated = await app.inject({
+      method: "POST",
+      url: "/api/plans/today",
+      headers: { cookie },
+      payload: { date: "2026-06-14" }
+    });
+    expect(regenerated.statusCode).toBe(200);
+    expect(regenerated.json().plan.id).toBe(firstPlan.id);
+    expect(regenerated.json().plan.type).toBe("recovery");
+    expect(regenerated.json().plan.exercises).toEqual([]);
+    expect(regenerated.json().plan.decision.readinessScore).toBe(0);
+
+    const storedPlan = await (app as any).repositories.forUser(1).getPlanById(firstPlan.id);
+    expect(storedPlan.type).toBe(firstPlan.type);
+    expect(storedPlan.exercises.length).toBeGreaterThan(0);
+
+    const replacement = await app.inject({
+      method: "POST",
+      url: `/api/plans/${firstPlan.id}/exercises/${firstPlan.exercises[0].exerciseId}/replace`,
+      headers: { cookie },
+      payload: {}
+    });
+    expect(replacement.statusCode).toBe(400);
+    expect(replacement.json().error).toContain("cannot be edited");
+
+    const records = await app.inject({
+      method: "GET",
+      url: "/api/records/summary?date=2026-06-14",
+      headers: { cookie }
+    });
+    expect(records.json().summary.weeklyTrainingCount).toBe(1);
+
+    await app.close();
+  });
+
   it("replaces and reverts a plan exercise through local replacement ids only", async () => {
     const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
     const cookie = await createAuthenticatedCookie(app);
@@ -142,13 +258,13 @@ async function createAuthenticatedCookie(app: Awaited<ReturnType<typeof buildApp
   await app.inject({
     method: "POST",
     url: "/api/auth/setup",
-    payload: { username: "demo-user", password: "test-password-123" }
+    payload: { username: "v2-user", password: "test-password-123" }
   });
 
   const login = await app.inject({
     method: "POST",
     url: "/api/auth/login",
-    payload: { username: "demo-user", password: "test-password-123" }
+    payload: { username: "v2-user", password: "test-password-123" }
   });
 
   const setCookie = login.headers["set-cookie"];

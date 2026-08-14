@@ -1,0 +1,422 @@
+import { useState } from "react";
+import type {
+  AgeRange,
+  ExerciseEquipment,
+  FitnessLevel,
+  FunctionalLimitation,
+  TrainingGoal
+} from "../../core/types";
+import { describeApiError, saveProfile } from "../api";
+
+const goalOptions: Array<{ value: TrainingGoal; label: string }> = [
+  { value: "safe-movement", label: "安全地恢复运动习惯" },
+  { value: "posture", label: "姿势与动作控制" },
+  { value: "fat-loss", label: "减脂" },
+  { value: "strength", label: "增肌与力量" },
+  { value: "conditioning", label: "心肺与体能" }
+];
+
+const equipmentOptions: Array<{ value: ExerciseEquipment; label: string }> = [
+  { value: "bodyweight", label: "徒手" },
+  { value: "floor", label: "瑜伽垫或可躺地面" },
+  { value: "wall", label: "墙面" },
+  { value: "walking-space", label: "可快走空间" },
+  { value: "resistance-band", label: "弹力带" },
+  { value: "pull-up-bar", label: "单杠" },
+  { value: "step", label: "稳固台阶" }
+];
+
+const limitationOptions: Array<{ value: FunctionalLimitation; label: string }> = [
+  { value: "low-back", label: "腰背容易不适" },
+  { value: "shoulder", label: "肩颈或肩关节容易不适" },
+  { value: "knee", label: "膝部容易不适" },
+  { value: "balance", label: "平衡能力较弱" }
+];
+
+interface OnboardingFormState {
+  ageRange: AgeRange;
+  heightCm: string;
+  weightKg: string;
+  fitnessLevel: FitnessLevel;
+  goals: TrainingGoal[];
+  equipment: ExerciseEquipment[];
+  weeklyTrainingDays: number;
+  defaultSessionMinutes: number;
+  canWalk20Minutes: boolean;
+  canChairStand: boolean;
+  canHoldSupport20Seconds: boolean;
+  limitations: FunctionalLimitation[];
+  baselineLowBackPain: string;
+  baselineNeckShoulderPain: string;
+  healthConsent: boolean;
+}
+
+const initialForm: OnboardingFormState = {
+  ageRange: "18-29",
+  heightCm: "",
+  weightKg: "",
+  fitnessLevel: "beginner",
+  goals: ["safe-movement"],
+  equipment: ["bodyweight", "floor", "wall", "walking-space"],
+  weeklyTrainingDays: 3,
+  defaultSessionMinutes: 30,
+  canWalk20Minutes: true,
+  canChairStand: true,
+  canHoldSupport20Seconds: true,
+  limitations: [],
+  baselineLowBackPain: "",
+  baselineNeckShoulderPain: "",
+  healthConsent: false
+};
+
+export function OnboardingView({
+  username,
+  onComplete
+}: {
+  username: string;
+  onComplete: () => void;
+}) {
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState(initialForm);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  function goNext() {
+    setError(null);
+    if (step === 1 && (form.goals.length === 0 || form.equipment.length === 0)) {
+      setError("请至少选择 1 个目标和 1 种可用条件。");
+      return;
+    }
+    setStep((current) => Math.min(2, current + 1));
+  }
+
+  async function submitProfile() {
+    if (!form.healthConsent) {
+      setError("请阅读并同意健康数据说明后继续。");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await saveProfile({
+        adultConfirmed: true,
+        healthConsent: true,
+        ageRange: form.ageRange,
+        heightCm: optionalNumber(form.heightCm),
+        weightKg: optionalNumber(form.weightKg),
+        fitnessLevel: form.fitnessLevel,
+        goals: form.goals,
+        equipment: form.equipment,
+        weeklyTrainingDays: form.weeklyTrainingDays,
+        defaultSessionMinutes: form.defaultSessionMinutes,
+        canWalk20Minutes: form.canWalk20Minutes,
+        canChairStand: form.canChairStand,
+        canHoldSupport20Seconds: form.canHoldSupport20Seconds,
+        limitations: form.limitations,
+        baselineLowBackPain: optionalNumber(form.baselineLowBackPain) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined,
+        baselineNeckShoulderPain: optionalNumber(form.baselineNeckShoulderPain) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined
+      });
+      onComplete();
+    } catch (error) {
+      setError(`建档保存失败：${describeApiError(error)}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="onboarding-screen">
+      <div className="onboarding-shell">
+        <header className="onboarding-progress">
+          <div>
+            <p className="eyebrow">欢迎，{username}</p>
+            <strong>首次建档 · {step + 1}/3</strong>
+          </div>
+          <div className="onboarding-progress-track" aria-label={`建档进度 ${step + 1}/3`}>
+            <span style={{ width: `${((step + 1) / 3) * 100}%` }} />
+          </div>
+        </header>
+
+        <main className="auth-card onboarding-card">
+          {step === 0 && (
+            <section className="onboarding-step">
+              <div>
+                <p className="eyebrow">基础情况</p>
+                <h1>先找到合适的起点</h1>
+                <p className="muted">只收集会影响动作筛选和训练量的信息。身高、体重可不填。</p>
+              </div>
+              <div className="field-grid two-columns">
+                <label>
+                  年龄段
+                  <select
+                    value={form.ageRange}
+                    onChange={(event) => setForm({ ...form, ageRange: event.target.value as AgeRange })}
+                  >
+                    <option value="18-29">18–29 岁</option>
+                    <option value="30-44">30–44 岁</option>
+                    <option value="45-59">45–59 岁</option>
+                    <option value="60+">60 岁及以上</option>
+                  </select>
+                </label>
+                <label>
+                  运动基础
+                  <select
+                    value={form.fitnessLevel}
+                    onChange={(event) => setForm({ ...form, fitnessLevel: event.target.value as FitnessLevel })}
+                  >
+                    <option value="beginner">刚开始 / 停练较久</option>
+                    <option value="regular">每周规律运动</option>
+                    <option value="experienced">有系统训练经验</option>
+                  </select>
+                </label>
+                <label>
+                  身高 cm（可选）
+                  <input
+                    inputMode="decimal"
+                    min="120"
+                    max="230"
+                    type="number"
+                    value={form.heightCm}
+                    onChange={(event) => setForm({ ...form, heightCm: event.target.value })}
+                  />
+                </label>
+                <label>
+                  体重 kg（可选）
+                  <input
+                    inputMode="decimal"
+                    min="30"
+                    max="300"
+                    step="0.1"
+                    type="number"
+                    value={form.weightKg}
+                    onChange={(event) => setForm({ ...form, weightKg: event.target.value })}
+                  />
+                </label>
+              </div>
+            </section>
+          )}
+
+          {step === 1 && (
+            <section className="onboarding-step">
+              <div>
+                <p className="eyebrow">目标与条件</p>
+                <h1>建立你的候选运动库</h1>
+                <p className="muted">先按目标、体能和器械筛选，每天再按状态决定当日动作和训练量。</p>
+              </div>
+              <fieldset className="choice-group">
+                <legend>主要目标（最多 2 项）</legend>
+                <div className="choice-grid">
+                  {goalOptions.map((option) => (
+                    <Choice
+                      key={option.value}
+                      checked={form.goals.includes(option.value)}
+                      label={option.label}
+                      onChange={(checked) => {
+                        if (checked && form.goals.length >= 2) return;
+                        setForm({
+                          ...form,
+                          goals: toggleValue(form.goals, option.value, checked)
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="choice-group">
+                <legend>当前可用条件</legend>
+                <div className="choice-grid">
+                  {equipmentOptions.map((option) => (
+                    <Choice
+                      key={option.value}
+                      checked={form.equipment.includes(option.value)}
+                      label={option.label}
+                      onChange={(checked) => setForm({
+                        ...form,
+                        equipment: toggleValue(form.equipment, option.value, checked)
+                      })}
+                    />
+                  ))}
+                </div>
+              </fieldset>
+              <div className="field-grid two-columns">
+                <label>
+                  每周希望训练
+                  <select
+                    value={form.weeklyTrainingDays}
+                    onChange={(event) => setForm({ ...form, weeklyTrainingDays: Number(event.target.value) })}
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7].map((day) => <option key={day} value={day}>{day} 天</option>)}
+                  </select>
+                </label>
+                <label>
+                  默认单次时长
+                  <select
+                    value={form.defaultSessionMinutes}
+                    onChange={(event) => setForm({ ...form, defaultSessionMinutes: Number(event.target.value) })}
+                  >
+                    {[10, 15, 20, 30, 45, 60].map((minutes) => (
+                      <option key={minutes} value={minutes}>{minutes} 分钟</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </section>
+          )}
+
+          {step === 2 && (
+            <section className="onboarding-step">
+              <div>
+                <p className="eyebrow">安全边界</p>
+                <h1>把不合适的动作先排除</h1>
+                <p className="muted">这些信息用于保守降阶，不用于诊断或治疗。</p>
+              </div>
+              <div className="field-grid">
+                <BooleanSelect
+                  label="能否连续走 20 分钟"
+                  value={form.canWalk20Minutes}
+                  onChange={(value) => setForm({ ...form, canWalk20Minutes: value })}
+                />
+                <BooleanSelect
+                  label="能否不扶手从椅子站起"
+                  value={form.canChairStand}
+                  onChange={(value) => setForm({ ...form, canChairStand: value })}
+                />
+                <BooleanSelect
+                  label="能否稳定支撑 20 秒"
+                  value={form.canHoldSupport20Seconds}
+                  onChange={(value) => setForm({ ...form, canHoldSupport20Seconds: value })}
+                />
+              </div>
+              <fieldset className="choice-group">
+                <legend>平时容易不适或需要更保守的部位（可不选）</legend>
+                <div className="choice-grid">
+                  {limitationOptions.map((option) => (
+                    <Choice
+                      key={option.value}
+                      checked={form.limitations.includes(option.value)}
+                      label={option.label}
+                      onChange={(checked) => setForm({
+                        ...form,
+                        limitations: toggleValue(form.limitations, option.value, checked)
+                      })}
+                    />
+                  ))}
+                </div>
+              </fieldset>
+              <div className="field-grid two-columns">
+                <PainSelect
+                  label="平时腰背不适（可选）"
+                  value={form.baselineLowBackPain}
+                  onChange={(value) => setForm({ ...form, baselineLowBackPain: value })}
+                />
+                <PainSelect
+                  label="平时肩颈不适（可选）"
+                  value={form.baselineNeckShoulderPain}
+                  onChange={(value) => setForm({ ...form, baselineNeckShoulderPain: value })}
+                />
+              </div>
+              <div className="safety-notice">
+                <strong>使用边界</strong>
+                <p>姿序只做运动风险教育和状态匹配，不替代医疗评估。出现麻木、放射痛、明显无力、大小便异常或突发剧痛时，应停止训练并及时就医。</p>
+                <p>动作示范会打开哔哩哔哩第三方页面；视频仅用来看动作，训练量和停止条件以姿序当日任务为准。</p>
+              </div>
+              <label className="check-row consent-row">
+                <input
+                  type="checkbox"
+                  checked={form.healthConsent}
+                  onChange={(event) => setForm({ ...form, healthConsent: event.target.checked })}
+                />
+                <span>我同意将以上健康与训练信息用于个人动作筛选和当日计划匹配。</span>
+              </label>
+            </section>
+          )}
+
+          {error && <p className="error-text">{error}</p>}
+          <div className="button-row onboarding-actions">
+            {step > 0 && (
+              <button className="secondary-button" type="button" disabled={saving} onClick={() => setStep(step - 1)}>
+                上一步
+              </button>
+            )}
+            {step < 2 ? (
+              <button type="button" onClick={goNext}>下一步</button>
+            ) : (
+              <button type="button" disabled={saving} onClick={() => void submitProfile()}>
+                {saving ? "正在匹配" : "建立我的运动库"}
+              </button>
+            )}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function Choice({
+  checked,
+  label,
+  onChange
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className={`choice-card${checked ? " selected" : ""}`}>
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function BooleanSelect({
+  label,
+  value,
+  onChange
+}: {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label>
+      {label}
+      <select value={String(value)} onChange={(event) => onChange(event.target.value === "true")}>
+        <option value="true">可以</option>
+        <option value="false">目前不能 / 不确定</option>
+      </select>
+    </label>
+  );
+}
+
+function PainSelect({
+  label,
+  value,
+  onChange
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label>
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">暂不填写</option>
+        {Array.from({ length: 11 }, (_, score) => (
+          <option key={score} value={score}>{score} / 10</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function toggleValue<T>(values: T[], value: T, checked: boolean): T[] {
+  return checked ? [...new Set([...values, value])] : values.filter((item) => item !== value);
+}
+
+function optionalNumber(value: string): number | undefined {
+  if (value.trim() === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}

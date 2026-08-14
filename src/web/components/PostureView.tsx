@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { listPhotos, updatePhotoNote, uploadPhoto, type PhotoRecord } from "../api";
+import { downloadPhotoFile, listPhotos, updatePhotoNote, uploadPhoto, type PhotoRecord } from "../api";
 import { formatLocalDate } from "../../core/date";
+import { ScoliosisRiskGuide } from "./ScoliosisRiskGuide";
 
 const angles = [
   { value: "front", label: "正面" },
@@ -14,6 +15,7 @@ export function PostureView() {
   const [compareMode, setCompareMode] = useState<"latest" | "month">("latest");
   const [compareBlend, setCompareBlend] = useState(50);
   const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
+  const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -21,11 +23,46 @@ export function PostureView() {
     refreshPhotos();
   }, []);
 
+  useEffect(() => {
+    let disposed = false;
+    const createdUrls: string[] = [];
+
+    async function loadPhotoFiles() {
+      const entries = await Promise.all(
+        photos.map(async (photo) => {
+          try {
+            const blob = await downloadPhotoFile(photo.id);
+            const url = URL.createObjectURL(blob);
+            createdUrls.push(url);
+            return [photo.id, url] as const;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      if (disposed) {
+        createdUrls.forEach((url) => URL.revokeObjectURL(url));
+        return;
+      }
+
+      setPhotoUrls(Object.fromEntries(entries.filter((entry): entry is readonly [number, string] => entry !== null)));
+    }
+
+    void loadPhotoFiles();
+
+    return () => {
+      disposed = true;
+      createdUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [photos]);
+
   const groupedPhotos = useMemo(() => groupPhotosByDate(photos), [photos]);
   const anglePhotos = useMemo(
     () => selectComparisonPhotos(photos.filter((photo) => photo.angle === selectedAngle), compareMode),
     [photos, selectedAngle, compareMode]
   );
+  const comparisonReady = anglePhotos.length >= 2 && anglePhotos.every((photo) => photoUrls[photo.id]);
 
   async function refreshPhotos() {
     try {
@@ -87,6 +124,13 @@ export function PostureView() {
         <p>支持本地上传正面、侧面、背面照片，并按同角度做对比。</p>
       </div>
 
+      <div className="privacy-banner" role="note">
+        <strong>只做人工对比</strong>
+        <span>不做 AI 或医疗诊断；照片只保存在 Mac，不发送给 DeepSeek。</span>
+      </div>
+
+      <ScoliosisRiskGuide />
+
       {error && <p className="error-text">{error}</p>}
 
       <section className="card">
@@ -113,13 +157,13 @@ export function PostureView() {
             本月对比
           </button>
         </div>
-        {anglePhotos.length >= 2 ? (
+        {comparisonReady ? (
           <div className="compare-wrap">
             <div className="compare-stage">
-              <img className="compare-image base" src={photoUrl(anglePhotos[0].id)} alt="" />
+              <img className="compare-image base" src={photoUrls[anglePhotos[0].id]} alt="" />
               <img
                 className="compare-image overlay"
-                src={photoUrl(anglePhotos[1].id)}
+                src={photoUrls[anglePhotos[1].id]}
                 alt=""
                 style={{ opacity: compareBlend / 100 }}
               />
@@ -136,6 +180,8 @@ export function PostureView() {
               {compareMode === "latest" ? "两张最新照片" : "本月第一张和最新照片"}。
             </p>
           </div>
+        ) : anglePhotos.length >= 2 ? (
+          <p className="muted">正在加载照片……</p>
         ) : (
           <p className="muted">先上传同角度两张照片，再开启滑块对比。</p>
         )}
@@ -197,8 +243,14 @@ export function PostureView() {
 
       <section className="card">
         <h3 className="section-title">每周照片组</h3>
-        <div className="photo-group-stack">
-          {groupedPhotos.map((group) => (
+        {groupedPhotos.length === 0 ? (
+          <div className="empty-state">
+            <strong>还没有体态照片</strong>
+            <p>从正面、侧面、背面各拍一张，之后即可按同角度人工对比。</p>
+          </div>
+        ) : (
+          <div className="photo-group-stack">
+            {groupedPhotos.map((group) => (
             <article className="photo-group" key={group.date}>
               <div className="photo-group-head">
                 <strong>{group.date}</strong>
@@ -207,7 +259,11 @@ export function PostureView() {
               <div className="photo-grid">
                 {group.items.map((photo) => (
                   <figure key={photo.id} className="photo-card">
-                    <img src={photoUrl(photo.id)} alt={`${photo.photoDate} ${photo.angle}`} />
+                    {photoUrls[photo.id] ? (
+                      <img src={photoUrls[photo.id]} alt={`${photo.photoDate} ${photo.angle}`} />
+                    ) : (
+                      <div className="photo-loading muted">加载中</div>
+                    )}
                     <figcaption>
                       {photo.angle} · {photo.createdAt.slice(11, 16)}
                     </figcaption>
@@ -237,8 +293,9 @@ export function PostureView() {
                 ))}
               </div>
             </article>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
     </section>
   );
@@ -265,8 +322,4 @@ function groupPhotosByDate(photos: PhotoRecord[]) {
   }
 
   return Array.from(byDate.entries()).map(([date, items]) => ({ date, items }));
-}
-
-function photoUrl(photoId: number): string {
-  return `/api/photos/${photoId}/file`;
 }

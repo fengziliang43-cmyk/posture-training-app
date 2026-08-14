@@ -1,31 +1,39 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { DailyCheckinInput } from "../api";
 
 interface StatusFormProps {
   date: string;
   loading: boolean;
+  initialStatus?: DailyCheckinInput | null;
+  submitLabel?: string;
   onSubmit: (status: DailyCheckinInput) => Promise<void> | void;
 }
 
-const defaultRedFlags = {
-  legNumbness: false,
-  radiatingPain: false,
-  weakness: false,
-  bowelBladderChange: false,
-  sharpSuddenPain: false
-};
+export function StatusForm({ date, loading, initialStatus, submitLabel = "生成今天任务", onSubmit }: StatusFormProps) {
+  const [lowBackPain, setLowBackPain] = useState<number>(initialStatus?.lowBackPain ?? 2);
+  const [energy, setEnergy] = useState<number>(initialStatus?.energy ?? 4);
+  const [availableMinutes, setAvailableMinutes] = useState(initialStatus?.availableMinutes ?? 45);
+  const [neckShoulderPain, setNeckShoulderPain] = useState<number>(initialStatus?.neckShoulderPain ?? 2);
+  const [sleepHours, setSleepHours] = useState(String(initialStatus?.sleepHours ?? 7));
+  const [sleepQuality, setSleepQuality] = useState<number>(initialStatus?.sleepQuality ?? 4);
+  const [steps, setSteps] = useState(String(initialStatus?.steps ?? 3000));
+  const [eatingStatus, setEatingStatus] = useState<"poor" | "normal" | "good">(initialStatus?.eatingStatus ?? "normal");
+  const [weightKg, setWeightKg] = useState(initialStatus?.weightKg === undefined ? "" : String(initialStatus.weightKg));
+  const [redFlags, setRedFlags] = useState(normalizeRedFlags(initialStatus));
 
-export function StatusForm({ date, loading, onSubmit }: StatusFormProps) {
-  const [lowBackPain, setLowBackPain] = useState(2);
-  const [energy, setEnergy] = useState(4);
-  const [availableMinutes, setAvailableMinutes] = useState(45);
-  const [neckShoulderPain, setNeckShoulderPain] = useState(2);
-  const [sleepHours, setSleepHours] = useState("7");
-  const [sleepQuality, setSleepQuality] = useState(4);
-  const [steps, setSteps] = useState("3000");
-  const [eatingStatus, setEatingStatus] = useState<"poor" | "normal" | "good">("normal");
-  const [weightKg, setWeightKg] = useState("");
-  const [redFlags, setRedFlags] = useState(defaultRedFlags);
+  useEffect(() => {
+    if (!initialStatus) return;
+    setLowBackPain(initialStatus.lowBackPain);
+    setEnergy(initialStatus.energy);
+    setAvailableMinutes(initialStatus.availableMinutes);
+    setNeckShoulderPain(initialStatus.neckShoulderPain ?? 2);
+    setSleepHours(String(initialStatus.sleepHours ?? 7));
+    setSleepQuality(initialStatus.sleepQuality ?? 4);
+    setSteps(String(initialStatus.steps ?? 3000));
+    setEatingStatus(initialStatus.eatingStatus ?? "normal");
+    setWeightKg(initialStatus.weightKg === undefined ? "" : String(initialStatus.weightKg));
+    setRedFlags(normalizeRedFlags(initialStatus));
+  }, [initialStatus]);
 
   const redFlagCount = useMemo(() => Object.values(redFlags).filter(Boolean).length, [redFlags]);
 
@@ -189,10 +197,20 @@ export function StatusForm({ date, loading, onSubmit }: StatusFormProps) {
       </details>
 
       <button type="submit" disabled={loading}>
-        {loading ? "生成中" : "生成今天任务"}
+        {loading ? "生成中" : submitLabel}
       </button>
     </form>
   );
+}
+
+function normalizeRedFlags(status?: DailyCheckinInput | null) {
+  return {
+    legNumbness: Boolean(status?.redFlags?.legNumbness),
+    radiatingPain: Boolean(status?.redFlags?.radiatingPain),
+    weakness: Boolean(status?.redFlags?.weakness),
+    bowelBladderChange: Boolean(status?.redFlags?.bowelBladderChange),
+    sharpSuddenPain: Boolean(status?.redFlags?.sharpSuddenPain)
+  };
 }
 
 interface SliderFieldProps {
