@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import {
   completeWorkout,
   createTodayPlan,
-  describeApiError,
+  describeLoginError,
+  describeRegistrationError,
   flushQueuedOfflineActions,
   getAuthCapabilities,
   getMe,
@@ -25,6 +26,8 @@ import { OnboardingView } from "./components/OnboardingView";
 import { SiteFooter } from "./components/SiteFooter";
 import { formatLocalDate } from "../core/date";
 import type { ExerciseResult } from "../core/types";
+
+export const USERNAME_INPUT_PATTERN = "[a-zA-Z0-9_.\\-]+";
 
 export function App() {
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -256,8 +259,8 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
     } catch (error) {
       setError(
         mode === "login"
-          ? `登录失败：${describeApiError(error)}`
-          : `注册失败：${describeApiError(error)}`
+          ? describeLoginError(error)
+          : describeRegistrationError(error)
       );
     } finally {
       setPendingAction(null);
@@ -313,7 +316,7 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
             onChange={(event) => setUsername(event.target.value)}
             minLength={3}
             maxLength={32}
-            pattern="[a-zA-Z0-9_.-]+"
+            pattern={USERNAME_INPUT_PATTERN}
             placeholder="3–32 位英文、数字或 _.-"
             required
           />

@@ -2988,6 +2988,116 @@ label,
   justify-self: stretch;
 }
 
+.app-update-card {
+  gap: 14px;
+}
+
+.update-version-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.update-release-notes,
+.update-status-note {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(177, 168, 225, 0.24);
+  border-radius: 18px;
+  padding: 13px;
+  background: rgba(245, 243, 255, 0.55);
+}
+
+.update-release-notes strong,
+.update-status-note strong {
+  color: var(--ink, #17201d);
+  font-size: 13px;
+}
+
+.update-release-notes ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted-ink, #64726e);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.update-status-note p {
+  margin: 0;
+  color: var(--muted-ink, #64726e);
+  font-size: 12px;
+}
+
+.success-update-note {
+  border-color: rgba(113, 170, 145, 0.28);
+  background: rgba(230, 246, 237, 0.58);
+}
+
+.update-install-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.admin-dashboard {
+  gap: 10px;
+}
+
+.admin-dashboard .setting-panel {
+  gap: 14px;
+}
+
+.admin-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-metric-grid.three-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-metric {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 17px;
+  padding: 12px 10px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.admin-metric span {
+  color: #777281;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.admin-metric strong {
+  color: var(--ink, #17201d);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.traffic-pending-card {
+  border-color: rgba(207, 158, 101, 0.24);
+  background: rgba(255, 248, 237, 0.62);
+}
+
+.admin-generated-at {
+  margin: 0 4px;
+  text-align: center;
+}
+
+@media (max-width: 380px) {
+  .admin-metric-grid.three-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 .rule-card-list {
   display: grid;
   gap: 10px;

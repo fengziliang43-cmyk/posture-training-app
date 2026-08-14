@@ -9,10 +9,11 @@ describe("我的与设置导航", () => {
     expect(mainTabs.map((tab) => tab.id)).toEqual(["today", "records", "posture", "me"]);
   });
 
-  it("keeps low-frequency settings behind four entry rows", () => {
+  it("keeps low-frequency settings behind entry rows", () => {
     expect(settingsMenuEntries.map((entry) => entry.label)).toEqual([
       "DeepSeek AI",
       "训练提醒",
+      "检查更新",
       "账号与隐私",
       "规则与说明"
     ]);

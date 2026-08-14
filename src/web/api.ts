@@ -140,6 +140,27 @@ export interface DeepSeekTestResponse {
   error?: string;
 }
 
+export interface AdminStatsResponse {
+  generatedAt: string;
+  users: {
+    total: number;
+    new7d: number;
+    new30d: number;
+    onboarded: number;
+    active7d: number;
+    active30d: number;
+  };
+  activity: {
+    checkins7d: number;
+    completedWorkouts7d: number;
+    completedWorkoutsTotal: number;
+  };
+  traffic: {
+    available: boolean;
+    provider: "goaccess";
+  };
+}
+
 export class ApiRequestError extends Error {
   readonly status?: number;
   readonly retryable: boolean;
@@ -173,6 +194,10 @@ export async function getMe(): Promise<AuthResponse> {
 
 export async function getAuthCapabilities(): Promise<AuthCapabilitiesResponse> {
   return apiRequest<AuthCapabilitiesResponse>("/api/auth/capabilities");
+}
+
+export async function getAdminStats(): Promise<AdminStatsResponse> {
+  return apiRequest<AdminStatsResponse>("/api/admin/stats");
 }
 
 export async function login(username: string, password: string): Promise<AuthResponse> {
@@ -421,6 +446,41 @@ export function describeApiError(error: unknown): string {
   }
 
   return String(error);
+}
+
+export function describeLoginError(error: unknown): string {
+  if (error instanceof ApiRequestError) {
+    if (error.status === 400 || error.status === 401) {
+      return "账号或密码不正确，请重新检查后再试。";
+    }
+    if (error.status === 429) {
+      return "尝试次数过多，请稍后再登录。";
+    }
+    if (error.retryable) {
+      return "登录服务暂时不可用，请检查网络后再试。";
+    }
+  }
+
+  return "登录服务暂时不可用，请稍后再试。";
+}
+
+export function describeRegistrationError(error: unknown): string {
+  if (error instanceof ApiRequestError) {
+    if (error.status === 409) {
+      return "这个账号名已被使用，请换一个再试。";
+    }
+    if (error.status === 400) {
+      return "注册信息不符合要求，请检查账号、密码和确认选项。";
+    }
+    if (error.status === 429) {
+      return "注册尝试过于频繁，请稍后再试。";
+    }
+    if (error.retryable) {
+      return "注册服务暂时不可用，请检查网络后再试。";
+    }
+  }
+
+  return "注册服务暂时不可用，请稍后再试。";
 }
 
 async function apiRequest<T>(path: string, init: ApiRequestInit = {}): Promise<T> {

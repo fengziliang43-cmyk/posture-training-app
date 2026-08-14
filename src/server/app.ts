@@ -6,6 +6,7 @@ import { assertServerConfig, loadConfig, type ServerConfig } from "./config";
 import { openAppDatabase } from "./db";
 import { createRepositories } from "./repositories";
 import { registerAiRoutes } from "./routes/ai";
+import { registerAdminRoutes } from "./routes/admin";
 import { registerAccountRoutes, retryPendingAccountDeletionCleanup } from "./routes/account";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerBackupRoutes } from "./routes/backup";
@@ -13,6 +14,7 @@ import { registerCheckinRoutes } from "./routes/checkins";
 import { registerPhotoRoutes } from "./routes/photos";
 import { registerPlanRoutes } from "./routes/plans";
 import { registerRecordsRoutes } from "./routes/records";
+import { registerReleaseRoutes } from "./routes/releases";
 import { registerSettingsRoutes } from "./routes/settings";
 import { registerWorkoutRoutes } from "./routes/workouts";
 import { createPersistentSessionStore } from "./auth";
@@ -88,6 +90,8 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
     registrationEnabled: config.registrationEnabled,
     sessionTtlHours: config.sessionTtlHours
   });
+  registerReleaseRoutes(app);
+  registerAdminRoutes(app, { db, sessions });
   registerAccountRoutes(app, {
     db,
     sessions,

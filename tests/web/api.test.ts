@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ApiRequestError,
   DEFAULT_NATIVE_API_BASE_URL,
+  describeLoginError,
+  describeRegistrationError,
   isRetryableApiError,
   normalizeApiBaseUrl,
   resolveApiBaseUrl
@@ -42,5 +44,40 @@ describe("API retry classification", () => {
     expect(isRetryableApiError(new ApiRequestError("offline", { retryable: true }))).toBe(true);
     expect(isRetryableApiError(new ApiRequestError("bad request", { status: 400, retryable: false }))).toBe(false);
     expect(isRetryableApiError(new Error("ordinary error"))).toBe(false);
+  });
+});
+
+describe("认证错误文案", () => {
+  it("turns invalid login credentials into a safe Chinese prompt", () => {
+    const error = new ApiRequestError(
+      "API 401：invalid credentials；请求地址：https://example.test/api/auth/login",
+      { status: 401, retryable: false }
+    );
+
+    const message = describeLoginError(error);
+    expect(message).toBe("账号或密码不正确，请重新检查后再试。");
+    expect(message).not.toMatch(/ApiRequestError|401|invalid credentials|\/api\/auth\/login/);
+  });
+
+  it("gives distinct login feedback for rate limits and network failures", () => {
+    expect(
+      describeLoginError(new ApiRequestError("rate limited", { status: 429, retryable: true }))
+    ).toBe("尝试次数过多，请稍后再登录。");
+    expect(
+      describeLoginError(new ApiRequestError("offline", { retryable: true }))
+    ).toBe("登录服务暂时不可用，请检查网络后再试。");
+  });
+
+  it("turns registration conflicts and invalid input into actionable prompts", () => {
+    expect(
+      describeRegistrationError(
+        new ApiRequestError("username unavailable", { status: 409, retryable: false })
+      )
+    ).toBe("这个账号名已被使用，请换一个再试。");
+    expect(
+      describeRegistrationError(
+        new ApiRequestError("invalid registration", { status: 400, retryable: false })
+      )
+    ).toBe("注册信息不符合要求，请检查账号、密码和确认选项。");
   });
 });

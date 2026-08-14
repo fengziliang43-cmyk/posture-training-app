@@ -1,17 +1,26 @@
 import { useEffect, useState } from "react";
 import type { TrainingProfile } from "../../core/types";
+import { CURRENT_APP_VERSION } from "../../release";
 import {
   clearDeepSeekApiKey,
   deleteAccount,
   describeApiError,
   downloadBackup,
+  getAdminStats,
   getProfile,
   getSettings,
   saveDeepSeekApiKey,
   testDeepSeekConnection,
   updateSettings,
+  type AdminStatsResponse,
   type SettingsRecord
 } from "../api";
+import {
+  checkForAppUpdate,
+  getAppPlatform,
+  refreshWebApp,
+  type AppUpdateResult
+} from "../app-update";
 
 export type MeRoute =
   | "home"
@@ -19,12 +28,15 @@ export type MeRoute =
   | "settings"
   | "deepseek"
   | "notifications"
+  | "updates"
+  | "analytics"
   | "privacy"
   | "rules";
 
 export const settingsMenuEntries = [
   { id: "deepseek", label: "DeepSeek AI" },
   { id: "notifications", label: "训练提醒" },
+  { id: "updates", label: "检查更新" },
   { id: "privacy", label: "账号与隐私" },
   { id: "rules", label: "规则与说明" }
 ] as const;
@@ -58,6 +70,7 @@ export function MeView({
   const [profileLoading, setProfileLoading] = useState(true);
   const [settings, setSettings] = useState<SettingsRecord>(initialSettings);
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [adminStats, setAdminStats] = useState<AdminStatsResponse | null>(null);
   const [deepseekApiKeyInput, setDeepseekApiKeyInput] = useState("");
   const [deepseekModel, setDeepseekModel] = useState("deepseek-v4-flash");
   const [saving, setSaving] = useState(false);
@@ -80,6 +93,10 @@ export function MeView({
       })
       .catch(() => setError("设置加载失败。"))
       .finally(() => setSettingsLoading(false));
+
+    getAdminStats()
+      .then(setAdminStats)
+      .catch(() => setAdminStats(null));
   }, []);
 
   useEffect(() => {
@@ -257,6 +274,14 @@ export function MeView({
             description="DeepSeek、提醒、隐私与规则"
             onClick={() => onRouteChange("settings")}
           />
+          {adminStats && (
+            <EntryButton
+              icon="数"
+              label="运营数据"
+              description="用户、活跃与训练数据"
+              onClick={() => onRouteChange("analytics")}
+            />
+          )}
         </div>
       </section>
     );
@@ -293,8 +318,9 @@ export function MeView({
             description={settings.notificationsEnabled ? "已开启" : "未开启"}
             onClick={() => onRouteChange("notifications")}
           />
-          <EntryButton icon="隐" label={settingsMenuEntries[2].label} description="备份、退出与账号注销" onClick={() => onRouteChange("privacy")} />
-          <EntryButton icon="则" label={settingsMenuEntries[3].label} description="本地规则、AI 与数据边界" onClick={() => onRouteChange("rules")} />
+          <EntryButton icon="新" label={settingsMenuEntries[2].label} description={`当前版本 ${CURRENT_APP_VERSION}`} onClick={() => onRouteChange("updates")} />
+          <EntryButton icon="隐" label={settingsMenuEntries[3].label} description="备份、退出与账号注销" onClick={() => onRouteChange("privacy")} />
+          <EntryButton icon="则" label={settingsMenuEntries[4].label} description="本地规则、AI 与数据边界" onClick={() => onRouteChange("rules")} />
         </div>
       </section>
     );
@@ -346,6 +372,30 @@ export function MeView({
             </label>
           </div>
         </section>
+      </section>
+    );
+  }
+
+  if (route === "updates") {
+    return (
+      <section className="stack me-view">
+        <SubpageHeader title="检查更新" onBack={() => onRouteChange("settings")} />
+        <AppUpdateSettings />
+      </section>
+    );
+  }
+
+  if (route === "analytics") {
+    return (
+      <section className="stack me-view">
+        <SubpageHeader title="运营数据" onBack={() => onRouteChange("home")} />
+        {adminStats ? (
+          <AdminAnalyticsDashboard stats={adminStats} />
+        ) : (
+          <section className="card setting-panel">
+            <p className="muted">无权访问，或运营数据暂时不可用。</p>
+          </section>
+        )}
       </section>
     );
   }
@@ -525,6 +575,174 @@ function ProfileList({
       <div>{values.length > 0 ? values.map((value) => <strong key={value}>{value}</strong>) : <strong>{emptyLabel}</strong>}</div>
     </div>
   );
+}
+
+function AppUpdateSettings() {
+  const [result, setResult] = useState<AppUpdateResult | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  async function runCheck() {
+    setChecking(true);
+    setUpdateError(null);
+    try {
+      setResult(await checkForAppUpdate());
+    } catch {
+      setUpdateError("暂时无法检查更新，请确认网络正常后重试。");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  useEffect(() => {
+    void runCheck();
+  }, []);
+
+  const platform = result?.platform ?? getAppPlatform();
+  const platformLabel = platform === "android" ? "Android" : platform === "ios" ? "iPhone / iPad" : "网页版";
+
+  return (
+    <section className="card setting-panel app-update-card">
+      <div className="mini-head">
+        <div>
+          <p className="eyebrow">{platformLabel}</p>
+          <h3 className="section-title">姿序 {CURRENT_APP_VERSION}</h3>
+        </div>
+        <span className="date-pill">
+          {checking ? "检查中" : result?.updateAvailable ? "有新版" : result ? "已是最新" : "未检查"}
+        </span>
+      </div>
+
+      {checking && <p className="muted">正在向姿序官网检查最新版本…</p>}
+      {updateError && <p className="error-text" role="alert">{updateError}</p>}
+
+      {result && !checking && (
+        <>
+          <div className="update-version-grid">
+            <ProfileValue label="当前版本" value={result.currentVersion} />
+            <ProfileValue label="官网最新版" value={result.latest.version} />
+          </div>
+          <p className="muted small">发布于 {result.latest.publishedAt}</p>
+          <div className="update-release-notes">
+            <strong>本版更新</strong>
+            <ul>
+              {result.latest.releaseNotes.map((note) => <li key={note}>{note}</li>)}
+            </ul>
+          </div>
+
+          {!result.updateAvailable && (
+            <div className="update-status-note success-update-note">
+              <strong>你已在使用最新版</strong>
+              <p>以后仍可随时回到这里主动检查。</p>
+            </div>
+          )}
+
+          {result.updateAvailable && platform === "android" && (
+            <div className="stack compact-stack">
+              {result.installAvailable && result.latest.installUrl ? (
+                <a className="secondary-button update-install-link" href={result.latest.installUrl}>
+                  下载最新版安装包
+                </a>
+              ) : (
+                <button type="button" className="secondary-button" disabled>新版安装包正在准备</button>
+              )}
+              <p className="muted small">下载完成后，Android 会打开系统安装确认；首次安装可能需要允许当前浏览器安装未知应用。姿序不会绕过系统确认。</p>
+            </div>
+          )}
+
+          {result.updateAvailable && platform === "ios" && (
+            <div className="stack compact-stack">
+              {result.installAvailable && result.latest.installUrl ? (
+                <a className="secondary-button update-install-link" href={result.latest.installUrl}>
+                  前往 TestFlight / App Store
+                </a>
+              ) : (
+                <button type="button" className="secondary-button" disabled>iOS 新版正在准备</button>
+              )}
+              <p className="muted small">iOS 版本只通过 TestFlight 或 App Store 更新，不直接下载或侧载 IPA。</p>
+            </div>
+          )}
+
+          {result.updateAvailable && platform === "web" && (
+            <button type="button" className="secondary-button" onClick={() => void refreshWebApp()}>
+              刷新到最新版
+            </button>
+          )}
+        </>
+      )}
+
+      <button type="button" className="secondary-button" disabled={checking} onClick={() => void runCheck()}>
+        {checking ? "正在检查…" : "重新检查"}
+      </button>
+    </section>
+  );
+}
+
+function AdminAnalyticsDashboard({ stats }: { stats: AdminStatsResponse }) {
+  return (
+    <div className="stack admin-dashboard">
+      <section className="card setting-panel">
+        <div className="mini-head">
+          <div>
+            <p className="eyebrow">用户</p>
+            <h3 className="section-title">账号与活跃</h3>
+          </div>
+          <span className="date-pill">仅管理员</span>
+        </div>
+        <div className="admin-metric-grid">
+          <AdminMetric label="有效账号" value={stats.users.total} />
+          <AdminMetric label="已建档" value={stats.users.onboarded} />
+          <AdminMetric label="7 天新增" value={stats.users.new7d} />
+          <AdminMetric label="30 天新增" value={stats.users.new30d} />
+          <AdminMetric label="7 天活跃" value={stats.users.active7d} />
+          <AdminMetric label="30 天活跃" value={stats.users.active30d} />
+        </div>
+      </section>
+
+      <section className="card setting-panel">
+        <p className="eyebrow">训练使用</p>
+        <h3 className="section-title">聚合活动</h3>
+        <div className="admin-metric-grid three-columns">
+          <AdminMetric label="7 天状态记录" value={stats.activity.checkins7d} />
+          <AdminMetric label="7 天完成训练" value={stats.activity.completedWorkouts7d} />
+          <AdminMetric label="累计完成训练" value={stats.activity.completedWorkoutsTotal} />
+        </div>
+      </section>
+
+      <section className="card setting-panel traffic-pending-card">
+        <div className="mini-head">
+          <div>
+            <p className="eyebrow">网站访问</p>
+            <h3 className="section-title">访问统计尚未接入</h3>
+          </div>
+          <span className="date-pill">待配置</span>
+        </div>
+        <p className="muted small">当前数据库没有页面浏览记录，所以这里不显示假 0。服务器授权接入 GoAccess 后，可显示真实访问量、访客趋势和热门页面。</p>
+      </section>
+
+      <p className="muted small admin-generated-at">数据生成于 {formatAdminTimestamp(stats.generatedAt)}；本页只显示聚合数字，不显示账号和健康明细。</p>
+    </div>
+  );
+}
+
+function AdminMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="admin-metric">
+      <span>{label}</span>
+      <strong>{value.toLocaleString("zh-CN")}</strong>
+    </div>
+  );
+}
+
+function formatAdminTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "刚刚";
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
 function DeepSeekSettings({
