@@ -162,6 +162,7 @@ export class ApiRequestError extends Error {
 
 const API_BASE_URL_KEY = "posture-training.api-base-url";
 const AUTH_TOKEN_KEY = "posture-training.auth-token";
+export const DEFAULT_NATIVE_API_BASE_URL = "https://body.liang111.top";
 const API_TIMEOUT_MS = 8000;
 const AI_API_TIMEOUT_MS = 25000;
 const CONNECTION_TEST_TIMEOUT_MS = 5000;
@@ -169,7 +170,13 @@ const CONNECTION_TEST_TIMEOUT_MS = 5000;
 type ApiRequestInit = RequestInit & { timeoutMs?: number };
 
 export function getApiBaseUrl(): string {
-  return localStorage.getItem(API_BASE_URL_KEY) ?? "";
+  return resolveApiBaseUrl(localStorage.getItem(API_BASE_URL_KEY), isNativeClient());
+}
+
+export function resolveApiBaseUrl(storedValue: string | null, nativeClient: boolean): string {
+  const storedUrl = normalizeApiBaseUrl(storedValue ?? "");
+  if (storedUrl) return storedUrl;
+  return nativeClient ? DEFAULT_NATIVE_API_BASE_URL : "";
 }
 
 export function setApiBaseUrl(value: string): string {

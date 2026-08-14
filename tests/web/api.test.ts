@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ApiRequestError, isRetryableApiError, normalizeApiBaseUrl } from "../../src/web/api";
+import {
+  ApiRequestError,
+  DEFAULT_NATIVE_API_BASE_URL,
+  isRetryableApiError,
+  normalizeApiBaseUrl,
+  resolveApiBaseUrl
+} from "../../src/web/api";
 
 describe("normalizeApiBaseUrl", () => {
   it("keeps an explicit http server URL", () => {
@@ -16,6 +22,17 @@ describe("normalizeApiBaseUrl", () => {
     expect(normalizeApiBaseUrl("　ｈｔｔｐ：／／１０．１８７．３５．２２９：８７８７　")).toBe(
       "http://10.187.35.229:8787"
     );
+  });
+});
+
+describe("resolveApiBaseUrl", () => {
+  it("uses the production HTTPS API for a fresh native install", () => {
+    expect(resolveApiBaseUrl(null, true)).toBe(DEFAULT_NATIVE_API_BASE_URL);
+  });
+
+  it("keeps websites on same-origin requests and preserves a native override", () => {
+    expect(resolveApiBaseUrl(null, false)).toBe("");
+    expect(resolveApiBaseUrl("https://test.example/", true)).toBe("https://test.example");
   });
 });
 

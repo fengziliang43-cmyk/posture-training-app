@@ -41,3 +41,11 @@ The current phase is a release-candidate integration on `codex/latest-candidate-
 - Before a candidate commit, run `npm test`, `npm run lint`, `npm run build`, a sensitive-path scan, and a generated-artifact scan.
 - Before a database migration, make a recoverable backup and validate the migration on an isolated copy with `PRAGMA integrity_check` and `PRAGMA foreign_key_check`.
 - Git push, merge, production deployment, DNS changes, registration enablement, and app-store publishing require separate explicit authorization.
+
+## GitHub Source-of-Truth Workflow
+
+- GitHub is the canonical source for application code and reviewable documentation after a commit has been tested, pushed, and read back from the remote.
+- Make changes in a clean local clone or disposable worktree, run the required checks, commit intentionally, then push only with the explicit authorization required above.
+- Do not delete individual tracked source files after pushing; Git would interpret that as a project deletion. A disposable worktree or generated build output may be removed only after remote, production, and artifact verification and separate deletion confirmation.
+- Production deployments must use an exact Git commit or release tag in a new immutable release directory, followed by an atomic switch and a retained rollback target. Do not update production by pulling into a dirty working directory.
+- Runtime databases, uploads, body photos, `.env` files, credentials, signing keys, and private health data remain outside GitHub.

@@ -9,6 +9,7 @@
 - 当前 GitHub 候选使用脱敏开发 Bundle ID `local.posture.training`；它只用于候选工程，不等于现有测试安装包或未来正式发行 ID。公开发行前需选择并注册稳定的反向域名 Bundle ID，并单独评估能否原位更新已有测试 App。
 - 原生端使用 bearer session；服务端已允许 `capacitor://localhost`。
 - iOS 只连接 HTTPS API，不通过全局 App Transport Security 例外放开明文 HTTP。
+- 新安装的原生客户端默认连接 `https://body.liang111.top`；服务器地址仍可在本地联调或恢复测试时覆盖。
 
 ## 2. 本机验收结果与复现流程
 

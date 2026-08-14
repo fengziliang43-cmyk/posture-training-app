@@ -398,7 +398,7 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
                 placeholder="https://你的服务器域名"
               />
             </label>
-            <p className="muted small">手机 App 测试时填写服务器地址；iOS 与公开版使用 HTTPS，网站版自动使用当前域名。</p>
+            <p className="muted small">手机 App 默认连接姿序正式服务器；本地联调时可改为其他地址。iOS 与公开版使用 HTTPS，网站版自动使用当前域名。</p>
           </>
         )}
 

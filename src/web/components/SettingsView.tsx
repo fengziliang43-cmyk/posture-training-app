@@ -262,7 +262,7 @@ export function SettingsView({ username, onLogout }: SettingsViewProps) {
           </div>
           <span className="date-pill">{serverUrl ? "已配置" : "当前设备"}</span>
         </div>
-        <p className="muted">手机 App 测试时填写可访问的服务器地址；iOS 与公开版使用 HTTPS。</p>
+        <p className="muted">手机 App 默认连接姿序正式服务器；本地联调时可改为其他可访问地址，iOS 与公开版使用 HTTPS。</p>
         <label className="setting-input">
           服务器地址
           <input

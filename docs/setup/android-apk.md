@@ -121,6 +121,8 @@ http://100.x.x.x:8787
 
 8. Tap `测试连接`, then log in or use open registration. A new account must finish the three-step profile before generating its first plan.
 
+The public registration build defaults to `https://body.liang111.top`, so a fresh install should show `登录 / 注册` without manual server setup. The server field remains available only for local development or recovery testing.
+
 The phone and Mac should be on the same Tailscale network when accessing the Mac server remotely. If Tailscale is not convenient for a temporary test, use `tools/mac-control/一键开启公网连接.command`, choose `1`, and put the Cloudflare URL shown in the terminal into `Mac server 地址`; choose `2` after testing to close server and tunnel.
 
 Command-line fallback:
