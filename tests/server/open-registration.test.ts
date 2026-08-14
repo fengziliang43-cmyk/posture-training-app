@@ -13,6 +13,43 @@ describe("open registration and onboarding", () => {
     await app.close();
   });
 
+  it("limits registration attempts by client IP even when usernames rotate", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    for (let index = 0; index < 5; index += 1) {
+      const username = `occupied-${index}`;
+      await (app as any).db.run(
+        `INSERT INTO users (username, username_normalized, password_hash)
+         VALUES (?, ?, 'unused-test-hash')`,
+        username,
+        username
+      );
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/register",
+        payload: {
+          username,
+          password: "strong-password-123",
+          adultConfirmed: true,
+          termsAccepted: true
+        }
+      });
+      expect(response.statusCode).toBe(409);
+    }
+
+    const blocked = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        username: "sixth-username",
+        password: "strong-password-123",
+        adultConfirmed: true,
+        termsAccepted: true
+      }
+    });
+    expect(blocked.statusCode).toBe(429);
+    await app.close();
+  });
+
   it("rejects browser origins outside the allowlist", async () => {
     const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
     const response = await app.inject({
@@ -230,6 +267,66 @@ describe("open registration and onboarding", () => {
     await expect(access(photoPath)).rejects.toThrow();
 
     await app.close();
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("retries committed account file cleanup on the next server start", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "zixu-delete-retry-"));
+    const databaseFile = join(tempDir, "app.sqlite");
+    const uploadDir = join(tempDir, "uploads");
+    const firstApp = await buildApp({ databaseFile, uploadDir });
+    const user = await registerAndOnboard(firstApp, "cleanup-retry");
+    const userDir = join(uploadDir, String(user.id));
+    const quarantineDir = join(
+      uploadDir,
+      ".account-deletion",
+      `${user.id}-00000000-0000-4000-8000-000000000000`
+    );
+    await mkdir(userDir, { recursive: true });
+    await mkdir(quarantineDir, { recursive: true });
+    await writeFile(join(userDir, "orphan.jpg"), "orphan");
+    await writeFile(join(quarantineDir, "quarantined.jpg"), "quarantined");
+    await (firstApp as any).db.run("DELETE FROM users WHERE id = ?", user.id);
+    await firstApp.close();
+
+    const secondApp = await buildApp({ databaseFile, uploadDir });
+    await expect(access(userDir)).rejects.toThrow();
+    await expect(access(quarantineDir)).rejects.toThrow();
+    await secondApp.close();
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("restores quarantined photos when account deletion rolled back before commit", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "zixu-delete-rollback-retry-"));
+    const databaseFile = join(tempDir, "app.sqlite");
+    const uploadDir = join(tempDir, "uploads");
+    const firstApp = await buildApp({ databaseFile, uploadDir });
+    const user = await registerAndOnboard(firstApp, "cleanup-rollback-retry");
+    const relativePath = `${user.id}/photo.jpg`;
+    const userDir = join(uploadDir, String(user.id));
+    const quarantineDir = join(
+      uploadDir,
+      ".account-deletion",
+      `${user.id}-00000000-0000-4000-8000-000000000000`
+    );
+    await (firstApp as any).db.run(
+      `INSERT INTO posture_photos (user_id, photo_date, angle, file_path, mime_type)
+       VALUES (?, '2026-08-14', 'front', ?, 'image/jpeg')`,
+      user.id,
+      relativePath
+    );
+    const photo = await (firstApp as any).db.get(
+      "SELECT id FROM posture_photos WHERE user_id = ?",
+      user.id
+    ) as { id: number };
+    await mkdir(quarantineDir, { recursive: true });
+    await writeFile(join(quarantineDir, `${photo.id}-photo.jpg`), "quarantined");
+    await firstApp.close();
+
+    const secondApp = await buildApp({ databaseFile, uploadDir });
+    await expect(access(join(userDir, "photo.jpg"))).resolves.toBeUndefined();
+    await expect(access(quarantineDir)).rejects.toThrow();
+    await secondApp.close();
     await rm(tempDir, { recursive: true, force: true });
   });
 });

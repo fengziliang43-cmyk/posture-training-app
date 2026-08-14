@@ -56,7 +56,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
     }
 
     const usernameNormalized = normalizeUsername(parsed.data.username);
-    if (!registerLimiter.consume(`${request.ip}:${usernameNormalized}`)) {
+    if (!registerLimiter.consume(request.ip)) {
       return reply.code(429).send({ error: "too many attempts" });
     }
 
@@ -251,23 +251,44 @@ async function createLegacyOwnerProfile(db: AppDatabase, userId: number): Promis
   );
 }
 
-class FixedWindowRateLimiter {
+export class FixedWindowRateLimiter {
   private readonly entries = new Map<string, { count: number; resetAt: number }>();
+  private consumeCount = 0;
 
   constructor(
     private readonly limit: number,
-    private readonly windowMs: number
-  ) {}
+    private readonly windowMs: number,
+    private readonly maxEntries = 10_000,
+    private readonly now = Date.now
+  ) {
+    if (limit < 1 || windowMs < 1 || maxEntries < 1) {
+      throw new Error("Rate limiter values must be positive.");
+    }
+  }
 
   consume(key: string): boolean {
-    const now = Date.now();
+    const now = this.now();
     const current = this.entries.get(key);
-    if (!current || current.resetAt <= now) {
-      this.entries.set(key, { count: 1, resetAt: now + this.windowMs });
+    if (current && current.resetAt > now) {
+      if (current.count >= this.limit) return false;
+      current.count += 1;
       return true;
     }
-    if (current.count >= this.limit) return false;
-    current.count += 1;
+
+    if (current) this.entries.delete(key);
+    this.consumeCount += 1;
+    if (this.consumeCount % 64 === 0 || this.entries.size >= this.maxEntries) {
+      this.removeExpiredEntries(now);
+    }
+    if (this.entries.size >= this.maxEntries) return false;
+
+    this.entries.set(key, { count: 1, resetAt: now + this.windowMs });
     return true;
+  }
+
+  private removeExpiredEntries(now: number): void {
+    for (const [key, entry] of this.entries) {
+      if (entry.resetAt <= now) this.entries.delete(key);
+    }
   }
 }

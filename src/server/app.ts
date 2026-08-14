@@ -6,7 +6,7 @@ import { assertServerConfig, loadConfig, type ServerConfig } from "./config";
 import { openAppDatabase } from "./db";
 import { createRepositories } from "./repositories";
 import { registerAiRoutes } from "./routes/ai";
-import { registerAccountRoutes } from "./routes/account";
+import { registerAccountRoutes, retryPendingAccountDeletionCleanup } from "./routes/account";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerBackupRoutes } from "./routes/backup";
 import { registerCheckinRoutes } from "./routes/checkins";
@@ -69,6 +69,7 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
   });
 
   await mkdir(config.uploadDir, { recursive: true });
+  await retryPendingAccountDeletionCleanup(db, config.uploadDir);
   await app.register(cookie, { secret: config.cookieSecret });
   await app.register(multipart, {
     limits: {

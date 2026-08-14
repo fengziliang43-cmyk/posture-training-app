@@ -296,22 +296,19 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
         <h1>姿序</h1>
         <p className="muted">先按你的体能、目标与器械建立运动库，再按当天精力、疼痛和可用时间生成任务。</p>
 
-        <div
-          className={`auth-mode-switch${registrationEnabled ? "" : " login-only"}`}
-          aria-label="登录或注册"
-        >
-          <button
-            className={mode === "login" ? "selected" : ""}
-            type="button"
-            onClick={() => {
-              setMode("login");
-              setError(null);
-              setInfo(null);
-            }}
-          >
-            登录
-          </button>
-          {registrationEnabled && (
+        {registrationEnabled && (
+          <div className="auth-mode-switch" aria-label="登录或注册">
+            <button
+              className={mode === "login" ? "selected" : ""}
+              type="button"
+              onClick={() => {
+                setMode("login");
+                setError(null);
+                setInfo(null);
+              }}
+            >
+              登录
+            </button>
             <button
               className={mode === "register" ? "selected" : ""}
               type="button"
@@ -321,10 +318,10 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
                 setInfo(null);
               }}
             >
-              开放注册
+              注册
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         <label>
           账号

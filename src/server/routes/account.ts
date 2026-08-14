@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
-import { access, mkdir, rename, rm } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { access, mkdir, readdir, rename, rm } from "node:fs/promises";
 import { basename, dirname, resolve, sep } from "node:path";
 import { z } from "zod";
 import {
@@ -57,10 +58,10 @@ export function registerAccountRoutes(app: FastifyInstance, context: AccountRout
     await context.db.exec("BEGIN IMMEDIATE");
     try {
       await context.db.run("UPDATE users SET status = 'deleting' WHERE id = ?", userId);
+      await mkdir(quarantineDir, { recursive: true });
       for (const photo of photos) {
         const source = resolve(uploadRoot, photo.file_path);
         if (!source.startsWith(`${uploadRoot}${sep}`) || !await pathExists(source)) continue;
-        await mkdir(quarantineDir, { recursive: true });
         const target = resolve(quarantineDir, `${photo.id}-${basename(source)}`);
         await rename(source, target);
         movedFiles.push({ from: source, to: target });
@@ -68,19 +69,110 @@ export function registerAccountRoutes(app: FastifyInstance, context: AccountRout
       await context.db.run("DELETE FROM users WHERE id = ?", userId);
       await context.db.exec("COMMIT");
     } catch (error) {
-      await context.db.exec("ROLLBACK");
+      const rollbackErrors: unknown[] = [];
+      await context.db.exec("ROLLBACK").catch((rollbackError) => rollbackErrors.push(rollbackError));
       for (const moved of movedFiles.reverse()) {
-        await mkdir(dirname(moved.from), { recursive: true }).catch(() => undefined);
-        await rename(moved.to, moved.from).catch(() => undefined);
+        try {
+          await mkdir(dirname(moved.from), { recursive: true });
+          await rename(moved.to, moved.from);
+        } catch (restoreError) {
+          rollbackErrors.push(restoreError);
+        }
+      }
+      if (rollbackErrors.length === 0) {
+        await rm(quarantineDir, { recursive: true, force: true }).catch(() => undefined);
+      }
+      if (rollbackErrors.length > 0) {
+        throw new AggregateError([error, ...rollbackErrors], "Account deletion rollback failed.");
       }
       throw error;
     }
 
-    await rm(resolve(uploadRoot, String(userId)), { recursive: true, force: true }).catch(() => undefined);
-    await rm(quarantineDir, { recursive: true, force: true }).catch(() => undefined);
     clearSessionCookie(reply, context.secureCookies);
+    try {
+      await removeDeletedAccountFiles(uploadRoot, userId, quarantineDir);
+    } catch (error) {
+      console.error("Account deletion file cleanup deferred.", {
+        userId,
+        reason: error instanceof Error ? error.message : "unknown error"
+      });
+      return reply.code(202).send({ ok: true, cleanupPending: true });
+    }
     return { ok: true };
   });
+}
+
+export async function retryPendingAccountDeletionCleanup(
+  db: AppDatabase,
+  uploadDir: string
+): Promise<void> {
+  const uploadRoot = resolve(uploadDir);
+  const quarantineRoot = resolve(uploadRoot, ".account-deletion");
+  let entries: Dirent[];
+  try {
+    entries = await readdir(quarantineRoot, { withFileTypes: true });
+  } catch (error) {
+    if (isMissingPathError(error)) return;
+    throw error;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const match = /^(\d+)-[0-9a-f-]{36}$/i.exec(entry.name);
+    if (!match) continue;
+    const userId = Number(match[1]);
+    if (!Number.isSafeInteger(userId) || userId <= 0) continue;
+    const user = await db.get<{ id: number }>("SELECT id FROM users WHERE id = ?", userId);
+    const quarantineDir = resolve(quarantineRoot, entry.name);
+    if (user) {
+      await restoreRolledBackAccountFiles(db, uploadRoot, userId, quarantineDir);
+      continue;
+    }
+    await removeDeletedAccountFiles(uploadRoot, userId, quarantineDir);
+  }
+}
+
+async function restoreRolledBackAccountFiles(
+  db: AppDatabase,
+  uploadRoot: string,
+  userId: number,
+  quarantineDir: string
+): Promise<void> {
+  const entries = await readdir(quarantineDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      throw new Error("Unexpected account deletion quarantine entry.");
+    }
+    const match = /^(\d+)-/.exec(entry.name);
+    if (!match) {
+      throw new Error("Invalid account deletion quarantine file.");
+    }
+    const photoId = Number(match[1]);
+    const photo = await db.get<{ file_path: string }>(
+      "SELECT file_path FROM posture_photos WHERE id = ? AND user_id = ?",
+      photoId,
+      userId
+    );
+    if (!photo) {
+      throw new Error("Account deletion quarantine file has no matching photo.");
+    }
+    const target = resolve(uploadRoot, photo.file_path);
+    if (!target.startsWith(`${uploadRoot}${sep}`) || await pathExists(target)) {
+      throw new Error("Account deletion quarantine restore target is unsafe.");
+    }
+    await mkdir(dirname(target), { recursive: true });
+    await rename(resolve(quarantineDir, entry.name), target);
+  }
+  await rm(quarantineDir, { recursive: true });
+}
+
+async function removeDeletedAccountFiles(
+  uploadRoot: string,
+  userId: number,
+  quarantineDir: string
+): Promise<void> {
+  await rm(resolve(uploadRoot, String(userId)), { recursive: true, force: true });
+  await rm(quarantineDir, { recursive: true, force: true });
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -90,4 +182,8 @@ async function pathExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
