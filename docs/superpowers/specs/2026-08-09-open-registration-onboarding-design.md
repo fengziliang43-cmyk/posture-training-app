@@ -26,7 +26,7 @@
 
 - `/api/auth/register` 允许任何符合规则的成年人注册唯一用户名。
 - 生产环境只有在 `REGISTRATION_ENABLED=true` 时开放注册；默认关闭并在前后端双重阻断。
-- 新密码至少 10 位；旧账号仍允许使用原有 6 位以上密码登录。
+- 2026-08-15 后续修正规范将注册和新密码最低长度统一为 6 位；界面建议使用 10 位以上独立密码，旧账号继续兼容。
 - 登录、注册采用统一错误信息，并限制单 IP/用户名短时间尝试次数。
 - session 持久化到 SQLite，只保存 token 的 SHA-256 摘要；网页使用 HttpOnly Cookie，原生壳才接收 bearer token。
 - `checkins`、`plans`、`workout_logs`、`workout_exercise_logs`、`posture_photos`、`plan_exercise_replacements`、`settings` 均按 `user_id` 隔离。

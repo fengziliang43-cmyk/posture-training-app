@@ -1,4 +1,5 @@
 import type { AppDatabase } from "./db";
+import { createSecretCipher, type SecretCipher } from "./secrets";
 import { exerciseLibrary } from "../core/exercise-library";
 import { buildWeeklyReview, type WeeklyReview } from "../core/weekly-review";
 import { hasRedFlag } from "../core/readiness";
@@ -118,7 +119,8 @@ const DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 const DEEPSEEK_API_KEY_SETTING = "deepseekApiKey";
 const exerciseById = new Map(exerciseLibrary.map((exercise) => [exercise.id, exercise] as const));
 
-export function createRepositories(db: AppDatabase): AppRepositories {
+export function createRepositories(db: AppDatabase, secretRoot: string): AppRepositories {
+  const secretCipher = createSecretCipher(secretRoot);
   return {
     db,
     forUser: (userId) => ({
@@ -141,12 +143,12 @@ export function createRepositories(db: AppDatabase): AppRepositories {
       listPhotos: () => listPhotos(db, userId),
       getPhotoById: (photoId) => getPhotoById(db, userId, photoId),
       updatePhotoNote: (photoId, note) => updatePhotoNote(db, userId, photoId, note),
-      getSettings: () => getSettings(db, userId),
-      setSettings: (settings) => setSettings(db, userId, settings),
-      getDeepseekApiKey: () => getDeepseekApiKey(db, userId),
-      setDeepseekApiKey: (apiKey) => setDeepseekApiKey(db, userId, apiKey),
-      clearDeepseekApiKey: () => clearDeepseekApiKey(db, userId),
-      updateDeepseekTestStatus: (ok, checkedAt) => updateDeepseekTestStatus(db, userId, ok, checkedAt)
+      getSettings: () => getSettings(db, userId, secretCipher),
+      setSettings: (settings) => setSettings(db, userId, settings, secretCipher),
+      getDeepseekApiKey: () => getDeepseekApiKey(db, userId, secretCipher),
+      setDeepseekApiKey: (apiKey) => setDeepseekApiKey(db, userId, apiKey, secretCipher),
+      clearDeepseekApiKey: () => clearDeepseekApiKey(db, userId, secretCipher),
+      updateDeepseekTestStatus: (ok, checkedAt) => updateDeepseekTestStatus(db, userId, ok, checkedAt, secretCipher)
     })
   };
 }
@@ -1079,7 +1081,11 @@ async function updatePhotoNote(
   return photo;
 }
 
-async function getSettings(db: AppDatabase, userId: number): Promise<SettingsRecord> {
+async function getSettings(
+  db: AppDatabase,
+  userId: number,
+  secretCipher: SecretCipher
+): Promise<SettingsRecord> {
   const rows = await db.all<SettingRow[]>(
     "SELECT * FROM settings WHERE user_id = ?",
     userId
@@ -1099,7 +1105,7 @@ async function getSettings(db: AppDatabase, userId: number): Promise<SettingsRec
     settings[row.key] = JSON.parse(row.value_json) as unknown;
   }
 
-  settings.deepseekApiKeyConfigured = Boolean(await getDeepseekApiKey(db, userId));
+  settings.deepseekApiKeyConfigured = Boolean(await getDeepseekApiKey(db, userId, secretCipher));
   if (typeof settings.deepseekModel !== "string" || settings.deepseekModel.length === 0) {
     settings.deepseekModel = DEFAULT_DEEPSEEK_MODEL;
   }
@@ -1110,7 +1116,8 @@ async function getSettings(db: AppDatabase, userId: number): Promise<SettingsRec
 async function setSettings(
   db: AppDatabase,
   userId: number,
-  settings: Record<string, unknown>
+  settings: Record<string, unknown>,
+  secretCipher: SecretCipher
 ): Promise<SettingsRecord> {
   for (const [key, value] of Object.entries(settings)) {
     if (key === DEEPSEEK_API_KEY_SETTING || key === "deepseekApiKeyConfigured") {
@@ -1133,10 +1140,14 @@ async function setSettings(
     );
   }
 
-  return getSettings(db, userId);
+  return getSettings(db, userId, secretCipher);
 }
 
-async function getDeepseekApiKey(db: AppDatabase, userId: number): Promise<string | undefined> {
+async function getDeepseekApiKey(
+  db: AppDatabase,
+  userId: number,
+  secretCipher: SecretCipher
+): Promise<string | undefined> {
   const row = await db.get<SettingRow>(
     "SELECT * FROM settings WHERE user_id = ? AND key = ?",
     userId,
@@ -1144,43 +1155,70 @@ async function getDeepseekApiKey(db: AppDatabase, userId: number): Promise<strin
   );
   if (!row) return undefined;
   const value = JSON.parse(row.value_json) as unknown;
-  return typeof value === "string" && value.length > 0 ? value : undefined;
+  if (typeof value !== "string" || value.length === 0) return undefined;
+
+  if (!secretCipher.isSealed(value)) {
+    await setRawSetting(db, userId, DEEPSEEK_API_KEY_SETTING, secretCipher.seal(value));
+    return value;
+  }
+
+  try {
+    return secretCipher.open(value);
+  } catch {
+    return undefined;
+  }
 }
 
 async function setDeepseekApiKey(
   db: AppDatabase,
   userId: number,
-  apiKey: string
+  apiKey: string,
+  secretCipher: SecretCipher
 ): Promise<SettingsRecord> {
   const normalized = apiKey.trim();
   if (!normalized) {
-    return clearDeepseekApiKey(db, userId);
+    return clearDeepseekApiKey(db, userId, secretCipher);
   }
 
-  await setRawSetting(db, userId, DEEPSEEK_API_KEY_SETTING, normalized);
-  return setSettings(db, userId, { deepseekEnabled: true, deepseekModel: DEFAULT_DEEPSEEK_MODEL });
+  await setRawSetting(db, userId, DEEPSEEK_API_KEY_SETTING, secretCipher.seal(normalized));
+  return setSettings(
+    db,
+    userId,
+    { deepseekEnabled: true, deepseekModel: DEFAULT_DEEPSEEK_MODEL },
+    secretCipher
+  );
 }
 
-async function clearDeepseekApiKey(db: AppDatabase, userId: number): Promise<SettingsRecord> {
+async function clearDeepseekApiKey(
+  db: AppDatabase,
+  userId: number,
+  secretCipher: SecretCipher
+): Promise<SettingsRecord> {
   await db.run(
     "DELETE FROM settings WHERE user_id = ? AND key = ?",
     userId,
     DEEPSEEK_API_KEY_SETTING
   );
-  await setSettings(db, userId, { deepseekEnabled: false });
-  return getSettings(db, userId);
+  await setSettings(db, userId, { deepseekEnabled: false }, secretCipher);
+  return getSettings(db, userId, secretCipher);
 }
 
 async function updateDeepseekTestStatus(
   db: AppDatabase,
   userId: number,
   ok: boolean,
-  checkedAt: string
+  checkedAt: string,
+  secretCipher: SecretCipher
 ): Promise<SettingsRecord> {
-  return setSettings(db, userId, {
-    deepseekLastTestOk: ok,
-    deepseekLastTestAt: checkedAt
-  });
+  return setSettings(
+    db,
+    userId,
+    {
+      deepseekLastTestOk: ok,
+      deepseekLastTestAt: checkedAt
+    },
+    secretCipher
+  );
 }
 
 async function setRawSetting(

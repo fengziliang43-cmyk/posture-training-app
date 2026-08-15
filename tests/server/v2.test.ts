@@ -30,6 +30,12 @@ describe("v2 settings and safety", () => {
     expect(JSON.stringify(save.json())).not.toContain(apiKey);
     expect(save.json().settings.deepseekApiKeyConfigured).toBe(true);
 
+    const stored = await (app as any).db.get(
+      "SELECT value_json FROM settings WHERE key = 'deepseekApiKey'"
+    );
+    expect(stored.value_json).not.toContain(apiKey);
+    expect(JSON.parse(stored.value_json)).toMatch(/^enc:v1:/);
+
     const settings = await app.inject({ method: "GET", url: "/api/settings", headers: { cookie } });
     expect(settings.statusCode).toBe(200);
     expect(JSON.stringify(settings.json())).not.toContain(apiKey);
@@ -40,6 +46,53 @@ describe("v2 settings and safety", () => {
 
     await app.close();
     await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("keeps encrypted DeepSeek keys isolated between accounts", async () => {
+    const seenAuthorization: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+        seenAuthorization.push(new Headers(init?.headers).get("Authorization") ?? "");
+        return new Response(JSON.stringify({ choices: [{ message: { content: "连接正常" } }] }));
+      })
+    );
+
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const firstCookie = await registerCookie(app, "ai-user-a");
+    const secondCookie = await registerCookie(app, "ai-user-b");
+    const firstKey = "sk-test-user-a-placeholder";
+    const secondKey = "sk-test-user-b-placeholder";
+
+    for (const [cookie, apiKey] of [[firstCookie, firstKey], [secondCookie, secondKey]]) {
+      const save = await app.inject({
+        method: "PUT",
+        url: "/api/settings/deepseek-key",
+        headers: { cookie },
+        payload: { apiKey }
+      });
+      expect(save.statusCode).toBe(200);
+      const test = await app.inject({
+        method: "POST",
+        url: "/api/ai/deepseek/test",
+        headers: { cookie },
+        payload: {}
+      });
+      expect(test.statusCode).toBe(200);
+    }
+
+    expect(seenAuthorization).toEqual([`Bearer ${firstKey}`, `Bearer ${secondKey}`]);
+    const storedRows = await (app as any).db.all(
+      "SELECT value_json FROM settings WHERE key = 'deepseekApiKey' ORDER BY user_id"
+    );
+    expect(storedRows).toHaveLength(2);
+    expect(JSON.stringify(storedRows)).not.toContain(firstKey);
+    expect(JSON.stringify(storedRows)).not.toContain(secondKey);
+    expect(storedRows.every((row: { value_json: string }) =>
+      String(JSON.parse(row.value_json)).startsWith("enc:v1:")
+    )).toBe(true);
+
+    await app.close();
   });
 
   it("tests DeepSeek through the server using a sanitized response", async () => {
@@ -270,6 +323,27 @@ async function createAuthenticatedCookie(app: Awaited<ReturnType<typeof buildApp
   const setCookie = login.headers["set-cookie"];
   const rawCookie = Array.isArray(setCookie) ? setCookie[0] : setCookie;
   if (!rawCookie) throw new Error("Login did not set a cookie.");
+  return rawCookie.split(";")[0];
+}
+
+async function registerCookie(
+  app: Awaited<ReturnType<typeof buildApp>>,
+  username: string
+): Promise<string> {
+  const registration = await app.inject({
+    method: "POST",
+    url: "/api/auth/register",
+    payload: {
+      username,
+      password: "123456",
+      adultConfirmed: true,
+      termsAccepted: true
+    }
+  });
+  expect(registration.statusCode).toBe(200);
+  const setCookie = registration.headers["set-cookie"];
+  const rawCookie = Array.isArray(setCookie) ? setCookie[0] : setCookie;
+  if (!rawCookie) throw new Error("Registration did not set a cookie.");
   return rawCookie.split(";")[0];
 }
 

@@ -17,6 +17,7 @@ const productionConfig: ServerConfig = {
   sessionTtlHours: 24 * 30,
   isProduction: true,
   deepseekUserKeysEnabled: false,
+  authCaptchaEnabled: true,
   registrationEnabled: false,
   trafficDashboardUrl: null
 };
@@ -33,9 +34,11 @@ describe("production configuration", () => {
       .toThrow(/SECURE_COOKIES/);
   });
 
-  it("refuses user API keys in the public deployment", () => {
+  it("allows encrypted personal API keys but refuses production without captcha", () => {
     expect(() => assertServerConfig({ ...productionConfig, deepseekUserKeysEnabled: true }))
-      .toThrow(/secrets vault/);
+      .not.toThrow();
+    expect(() => assertServerConfig({ ...productionConfig, authCaptchaEnabled: false }))
+      .toThrow(/AUTH_CAPTCHA_ENABLED/);
   });
 
   it("disables the legacy first-user setup endpoint in production", async () => {
@@ -57,7 +60,7 @@ describe("production configuration", () => {
       url: "/api/auth/capabilities"
     });
     expect(capabilities.statusCode).toBe(200);
-    expect(capabilities.json()).toEqual({ registrationEnabled: false });
+    expect(capabilities.json()).toEqual({ registrationEnabled: false, captchaEnabled: true });
 
     const registration = await app.inject({
       method: "POST",

@@ -1,14 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ApiRequestError,
   DEFAULT_NATIVE_API_BASE_URL,
   describeLoginError,
   describePasswordChangeError,
   describeRegistrationError,
+  getAuthCaptcha,
   isRetryableApiError,
   normalizeApiBaseUrl,
   resolveApiBaseUrl
 } from "../../src/web/api";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("normalizeApiBaseUrl", () => {
   it("keeps an explicit http server URL", () => {
@@ -48,6 +53,31 @@ describe("API retry classification", () => {
   });
 });
 
+describe("authentication captcha client", () => {
+  it("sends a JSON body so Fastify accepts the captcha POST", async () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => null,
+      setItem: () => undefined,
+      removeItem: () => undefined
+    });
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      captcha: {
+        id: "captcha-id",
+        imageDataUrl: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+        expiresAt: "2026-08-15T12:00:00.000Z"
+      }
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await getAuthCaptcha();
+    expect(response.captcha.id).toBe("captcha-id");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/captcha",
+      expect.objectContaining({ method: "POST", body: "{}" })
+    );
+  });
+});
+
 describe("认证错误文案", () => {
   it("turns invalid login credentials into a safe Chinese prompt", () => {
     const error = new ApiRequestError(
@@ -79,7 +109,17 @@ describe("认证错误文案", () => {
       describeRegistrationError(
         new ApiRequestError("invalid registration", { status: 400, retryable: false })
       )
-    ).toBe("注册信息不符合要求，请检查账号、密码和确认选项。");
+    ).toBe("注册信息不符合要求，请检查账号、至少 6 位密码和确认选项。");
+    expect(
+      describeRegistrationError(
+        new ApiRequestError("captcha invalid", { status: 422, retryable: false })
+      )
+    ).toBe("验证码不正确或已过期，请重新输入。");
+    expect(
+      describeLoginError(
+        new ApiRequestError("captcha invalid", { status: 422, retryable: false })
+      )
+    ).toBe("验证码不正确或已过期，请重新输入。");
   });
 
   it("turns password change failures into safe prompts", () => {
@@ -92,6 +132,6 @@ describe("认证错误文案", () => {
       describePasswordChangeError(
         new ApiRequestError("invalid new password", { status: 400, retryable: false })
       )
-    ).toBe("新密码至少 10 位，并且不能与当前密码相同。");
+    ).toBe("新密码至少 6 位，并且不能与当前密码相同。");
   });
 });

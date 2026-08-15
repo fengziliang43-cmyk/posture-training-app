@@ -9,7 +9,35 @@ describe("open registration and onboarding", () => {
     const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
     const response = await app.inject({ method: "GET", url: "/api/auth/capabilities" });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ registrationEnabled: true });
+    expect(response.json()).toEqual({ registrationEnabled: true, captchaEnabled: false });
+    await app.close();
+  });
+
+  it("accepts a six-character registration password and rejects five characters", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        username: "short-password",
+        password: "12345",
+        adultConfirmed: true,
+        termsAccepted: true
+      }
+    });
+    expect(rejected.statusCode).toBe(400);
+
+    const accepted = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        username: "six-password",
+        password: "123456",
+        adultConfirmed: true,
+        termsAccepted: true
+      }
+    });
+    expect(accepted.statusCode).toBe(200);
     await app.close();
   });
 

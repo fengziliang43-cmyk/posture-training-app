@@ -4,10 +4,12 @@
 
 > A safety-first, account-isolated posture and training planner that combines onboarding, daily readiness, workouts, posture records, and long-term trends.
 
-![Status](https://img.shields.io/badge/status-release%20candidate-2f855a)
+![Version](https://img.shields.io/badge/version-1.0.4-2f855a)
 ![App](https://img.shields.io/badge/app-PWA%20%2B%20Android%20%2B%20iOS-2563eb)
 ![Privacy](https://img.shields.io/badge/privacy-account%20isolated-7c3aed)
 ![Safety](https://img.shields.io/badge/training-safety%20first-d97706)
+
+[Open the Web App](https://body.liang111.top/) · [Download Android 1.0.4](https://body.liang111.top/releases/zixu-android-1.0.4.apk) · [Checksum](https://body.liang111.top/releases/zixu-android-1.0.4.apk.sha256) · [Release Manifest](https://body.liang111.top/api/releases/latest)
 
 ## Purpose
 
@@ -22,9 +24,17 @@ Safety -> Posture -> Fat loss -> Muscle gain -> Conditioning
 > [!IMPORTANT]
 > This project is a training aid, not a medical diagnostic or treatment tool. Stop training and seek appropriate medical assessment for red-flag symptoms. A worsening condition or increased pain should downgrade the plan, not be pushed through.
 
-## Current Status
+## Current Release
 
-The current candidate contains the latest PWA, Fastify and SQLite application, Android/iOS Capacitor projects, onboarding, multi-user isolation, persistent sessions, personal export/deletion, Adaptive V3 planning, and exercise video links. A candidate branch is not evidence of a push, merge, or production deployment.
+Version `1.0.4` keeps the Web/PWA and signed Android package in sync. The iOS Capacitor project is maintained in the same source tree, but there is currently no public App Store, TestFlight, or IPA download. The public service uses HTTPS and isolates registration, sessions, training records, and posture photos by account.
+
+Highlights in this release:
+
+- One-time four-digit image captchas for login and registration, alongside server-side rate limits.
+- Per-account DeepSeek API keys, encrypted on the server with AES-256-GCM and never returned by settings APIs.
+- A six-character minimum for registration and password changes, with a clear recommendation to use a unique password of at least ten characters.
+- Login with either an account name or a standard email address such as QQ Mail or Gmail; duplicate accounts receive a clear response.
+- Operations data remains in a separate administrator area and is not exposed in ordinary account pages.
 
 From the candidate directory:
 
@@ -55,20 +65,20 @@ Web app:    http://localhost:5173
 Daily status -> Readiness decision -> Train / Deload / Recover -> Check in -> Review trends -> Compare posture
 ```
 
-The current candidate includes:
+The product includes:
 
-- Accounts and onboarding: open registration is controlled by a production release gate; new users complete adult confirmation, goals, equipment, capacity, and limitations first.
+- Accounts and onboarding: public registration with captcha protection and account-name or email login; new users complete adult confirmation, goals, equipment, capacity, and limitations first.
 - Daily status: discomfort, energy, available training time, and optional sleep, steps, diet, and weight inputs.
 - Plan generation: profile, daily readiness, and historical feedback form three matching layers; red flags always take priority.
 - Exercise library: pulling, scapular control, core stability, lower-body and recovery work with reviewed direct video links.
 - Records: trends, calendar states, training frequency, and exercise progression.
-- Posture: local front, side, and back photo records with manual same-angle comparison.
-- Settings: connection status, reminders, personal export, account deletion, and controlled DeepSeek explanations.
+- Posture: front, side, and back photos stored on the Zixu server for manual same-angle comparison; no AI or medical diagnosis.
+- Me and Settings: password change, update checks, personal export, account deletion, and per-account DeepSeek configuration.
 - Clients: one React codebase for PWA, Android, and iOS.
 
 ## Product Principles
 
-- Data minimization: runtime data stays in controlled SQLite and file storage, isolated by account; posture photos are optional.
+- Data minimization: runtime data stays in controlled server-side SQLite and file storage, isolated by account; posture photos are optional.
 - Safety first: automatically downgrade the session when readiness is poor.
 - Low friction: keep the essential daily input brief.
 - No diagnosis: support training without replacing medical assessment or treatment.
@@ -81,10 +91,22 @@ The current candidate includes:
 | --- | --- |
 | Frontend | Vite + React + PWA |
 | Backend | Node.js + Fastify |
-| Data | SQLite + local file system |
+| Data | Server-side SQLite + controlled file storage, isolated by account |
 | Mobile | Capacitor Android + iOS |
-| Access | Trusted private network for local tests; HTTPS reverse proxy to a loopback-only API in production |
+| Access | [body.liang111.top](https://body.liang111.top/); HTTPS reverse proxy to a loopback-only API |
 | AI | DeepSeek for explanations and reviews only; local rules continue to decide training |
+
+## Android Installation and Updates
+
+1. Open the [official Android download](https://body.liang111.top/releases/zixu-android-1.0.4.apk) on the phone.
+2. Android completes the installation flow. First-time installation may require enabling “Install unknown apps” for the browser or file manager.
+3. Installation always requires user confirmation; Zixu does not bypass Android with silent installation.
+4. Use the published [SHA-256 checksum](https://body.liang111.top/releases/zixu-android-1.0.4.apk.sha256) to verify the package.
+5. “Me → Settings → Check for updates” reads the official release manifest and lets the user choose whether to download a newer package.
+
+## Operations Dashboard
+
+The operations area is not an ordinary user feature. An administrator first signs in on the [Zixu home page](https://body.liang111.top/) and then opens the [administrator dashboard](https://body.liang111.top/admin). It shows aggregate account, activity, and training metrics and links to a protected GoAccess traffic report. Ordinary accounts neither see the entry nor gain access to administrator APIs.
 
 ## Documentation
 
@@ -107,10 +129,8 @@ Do not commit:
 - `.env` files, API keys, tokens, passwords, or other credentials.
 - APKs, build output, caches, or `node_modules/`.
 
-Posture photos must not be sent to third-party AI services. The production API binds only to loopback and is reached through an HTTPS reverse proxy. Passwords use bcrypt hashes, and only SHA-256 token digests are stored for sessions. Production registration remains closed unless `REGISTRATION_ENABLED=true` is explicitly set.
+Posture photos are stored only in account-isolated directories on the Zixu server and are not sent to DeepSeek or other third-party AI services. Per-account DeepSeek API keys use AES-256-GCM encryption and are excluded from personal backups and settings responses. The production API binds only to loopback and is reached through an HTTPS reverse proxy. Passwords use bcrypt hashes, only SHA-256 token digests are stored for sessions, and login and registration require one-time image captchas. Registration, captcha enforcement, and personal API keys retain production emergency switches.
 
-## Next Steps
+## Release and Verification
 
-- Validate migration, integrity, and rollback on an isolated copy of the production database.
-- Complete candidate tests, builds, privacy scans, and mobile project checks.
-- After compliance and deployment gates are satisfied, separately authorize the GitHub push, `body.liang111.top` DNS, and production release. The root domain remains the site entrance and `quant.liang111.top` remains reserved for the quant project.
+Production follows “test → commit → push → remote readback → exact-commit build → immutable production release → atomic switch,” with the previous release retained for rollback. The source repository does not contain APK files, runtime databases, uploaded photos, `.env` files, API keys, or signing certificates.

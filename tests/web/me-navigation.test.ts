@@ -26,6 +26,8 @@ describe("我的与设置导航", () => {
     expect(appSource).not.toContain("服务器地址");
     expect(appSource).not.toContain("测试连接");
     expect(appSource).not.toContain("setApiBaseUrl");
+    expect(appSource).toContain("四位数字验证码");
+    expect(appSource).toContain("至少 6 位");
   });
 
   it("keeps operations data out of ordinary account pages", () => {

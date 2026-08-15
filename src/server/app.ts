@@ -18,14 +18,23 @@ import { registerReleaseRoutes } from "./routes/releases";
 import { registerSettingsRoutes } from "./routes/settings";
 import { registerWorkoutRoutes } from "./routes/workouts";
 import { createPersistentSessionStore } from "./auth";
+import { AuthCaptchaService } from "./captcha";
 import { registerProfileRoutes } from "./routes/profile";
 
-export async function buildApp(options: Partial<ServerConfig> = {}): Promise<FastifyInstance> {
+interface AppBuildDependencies {
+  captchaCodeFactory?: () => string;
+}
+
+export async function buildApp(
+  options: Partial<ServerConfig> = {},
+  dependencies: AppBuildDependencies = {}
+): Promise<FastifyInstance> {
   const config: ServerConfig = { ...loadConfig(), ...options };
   assertServerConfig(config);
   const db = await openAppDatabase(config.databaseFile);
-  const repositories = createRepositories(db);
+  const repositories = createRepositories(db, config.cookieSecret);
   const sessions = createPersistentSessionStore(db, config.sessionTtlHours);
+  const authCaptcha = new AuthCaptchaService({ codeFactory: dependencies.captchaCodeFactory });
   const app = Fastify({
     logger: false,
     trustProxy: config.isProduction ? "127.0.0.1" : false
@@ -88,7 +97,9 @@ export async function buildApp(options: Partial<ServerConfig> = {}): Promise<Fas
     secureCookies: config.secureCookies,
     legacySetupEnabled: !config.isProduction,
     registrationEnabled: config.registrationEnabled,
-    sessionTtlHours: config.sessionTtlHours
+    sessionTtlHours: config.sessionTtlHours,
+    captchaEnabled: config.authCaptchaEnabled,
+    captcha: authCaptcha
   });
   registerReleaseRoutes(app);
   registerAdminRoutes(app, {

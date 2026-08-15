@@ -11,8 +11,8 @@ const settingsSchema = z
   })
   .strict();
 const deepseekKeySchema = z.object({
-  apiKey: z.string().trim().min(1),
-  model: z.string().trim().min(1).optional()
+  apiKey: z.string().trim().min(1).max(512),
+  model: z.string().trim().min(1).max(80).optional()
 });
 
 interface SettingsRouteContext {

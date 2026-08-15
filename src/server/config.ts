@@ -10,6 +10,7 @@ export interface ServerConfig {
   sessionTtlHours: number;
   isProduction: boolean;
   deepseekUserKeysEnabled: boolean;
+  authCaptchaEnabled: boolean;
   registrationEnabled: boolean;
   trafficDashboardUrl: string | null;
 }
@@ -30,6 +31,10 @@ export function loadConfig(): ServerConfig {
       process.env.DEEPSEEK_USER_KEYS_ENABLED,
       process.env.NODE_ENV !== "production"
     ),
+    authCaptchaEnabled: parseBoolean(
+      process.env.AUTH_CAPTCHA_ENABLED,
+      process.env.NODE_ENV === "production"
+    ),
     registrationEnabled: parseBoolean(
       process.env.REGISTRATION_ENABLED,
       process.env.NODE_ENV !== "production"
@@ -47,8 +52,8 @@ export function assertServerConfig(config: ServerConfig): void {
   if (!config.secureCookies) {
     throw new Error("Production requires SECURE_COOKIES=true.");
   }
-  if (config.deepseekUserKeysEnabled) {
-    throw new Error("Production cannot store user-supplied DeepSeek keys without a secrets vault.");
+  if (!config.authCaptchaEnabled) {
+    throw new Error("Production requires AUTH_CAPTCHA_ENABLED=true.");
   }
   if (config.databaseFile === ":memory:") {
     throw new Error("Production cannot use an in-memory database.");

@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AppDatabase } from "../db";
+import type { AuthCaptchaService } from "../captcha";
 import {
   createSessionToken,
   clearSessionCookie,
@@ -22,13 +23,17 @@ const emailSchema = z.string().trim().max(254).email();
 const accountIdentifierSchema = z.union([usernameSchema, emailSchema]);
 const loginSchema = z.object({
   username: accountIdentifierSchema,
-  password: z.string().min(6).max(128)
+  password: z.string().min(6).max(128),
+  captchaId: z.string().min(1).max(128).optional(),
+  captchaAnswer: z.string().trim().min(1).max(12).optional()
 });
 const registerSchema = z.object({
   username: accountIdentifierSchema,
-  password: z.string().min(10).max(128),
+  password: z.string().min(6).max(128),
   adultConfirmed: z.literal(true),
-  termsAccepted: z.literal(true)
+  termsAccepted: z.literal(true),
+  captchaId: z.string().min(1).max(128).optional(),
+  captchaAnswer: z.string().trim().min(1).max(12).optional()
 });
 
 interface AuthRouteContext {
@@ -38,15 +43,29 @@ interface AuthRouteContext {
   legacySetupEnabled: boolean;
   registrationEnabled: boolean;
   sessionTtlHours: number;
+  captchaEnabled: boolean;
+  captcha: AuthCaptchaService;
 }
 
 export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteContext): void {
   const loginLimiter = new FixedWindowRateLimiter(10, 15 * 60_000);
   const registerLimiter = new FixedWindowRateLimiter(5, 60 * 60_000);
+  const captchaIssueLimiter = new FixedWindowRateLimiter(30, 15 * 60_000);
 
   app.get("/api/auth/capabilities", async () => ({
-    registrationEnabled: context.registrationEnabled
+    registrationEnabled: context.registrationEnabled,
+    captchaEnabled: context.captchaEnabled
   }));
+
+  app.post("/api/auth/captcha", async (request, reply) => {
+    if (!context.captchaEnabled) {
+      return reply.code(404).send({ error: "not found" });
+    }
+    if (!captchaIssueLimiter.consume(request.ip)) {
+      return reply.code(429).send({ error: "too many attempts" });
+    }
+    return { captcha: context.captcha.issue() };
+  });
 
   app.post("/api/auth/register", async (request, reply) => {
     if (!context.registrationEnabled) {
@@ -55,6 +74,9 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
     const parsed = registerSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "invalid registration" });
+    }
+    if (!verifyCaptcha(context, parsed.data.captchaId, parsed.data.captchaAnswer)) {
+      return reply.code(422).send({ error: "captcha invalid or expired" });
     }
 
     const usernameNormalized = normalizeUsername(parsed.data.username);
@@ -139,6 +161,9 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
     if (!parsed.success) {
       return reply.code(400).send({ error: "invalid credentials" });
     }
+    if (!verifyCaptcha(context, parsed.data.captchaId, parsed.data.captchaAnswer)) {
+      return reply.code(422).send({ error: "captcha invalid or expired" });
+    }
     const usernameNormalized = normalizeUsername(parsed.data.username);
     if (!loginLimiter.consume(`${request.ip}:${usernameNormalized}`)) {
       return reply.code(429).send({ error: "too many attempts" });
@@ -205,6 +230,14 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
       }
     };
   });
+}
+
+function verifyCaptcha(
+  context: AuthRouteContext,
+  captchaId: string | undefined,
+  captchaAnswer: string | undefined
+): boolean {
+  return !context.captchaEnabled || context.captcha.verify(captchaId, captchaAnswer);
 }
 
 async function establishSession(

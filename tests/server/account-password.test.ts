@@ -44,7 +44,7 @@ describe("account password changes", () => {
       method: "PUT",
       url: "/api/account/password",
       headers: { cookie: firstCookie },
-      payload: { currentPassword: "current-password-123", newPassword: "new-password-456" }
+      payload: { currentPassword: "current-password-123", newPassword: "654321" }
     });
     expect(changed.statusCode).toBe(200);
     expect(changed.json()).toEqual({ ok: true, reauthenticationRequired: true });
@@ -65,7 +65,7 @@ describe("account password changes", () => {
     const newPasswordLogin = await app.inject({
       method: "POST",
       url: "/api/auth/login",
-      payload: { username: "password-user", password: "new-password-456" }
+      payload: { username: "password-user", password: "654321" }
     });
     expect(newPasswordLogin.statusCode).toBe(200);
 
@@ -74,7 +74,7 @@ describe("account password changes", () => {
       "password-user"
     );
     expect(row.password_hash).not.toContain("current-password-123");
-    expect(row.password_hash).not.toContain("new-password-456");
+    expect(row.password_hash).not.toContain("654321");
     expect(row.updated_at).toBeTypeOf("string");
   });
 });

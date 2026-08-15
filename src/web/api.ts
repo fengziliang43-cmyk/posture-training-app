@@ -27,6 +27,13 @@ export interface RegistrationInput {
   password: string;
   adultConfirmed: boolean;
   termsAccepted: boolean;
+  captchaId?: string;
+  captchaAnswer?: string;
+}
+
+export interface AuthCaptchaInput {
+  captchaId: string;
+  captchaAnswer: string;
 }
 
 export interface TrainingProfileInput
@@ -50,6 +57,15 @@ export interface AuthResponse {
 
 export interface AuthCapabilitiesResponse {
   registrationEnabled: boolean;
+  captchaEnabled: boolean;
+}
+
+export interface AuthCaptchaResponse {
+  captcha: {
+    id: string;
+    imageDataUrl: string;
+    expiresAt: string;
+  };
 }
 
 export interface CheckinResponse {
@@ -198,14 +214,25 @@ export async function getAuthCapabilities(): Promise<AuthCapabilitiesResponse> {
   return apiRequest<AuthCapabilitiesResponse>("/api/auth/capabilities");
 }
 
+export async function getAuthCaptcha(): Promise<AuthCaptchaResponse> {
+  return apiRequest<AuthCaptchaResponse>("/api/auth/captcha", {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
 export async function getAdminStats(): Promise<AdminStatsResponse> {
   return apiRequest<AdminStatsResponse>("/api/admin/stats");
 }
 
-export async function login(username: string, password: string): Promise<AuthResponse> {
+export async function login(
+  username: string,
+  password: string,
+  captcha?: AuthCaptchaInput
+): Promise<AuthResponse> {
   const response = await apiRequest<AuthResponse>("/api/auth/login", {
     method: "POST",
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, password, ...captcha })
   });
   storeAuthToken(response.sessionToken);
   return response;
@@ -460,6 +487,9 @@ export function describeApiError(error: unknown): string {
 
 export function describeLoginError(error: unknown): string {
   if (error instanceof ApiRequestError) {
+    if (error.status === 422) {
+      return "验证码不正确或已过期，请重新输入。";
+    }
     if (error.status === 400 || error.status === 401) {
       return "账号或密码不正确，请重新检查后再试。";
     }
@@ -476,11 +506,14 @@ export function describeLoginError(error: unknown): string {
 
 export function describeRegistrationError(error: unknown): string {
   if (error instanceof ApiRequestError) {
+    if (error.status === 422) {
+      return "验证码不正确或已过期，请重新输入。";
+    }
     if (error.status === 409) {
       return "账号重复了，请直接登录或换一个账号/邮箱。";
     }
     if (error.status === 400) {
-      return "注册信息不符合要求，请检查账号、密码和确认选项。";
+      return "注册信息不符合要求，请检查账号、至少 6 位密码和确认选项。";
     }
     if (error.status === 429) {
       return "注册尝试过于频繁，请稍后再试。";
@@ -499,7 +532,7 @@ export function describePasswordChangeError(error: unknown): string {
       return "当前密码不正确，请重新输入。";
     }
     if (error.status === 400) {
-      return "新密码至少 10 位，并且不能与当前密码相同。";
+      return "新密码至少 6 位，并且不能与当前密码相同。";
     }
     if (error.status === 429) {
       return "尝试次数过多，请稍后再修改密码。";

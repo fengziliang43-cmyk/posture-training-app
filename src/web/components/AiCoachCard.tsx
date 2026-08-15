@@ -98,7 +98,7 @@ export function AiCoachCard({ plan, onOpenSettings }: AiCoachCardProps) {
       {!ready && !result && (
         <p className="ai-state-note">
           {!available
-            ? "当前正式版暂未开放个人 API Key，训练计划继续由本地规则生成。"
+            ? "个人 API Key 当前被服务器安全开关暂停，训练计划继续由本地规则生成。"
             : configured
               ? "DeepSeek 当前已关闭；本地规则仍正常生成训练。"
               : "尚未配置 DeepSeek API Key。"}

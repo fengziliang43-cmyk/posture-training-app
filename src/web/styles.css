@@ -2408,6 +2408,46 @@ label,
   box-shadow: 0 8px 18px rgba(52, 49, 64, 0.14);
 }
 
+.captcha-field {
+  display: grid;
+  gap: 8px;
+}
+
+.captcha-label {
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.captcha-image-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.captcha-image {
+  display: block;
+  width: 100%;
+  height: 74px;
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  border-radius: 16px;
+  background: rgba(244, 241, 251, 0.82);
+  object-fit: cover;
+}
+
+.captcha-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--muted-ink);
+  font-size: 13px;
+}
+
+.captcha-refresh-button {
+  min-width: 76px;
+  min-height: 44px;
+  padding-inline: 12px;
+}
+
 .consent-row {
   align-items: flex-start;
   line-height: 1.45;

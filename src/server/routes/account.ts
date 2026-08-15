@@ -21,7 +21,7 @@ const deleteAccountSchema = z.object({
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(6).max(128),
-  newPassword: z.string().min(10).max(128)
+  newPassword: z.string().min(6).max(128)
 });
 
 interface AccountRouteContext {

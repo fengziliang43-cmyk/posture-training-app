@@ -5,6 +5,7 @@ import {
   describeLoginError,
   describeRegistrationError,
   flushQueuedOfflineActions,
+  getAuthCaptcha,
   getAuthCapabilities,
   getMe,
   getRecentCheckins,
@@ -252,15 +253,47 @@ function AuthScreen({
   const [info, setInfo] = useState<string | null>(initialInfo ?? null);
   const [pendingAction, setPendingAction] = useState<"login" | "register" | null>(null);
   const [registrationEnabled, setRegistrationEnabled] = useState(false);
+  const [authCapabilitiesReady, setAuthCapabilitiesReady] = useState(false);
+  const [captchaEnabled, setCaptchaEnabled] = useState(false);
+  const [captcha, setCaptcha] = useState<{ id: string; imageDataUrl: string } | null>(null);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [captchaLoading, setCaptchaLoading] = useState(false);
+  const [captchaError, setCaptchaError] = useState<string | null>(null);
+
+  async function refreshCaptcha() {
+    setCaptchaLoading(true);
+    setCaptchaError(null);
+    setCaptchaAnswer("");
+    try {
+      const response = await getAuthCaptcha();
+      setCaptcha({ id: response.captcha.id, imageDataUrl: response.captcha.imageDataUrl });
+    } catch {
+      setCaptcha(null);
+      setCaptchaError("验证码暂时无法加载，请点击刷新重试。");
+    } finally {
+      setCaptchaLoading(false);
+    }
+  }
 
   async function refreshRegistrationCapability() {
     try {
       const capabilities = await getAuthCapabilities();
+      setAuthCapabilitiesReady(true);
       setRegistrationEnabled(capabilities.registrationEnabled);
+      setCaptchaEnabled(capabilities.captchaEnabled);
+      if (capabilities.captchaEnabled) {
+        await refreshCaptcha();
+      } else {
+        setCaptcha(null);
+        setCaptchaAnswer("");
+      }
       if (!capabilities.registrationEnabled) setMode("login");
     } catch {
+      setAuthCapabilitiesReady(false);
       setRegistrationEnabled(false);
+      setCaptchaEnabled(false);
       setMode("login");
+      setError("登录安全验证暂时无法加载，请刷新页面后再试。");
     }
   }
 
@@ -271,6 +304,10 @@ function AuthScreen({
   async function runAuth() {
     setError(null);
     setInfo(null);
+    if (captchaEnabled && (!captcha || !/^\d{4}$/.test(captchaAnswer))) {
+      setError("请输入图中的四位数字验证码。");
+      return;
+    }
     if (mode === "register") {
       if (!registrationEnabled) {
         setError("当前未开放新账号注册。");
@@ -290,8 +327,18 @@ function AuthScreen({
     try {
       const response =
         mode === "login"
-          ? await login(username, password)
-          : await register({ username, password, adultConfirmed, termsAccepted });
+          ? await login(
+              username,
+              password,
+              captcha ? { captchaId: captcha.id, captchaAnswer } : undefined
+            )
+          : await register({
+              username,
+              password,
+              adultConfirmed,
+              termsAccepted,
+              ...(captcha ? { captchaId: captcha.id, captchaAnswer } : {})
+            });
       onAuthed(response.user);
     } catch (error) {
       setError(
@@ -299,6 +346,7 @@ function AuthScreen({
           ? describeLoginError(error)
           : describeRegistrationError(error)
       );
+      if (captchaEnabled) await refreshCaptcha();
     } finally {
       setPendingAction(null);
     }
@@ -327,6 +375,7 @@ function AuthScreen({
                 setMode("login");
                 setError(null);
                 setInfo(null);
+                if (captchaEnabled) void refreshCaptcha();
               }}
             >
               登录
@@ -338,6 +387,7 @@ function AuthScreen({
                 setMode("register");
                 setError(null);
                 setInfo(null);
+                if (captchaEnabled) void refreshCaptcha();
               }}
             >
               注册
@@ -369,11 +419,14 @@ function AuthScreen({
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            minLength={mode === "login" ? 6 : 10}
+            minLength={6}
             maxLength={128}
-            placeholder={mode === "register" ? "至少 10 位" : "输入密码"}
+            placeholder={mode === "register" ? "至少 6 位" : "输入密码"}
             required
           />
+          {mode === "register" && (
+            <span className="muted small">至少 6 位；建议使用 10 位以上且不要与其他网站重复。</span>
+          )}
         </label>
 
         {mode === "register" && (
@@ -385,7 +438,7 @@ function AuthScreen({
                 type="password"
                 value={passwordConfirmation}
                 onChange={(event) => setPasswordConfirmation(event.target.value)}
-                minLength={10}
+                minLength={6}
                 maxLength={128}
                 required
               />
@@ -413,11 +466,49 @@ function AuthScreen({
           </>
         )}
 
+        {captchaEnabled && (
+          <div className="captcha-field">
+            <span className="captcha-label">验证码</span>
+            <div className="captcha-image-row">
+              {captcha ? (
+                <img className="captcha-image" src={captcha.imageDataUrl} alt="四位数字验证码" />
+              ) : (
+                <div className="captcha-image captcha-placeholder">
+                  {captchaLoading ? "正在加载" : "加载失败"}
+                </div>
+              )}
+              <button
+                type="button"
+                className="secondary-button captcha-refresh-button"
+                disabled={captchaLoading}
+                onClick={() => void refreshCaptcha()}
+              >
+                换一张
+              </button>
+            </div>
+            <input
+              aria-label="输入四位数字验证码"
+              autoComplete="off"
+              inputMode="numeric"
+              pattern="[0-9]{4}"
+              maxLength={4}
+              value={captchaAnswer}
+              onChange={(event) => setCaptchaAnswer(event.target.value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="输入图中 4 位数字"
+              required
+            />
+            {captchaError && <span className="error-text small" role="alert">{captchaError}</span>}
+          </div>
+        )}
+
         {error && <p className="error-text">{error}</p>}
         {info && <p className="success-text">{info}</p>}
 
         <div className="button-row">
-          <button type="submit" disabled={pendingAction !== null}>
+          <button
+            type="submit"
+            disabled={!authCapabilitiesReady || pendingAction !== null || (captchaEnabled && (!captcha || captchaAnswer.length !== 4))}
+          >
             {pendingAction === mode ? (mode === "login" ? "登录中" : "注册中") : (mode === "login" ? "登录" : "注册并开始建档")}
           </button>
         </div>

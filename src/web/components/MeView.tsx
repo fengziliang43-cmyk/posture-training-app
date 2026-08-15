@@ -148,7 +148,7 @@ export function MeView({
       const response = await saveDeepSeekApiKey(deepseekApiKeyInput, deepseekModel);
       setSettings(response.settings);
       setDeepseekApiKeyInput("");
-      setInfo("DeepSeek API Key 已保存到当前姿序服务器。");
+      setInfo("DeepSeek API Key 已按当前账号加密保存到姿序服务器。");
     } catch (requestError) {
       setError(`DeepSeek API Key 保存失败：${describeApiError(requestError)}`);
     } finally {
@@ -248,8 +248,8 @@ export function MeView({
   }
 
   async function updatePassword() {
-    if (newPassword.length < 10) {
-      setError("新密码至少需要 10 位。");
+    if (newPassword.length < 6) {
+      setError("新密码至少需要 6 位。");
       return;
     }
     if (newPassword !== newPasswordConfirmation) {
@@ -323,7 +323,7 @@ export function MeView({
     const deepseekDescription = settingsLoading
       ? "正在读取状态"
       : settings.deepseekAvailable === false
-        ? "正式版当前使用本地规则"
+        ? "管理员暂时关闭，训练仍使用本地规则"
         : settings.deepseekApiKeyConfigured
           ? "已配置，可调整模型与连接"
           : "未配置，点此开始";
@@ -440,10 +440,11 @@ export function MeView({
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
               autoComplete="new-password"
-              minLength={10}
+              minLength={6}
               maxLength={128}
-              placeholder="至少 10 位"
+              placeholder="至少 6 位"
             />
+            <span className="muted small">建议使用 10 位以上且不要与其他网站重复。</span>
           </label>
           <label className="setting-input">
             再输入一次新密码
@@ -452,7 +453,7 @@ export function MeView({
               value={newPasswordConfirmation}
               onChange={(event) => setNewPasswordConfirmation(event.target.value)}
               autoComplete="new-password"
-              minLength={10}
+              minLength={6}
               maxLength={128}
             />
           </label>
@@ -779,14 +780,14 @@ function DeepSeekSettings({
         <div className="mini-head">
           <div>
             <p className="eyebrow">当前状态</p>
-            <h3 className="section-title">正式版暂未开放个人 API Key</h3>
+            <h3 className="section-title">个人 API Key 当前已暂停</h3>
           </div>
           <span className="date-pill">本地规则</span>
         </div>
-        <p className="muted">现在的公开服务器为多人账号服务。在接入独立的密钥保险库前，姿序不会接收或明文保存每位用户的 DeepSeek Key，所以当前不显示无法安全保存的配置框。</p>
+        <p className="muted">服务器的 DeepSeek 紧急开关当前处于关闭状态，所以暂时不接收新的 Key；训练计划仍由本地规则正常生成。</p>
         <div className="deepseek-boundary-note">
           <strong>入口为什么仍然保留？</strong>
-          <p>你可以随时在这里确认真实状态。安全存储能力接入后，本页会直接出现完整配置表单，不需要再找入口。</p>
+          <p>你可以随时确认真实状态。管理员重新开启后，本页会直接恢复每个账号独立的加密配置表单。</p>
         </div>
         <div className="setup-step-list" aria-label="DeepSeek 开放后的配置步骤">
           <span><b>1</b> 输入 API Key</span>
@@ -833,7 +834,7 @@ function DeepSeekSettings({
 
       <div className="ai-privacy-note">
         <strong>数据边界</strong>
-        <p>不做医疗诊断；体态照片永不发送给 DeepSeek；手机端不会回显已保存 Key 的任何字符。</p>
+        <p>Key 按当前账号加密保存在姿序服务器且永不回显；不做医疗诊断；体态照片永不发送给 DeepSeek。</p>
       </div>
 
       <div className="key-status-row">

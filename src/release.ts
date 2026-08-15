@@ -13,12 +13,12 @@ export interface LatestReleaseManifest {
   platforms: Record<AppPlatform, PlatformRelease>;
 }
 
-export const CURRENT_APP_VERSION = "1.0.3";
+export const CURRENT_APP_VERSION = "1.0.4";
 
 export const CURRENT_APP_BUILDS: Record<AppPlatform, number> = {
-  android: 4,
-  ios: 3,
-  web: 2
+  android: 5,
+  ios: 4,
+  web: 3
 };
 
 const PREVIOUS_NATIVE_RELEASE_NOTES = [
@@ -29,12 +29,11 @@ const PREVIOUS_NATIVE_RELEASE_NOTES = [
   "更新侧弯风险自查的站立与前屈示意图"
 ];
 
-const CURRENT_CORRECTION_RELEASE_NOTES = [
-  "运营数据迁移到独立管理员后台，普通账号不可见",
-  "支持账号名或 QQ、Gmail 等标准邮箱登录",
-  "账号与隐私增加修改密码，并撤销全部旧会话",
-  "重复账号改为明确中文提示",
-  "体态照片说明与服务器存储方式保持一致"
+const CURRENT_SECURITY_RELEASE_NOTES = [
+  "开放按账号隔离的个人 DeepSeek API Key，并在服务器加密保存",
+  "登录与注册增加一次性四位图形验证码",
+  "注册和修改密码的最低长度调整为 6 位，并继续建议使用 10 位以上独立密码",
+  "保留账号或标准邮箱登录、重复账号中文提示与管理员后台隔离"
 ];
 
 export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
@@ -44,8 +43,8 @@ export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
       version: CURRENT_APP_VERSION,
       build: CURRENT_APP_BUILDS.android,
       publishedAt: "2026-08-15",
-      releaseNotes: CURRENT_CORRECTION_RELEASE_NOTES,
-      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.3.apk"
+      releaseNotes: CURRENT_SECURITY_RELEASE_NOTES,
+      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.4.apk"
     },
     ios: {
       version: "1.0.2",
@@ -58,7 +57,7 @@ export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
       version: CURRENT_APP_VERSION,
       build: CURRENT_APP_BUILDS.web,
       publishedAt: "2026-08-15",
-      releaseNotes: CURRENT_CORRECTION_RELEASE_NOTES,
+      releaseNotes: CURRENT_SECURITY_RELEASE_NOTES,
       installUrl: null
     }
   }
