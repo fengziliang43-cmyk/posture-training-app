@@ -1,17 +1,19 @@
 [中文](README.md) | [English](README_EN.md)
 
-# Posture & Training Companion
+# Zixu
 
-> A local-first personal posture and training planner that brings daily readiness, workouts, posture records, and long-term trends into one low-friction loop.
+> A safety-first, account-isolated posture and training planner that combines onboarding, daily readiness, workouts, posture records, and long-term trends.
 
-![Status](https://img.shields.io/badge/status-MVP%20on%20feature%2Fmvp-2f855a)
-![App](https://img.shields.io/badge/app-PWA%20%2B%20Android%20APK-2563eb)
-![Privacy](https://img.shields.io/badge/privacy-local%20first-7c3aed)
+![Version](https://img.shields.io/badge/version-1.0.4-2f855a)
+![App](https://img.shields.io/badge/app-PWA%20%2B%20Android%20%2B%20iOS-2563eb)
+![Privacy](https://img.shields.io/badge/privacy-account%20isolated-7c3aed)
 ![Safety](https://img.shields.io/badge/training-safety%20first-d97706)
+
+[Open the Web App](https://body.liang111.top/) · [Download Android 1.0.4](https://body.liang111.top/releases/zixu-android-1.0.4.apk) · [Checksum](https://body.liang111.top/releases/zixu-android-1.0.4.apk.sha256) · [Release Manifest](https://body.liang111.top/api/releases/latest)
 
 ## Purpose
 
-This project is a personal, record-oriented training companion. It evaluates daily readiness, suggests a conservative and progressive workout or recovery task, and tracks completion and posture trends over time.
+Zixu is a record-oriented training companion. Onboarding first limits the exercise pool and initial difficulty; daily readiness then selects a conservative workout or recovery task while longer-term feedback drives progression.
 
 Its priorities are fixed:
 
@@ -20,21 +22,31 @@ Safety -> Posture -> Fat loss -> Muscle gain -> Conditioning
 ```
 
 > [!IMPORTANT]
-> This project is a training aid, not a medical diagnostic or treatment tool. Stop training and seek timely medical care for red-flag symptoms such as numbness, radiating pain, marked weakness, bowel or bladder changes, or sudden sharp pain. A worsening condition or increased pain should downgrade the plan, not be pushed through.
+> This project is a training aid, not a medical diagnostic or treatment tool. Stop training and seek appropriate medical assessment for red-flag symptoms. A worsening condition or increased pain should downgrade the plan, not be pushed through.
 
-## Current Status
+## Current Release
 
-| Branch | Status | Description |
-| --- | --- | --- |
-| `main` | Documentation line | Contains the project rules, design specification, and implementation plan. |
-| `feature/mvp` | Runnable MVP | Contains the PWA, Fastify server, SQLite storage, local photo upload, Android debug APK workflow, and latest UI. |
+Version `1.0.4` keeps the Web/PWA and signed Android package in sync. The iOS Capacitor project is maintained in the same source tree, but there is currently no public App Store, TestFlight, or IPA download. The public service uses HTTPS and isolates registration, sessions, training records, and posture photos by account.
 
-To inspect or run the application, switch to `feature/mvp`:
+Highlights in this release:
+
+- One-time four-digit image captchas for login and registration, alongside server-side rate limits.
+- Per-account DeepSeek API keys, encrypted on the server with AES-256-GCM and never returned by settings APIs.
+- A six-character minimum for registration and password changes, with a clear recommendation to use a unique password of at least ten characters.
+- Login with either an account name or a standard email address such as QQ Mail or Gmail; duplicate accounts receive a clear response.
+- Operations data remains in a separate administrator area and is not exposed in ordinary account pages.
+
+## Source and Local Development
+
+`main` contains the project home page, rules, and foundational design documents. The actual 1.0.4 application source is pinned to release commit [`ea29349`](https://github.com/fengziliang43-cmyk/posture-training-app/commit/ea29349149551ead1b9fdefa50df843e52ac43b8) on `codex/latest-candidate-20260814`.
 
 ```bash
-git checkout feature/mvp
-npm install
+git clone https://github.com/fengziliang43-cmyk/posture-training-app.git
+cd posture-training-app
+git switch codex/latest-candidate-20260814
+npm ci
 npm test
+npm run lint
 npm run build
 ```
 
@@ -58,18 +70,20 @@ Web app:    http://localhost:5173
 Daily status -> Readiness decision -> Train / Deload / Recover -> Check in -> Review trends -> Compare posture
 ```
 
-The first version is designed around:
+The product includes:
 
-- Daily status: lower-back discomfort, energy, available training time, and optional sleep, steps, diet, and weight inputs.
-- Plan generation: template selection based on red flags, discomfort, energy, sleep, time, and weekly progress.
-- Exercise library: pulling, scapular control, core stability, hip and pelvic stability, and recovery work.
+- Accounts and onboarding: public registration with captcha protection and account-name or email login; new users complete adult confirmation, goals, equipment, capacity, and limitations first.
+- Daily status: discomfort, energy, available training time, and optional sleep, steps, diet, and weight inputs.
+- Plan generation: profile, daily readiness, and historical feedback form three matching layers; red flags always take priority.
+- Exercise library: pulling, scapular control, core stability, lower-body and recovery work with reviewed direct video links.
 - Records: trends, calendar states, training frequency, and exercise progression.
-- Posture: local front, side, and back photo records with manual same-angle comparison.
-- Settings: local server, connection status, reminders, reserved DeepSeek configuration, and backup export.
+- Posture: front, side, and back photos stored on the Zixu server for manual same-angle comparison; no AI or medical diagnosis.
+- Me and Settings: password change, update checks, personal export, account deletion, and per-account DeepSeek configuration.
+- Clients: one React codebase for PWA, Android, and iOS.
 
 ## Product Principles
 
-- Local first: training records, photos, and configuration stay on the user's devices by default.
+- Data minimization: runtime data stays in controlled server-side SQLite and file storage, isolated by account; posture photos are optional.
 - Safety first: automatically downgrade the session when readiness is poor.
 - Low friction: keep the essential daily input brief.
 - No diagnosis: support training without replacing medical assessment or treatment.
@@ -82,10 +96,22 @@ The first version is designed around:
 | --- | --- |
 | Frontend | Vite + React + PWA |
 | Backend | Node.js + Fastify |
-| Data | SQLite + local file system |
-| Mobile | Android browser first, then Capacitor APK packaging after stabilization |
-| Access | A local Mac server reached from the phone through a private Tailscale network |
+| Data | Server-side SQLite + controlled file storage, isolated by account |
+| Mobile | Capacitor Android + iOS |
+| Access | [body.liang111.top](https://body.liang111.top/); HTTPS reverse proxy to a loopback-only API |
 | AI | DeepSeek for explanations and reviews only; local rules continue to decide training |
+
+## Android Installation and Updates
+
+1. Open the [official Android download](https://body.liang111.top/releases/zixu-android-1.0.4.apk) on the phone.
+2. Android completes the installation flow. First-time installation may require enabling “Install unknown apps” for the browser or file manager.
+3. Installation always requires user confirmation; Zixu does not bypass Android with silent installation.
+4. Use the published [SHA-256 checksum](https://body.liang111.top/releases/zixu-android-1.0.4.apk.sha256) to verify the package.
+5. “Me → Settings → Check for updates” reads the official release manifest and lets the user choose whether to download a newer package.
+
+## Operations Dashboard
+
+The operations area is not an ordinary user feature. An administrator first signs in on the [Zixu home page](https://body.liang111.top/) and then opens the [administrator dashboard](https://body.liang111.top/admin). It shows aggregate account, activity, and training metrics and links to a protected GoAccess traffic report. Ordinary accounts neither see the entry nor gain access to administrator APIs.
 
 ## Documentation
 
@@ -104,10 +130,8 @@ Do not commit:
 - `.env` files, API keys, tokens, passwords, or other credentials.
 - APKs, build output, caches, or `node_modules/`.
 
-Posture photos should remain on personal devices and must not be sent to third-party AI services. Do not expose the service directly to the public internet; use a private network such as Tailscale for remote access. Account passwords must be securely hashed and never stored as plaintext.
+Posture photos are stored only in account-isolated directories on the Zixu server and are not sent to DeepSeek or other third-party AI services. Per-account DeepSeek API keys use AES-256-GCM encryption and are excluded from personal backups and settings responses. The production API binds only to loopback and is reached through an HTTPS reverse proxy. Passwords use bcrypt hashes, only SHA-256 token digests are stored for sessions, and login and registration require one-time image captchas. Registration, captcha enforcement, and personal API keys retain production emergency switches.
 
-## Next Steps
+## Release and Verification
 
-- Continue validating the latest APK on a real phone.
-- Refine the Today, Records, and Posture views from actual use.
-- Keep the training rules conservative and do not trade safety for visual or feature complexity.
+Production follows “test → commit → push → remote readback → exact-commit build → immutable production release → atomic switch,” with the previous release retained for rollback. The source repository does not contain APK files, runtime databases, uploaded photos, `.env` files, API keys, or signing certificates.
