@@ -29,15 +29,23 @@ const PREVIOUS_NATIVE_RELEASE_NOTES = [
   "更新侧弯风险自查的站立与前屈示意图"
 ];
 
+const CURRENT_CORRECTION_RELEASE_NOTES = [
+  "运营数据迁移到独立管理员后台，普通账号不可见",
+  "支持账号名或 QQ、Gmail 等标准邮箱登录",
+  "账号与隐私增加修改密码，并撤销全部旧会话",
+  "重复账号改为明确中文提示",
+  "体态照片说明与服务器存储方式保持一致"
+];
+
 export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
   schemaVersion: 1,
   platforms: {
     android: {
-      version: "1.0.2",
-      build: 3,
+      version: CURRENT_APP_VERSION,
+      build: CURRENT_APP_BUILDS.android,
       publishedAt: "2026-08-15",
-      releaseNotes: PREVIOUS_NATIVE_RELEASE_NOTES,
-      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.2.apk"
+      releaseNotes: CURRENT_CORRECTION_RELEASE_NOTES,
+      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.3.apk"
     },
     ios: {
       version: "1.0.2",
@@ -50,13 +58,7 @@ export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
       version: CURRENT_APP_VERSION,
       build: CURRENT_APP_BUILDS.web,
       publishedAt: "2026-08-15",
-      releaseNotes: [
-        "运营数据迁移到独立管理员后台，普通账号不可见",
-        "支持账号名或 QQ、Gmail 等标准邮箱登录",
-        "账号与隐私增加修改密码，并撤销全部旧会话",
-        "重复账号改为明确中文提示",
-        "体态照片说明与服务器存储方式保持一致"
-      ],
+      releaseNotes: CURRENT_CORRECTION_RELEASE_NOTES,
       installUrl: null
     }
   }
