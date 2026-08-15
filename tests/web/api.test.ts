@@ -3,6 +3,7 @@ import {
   ApiRequestError,
   DEFAULT_NATIVE_API_BASE_URL,
   describeLoginError,
+  describePasswordChangeError,
   describeRegistrationError,
   isRetryableApiError,
   normalizeApiBaseUrl,
@@ -73,11 +74,24 @@ describe("认证错误文案", () => {
       describeRegistrationError(
         new ApiRequestError("username unavailable", { status: 409, retryable: false })
       )
-    ).toBe("这个账号名已被使用，请换一个再试。");
+    ).toBe("账号重复了，请直接登录或换一个账号/邮箱。");
     expect(
       describeRegistrationError(
         new ApiRequestError("invalid registration", { status: 400, retryable: false })
       )
     ).toBe("注册信息不符合要求，请检查账号、密码和确认选项。");
+  });
+
+  it("turns password change failures into safe prompts", () => {
+    expect(
+      describePasswordChangeError(
+        new ApiRequestError("current password incorrect", { status: 403, retryable: false })
+      )
+    ).toBe("当前密码不正确，请重新输入。");
+    expect(
+      describePasswordChangeError(
+        new ApiRequestError("invalid new password", { status: 400, retryable: false })
+      )
+    ).toBe("新密码至少 10 位，并且不能与当前密码相同。");
   });
 });

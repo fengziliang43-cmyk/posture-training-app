@@ -17,6 +17,7 @@ describe("release manifest", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers["cache-control"]).toBe("no-store");
-    expect(response.json().platforms.android.version).toBe(CURRENT_APP_VERSION);
+    expect(response.json().platforms.web.version).toBe(CURRENT_APP_VERSION);
+    expect(response.json().platforms.android.version).toBe("1.0.2");
   });
 });

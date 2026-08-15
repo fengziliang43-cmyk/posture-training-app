@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { isAdminConsolePath } from "../../src/web/App";
 import { mainTabs } from "../../src/web/components/Layout";
 import { settingsMenuEntries } from "../../src/web/components/SettingsView";
 
@@ -25,5 +26,26 @@ describe("我的与设置导航", () => {
     expect(appSource).not.toContain("服务器地址");
     expect(appSource).not.toContain("测试连接");
     expect(appSource).not.toContain("setApiBaseUrl");
+  });
+
+  it("keeps operations data out of ordinary account pages", () => {
+    const meSource = readFileSync(new URL("../../src/web/components/MeView.tsx", import.meta.url), "utf8");
+    const adminSource = readFileSync(new URL("../../src/web/components/AdminConsole.tsx", import.meta.url), "utf8");
+
+    expect(meSource).not.toContain("getAdminStats");
+    expect(meSource).not.toContain("运营数据");
+    expect(adminSource).toContain("getAdminStats");
+    expect(adminSource).toContain("姿序运营后台");
+    expect(isAdminConsolePath("/admin")).toBe(true);
+    expect(isAdminConsolePath("/admin/")).toBe(true);
+    expect(isAdminConsolePath("/")).toBe(false);
+    expect(isAdminConsolePath("/settings")).toBe(false);
+  });
+
+  it("places password changes inside account and privacy settings", () => {
+    const meSource = readFileSync(new URL("../../src/web/components/MeView.tsx", import.meta.url), "utf8");
+    expect(meSource).toContain("修改密码");
+    expect(meSource).toContain("changePassword");
+    expect(meSource).toContain("所有设备上的登录都会失效");
   });
 });

@@ -23,7 +23,17 @@ describe("release version consistency", () => {
     expect(androidGradle).not.toMatch(/storePassword\s+["'][^$]/);
     expect(iosProject.match(new RegExp(`MARKETING_VERSION = ${CURRENT_APP_VERSION.replaceAll(".", "\\.")};`, "g"))).toHaveLength(2);
     expect(iosProject.match(new RegExp(`CURRENT_PROJECT_VERSION = ${CURRENT_APP_BUILDS.ios};`, "g"))).toHaveLength(2);
-    expect(LATEST_RELEASE_MANIFEST.platforms.android.version).toBe(CURRENT_APP_VERSION);
-    expect(LATEST_RELEASE_MANIFEST.platforms.ios.version).toBe(CURRENT_APP_VERSION);
+    expect(LATEST_RELEASE_MANIFEST.platforms.web.version).toBe(CURRENT_APP_VERSION);
+    expect(LATEST_RELEASE_MANIFEST.platforms.web.build).toBe(CURRENT_APP_BUILDS.web);
+    expect(LATEST_RELEASE_MANIFEST.platforms.android).toMatchObject({
+      version: "1.0.2",
+      build: 3,
+      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.2.apk"
+    });
+    expect(LATEST_RELEASE_MANIFEST.platforms.ios).toMatchObject({
+      version: "1.0.2",
+      build: 2,
+      installUrl: null
+    });
   });
 });

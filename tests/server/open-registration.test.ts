@@ -82,6 +82,7 @@ describe("open registration and onboarding", () => {
 
     expect(registration.statusCode).toBe(200);
     expect(registration.json().user.onboardingCompleted).toBe(false);
+    expect(registration.json().user.role).toBe("user");
     expect(registration.json().sessionToken).toBeUndefined();
     const cookie = getCookie(registration.headers["set-cookie"]);
 
@@ -125,6 +126,7 @@ describe("open registration and onboarding", () => {
 
     const me = await app.inject({ method: "GET", url: "/api/auth/me", headers: { cookie } });
     expect(me.json().user.onboardingCompleted).toBe(true);
+    expect(me.json().user.role).toBe("user");
 
     const duplicate = await app.inject({
       method: "POST",
@@ -137,12 +139,79 @@ describe("open registration and onboarding", () => {
       }
     });
     expect(duplicate.statusCode).toBe(409);
+    expect(duplicate.json()).toEqual({ error: "account already exists" });
 
     const row = await (app as any).db.get(
       "SELECT password_hash FROM users WHERE username_normalized = ?",
       "new-user"
     );
     expect(row.password_hash).not.toContain("strong-password-123");
+    await app.close();
+  });
+
+  it("accepts QQ and Gmail addresses as case-insensitive login identifiers", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const qqRegistration = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        username: "Member.Name@qq.com",
+        password: "strong-password-123",
+        adultConfirmed: true,
+        termsAccepted: true
+      }
+    });
+    expect(qqRegistration.statusCode).toBe(200);
+    expect(qqRegistration.json().user).toMatchObject({
+      username: "Member.Name@qq.com",
+      role: "user"
+    });
+
+    const qqLogin = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { username: "member.name@QQ.COM", password: "strong-password-123" }
+    });
+    expect(qqLogin.statusCode).toBe(200);
+    expect(qqLogin.json().user.username).toBe("Member.Name@qq.com");
+
+    const duplicateQqEmail = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        username: "member.name@QQ.COM",
+        password: "different-password-123",
+        adultConfirmed: true,
+        termsAccepted: true
+      }
+    });
+    expect(duplicateQqEmail.statusCode).toBe(409);
+    expect(duplicateQqEmail.json()).toEqual({ error: "account already exists" });
+
+    const gmailRegistration = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        username: "member@gmail.com",
+        password: "another-password-123",
+        adultConfirmed: true,
+        termsAccepted: true
+      }
+    });
+    expect(gmailRegistration.statusCode).toBe(200);
+
+    const invalidEmail = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        username: "member@",
+        password: "another-password-123",
+        adultConfirmed: true,
+        termsAccepted: true
+      }
+    });
+    expect(invalidEmail.statusCode).toBe(400);
+
     await app.close();
   });
 

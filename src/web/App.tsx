@@ -20,6 +20,7 @@ import {
 import { RecordsView } from "./components/RecordsView";
 import { PostureView } from "./components/PostureView";
 import { MeView, type MeRoute } from "./components/SettingsView";
+import { AdminConsole } from "./components/AdminConsole";
 import { TodayView } from "./components/TodayView";
 import { Layout, type AppTab } from "./components/Layout";
 import { OnboardingView } from "./components/OnboardingView";
@@ -27,13 +28,19 @@ import { SiteFooter } from "./components/SiteFooter";
 import { formatLocalDate } from "../core/date";
 import type { ExerciseResult } from "../core/types";
 
-export const USERNAME_INPUT_PATTERN = "[a-zA-Z0-9_.\\-]+";
+export const ACCOUNT_IDENTIFIER_INPUT_PATTERN =
+  "(?:[a-zA-Z0-9_.\\-]{3,32}|[^\\s@]+@[^\\s@]+\\.[^\\s@]+)";
+
+export function isAdminConsolePath(pathname: string): boolean {
+  return pathname === "/admin" || pathname === "/admin/";
+}
 
 export function App() {
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [meRoute, setMeRoute] = useState<MeRoute>("home");
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [todayPlan, setTodayPlan] = useState<PlanResponsePlan | null>(null);
   const [todayMode, setTodayMode] = useState<"overview" | "task">("overview");
   const [latestStatus, setLatestStatus] = useState<DailyCheckinInput | null>(null);
@@ -157,7 +164,27 @@ export function App() {
   }
 
   if (!authUser) {
-    return <AuthScreen onAuthed={setAuthUser} />;
+    return (
+      <AuthScreen
+        initialInfo={authNotice}
+        onAuthed={(user) => {
+          setAuthNotice(null);
+          setAuthUser(user);
+        }}
+      />
+    );
+  }
+
+  if (typeof window !== "undefined" && isAdminConsolePath(window.location.pathname)) {
+    if (authUser.role !== "admin") {
+      return <AdminAccessDenied />;
+    }
+    return (
+      <AdminConsole
+        username={authUser.username}
+        onLogout={() => void handleAdminLogout(setAuthUser)}
+      />
+    );
   }
 
   if (!authUser.onboardingCompleted) {
@@ -198,13 +225,23 @@ export function App() {
           onOpenRecords={() => setActiveTab("records")}
           onOpenPosture={() => setActiveTab("posture")}
           onLogout={() => handleLogout(setAuthUser)}
+          onPasswordChanged={() => {
+            setAuthNotice("密码已修改，请使用新密码重新登录。");
+            setAuthUser(null);
+          }}
         />
       )}
     </Layout>
   );
 }
 
-function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
+function AuthScreen({
+  onAuthed,
+  initialInfo
+}: {
+  onAuthed: (user: AuthUser) => void;
+  initialInfo?: string | null;
+}) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -212,7 +249,7 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(initialInfo ?? null);
   const [pendingAction, setPendingAction] = useState<"login" | "register" | null>(null);
   const [registrationEnabled, setRegistrationEnabled] = useState(false);
 
@@ -309,17 +346,20 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
         )}
 
         <label>
-          账号
+          账号或邮箱
           <input
             autoComplete="username"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             minLength={3}
-            maxLength={32}
-            pattern={USERNAME_INPUT_PATTERN}
-            placeholder="3–32 位英文、数字或 _.-"
+            maxLength={254}
+            pattern={ACCOUNT_IDENTIFIER_INPUT_PATTERN}
+            placeholder="账号或 QQ、Gmail 等邮箱"
+            autoCapitalize="none"
+            spellCheck={false}
             required
           />
+          <span className="muted small">邮箱仅作为姿序登录名；请使用你为姿序单独设置的密码。</span>
         </label>
 
         <label>
@@ -368,7 +408,7 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
             </label>
             <details className="privacy-summary">
               <summary>使用与隐私说明摘要</summary>
-              <p>账号和密码用于登录；年龄段、体能、运动目标、当日状态等用于训练匹配。身高体重可选，姿势照片不是必填项。姿序不做医疗诊断或治疗；动作视频会打开哔哩哔哩第三方页面。</p>
+              <p>账号或邮箱和密码用于登录；年龄段、体能、运动目标、当日状态等用于训练匹配。邮箱目前只作为登录账号，不发送验证邮件。身高体重可选，姿势照片不是必填项。姿序不做医疗诊断或治疗；动作视频会打开哔哩哔哩第三方页面。</p>
             </details>
           </>
         )}
@@ -391,4 +431,23 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: AuthUser) => void }) {
 async function handleLogout(setAuthUser: (user: AuthUser | null) => void) {
   await logout().catch(() => undefined);
   setAuthUser(null);
+}
+
+async function handleAdminLogout(setAuthUser: (user: AuthUser | null) => void) {
+  await logout().catch(() => undefined);
+  setAuthUser(null);
+  window.location.assign("/");
+}
+
+function AdminAccessDenied() {
+  return (
+    <div className="center-screen">
+      <div className="status-card">
+        <p className="eyebrow">404</p>
+        <h1>页面不存在</h1>
+        <p className="muted">请返回姿序继续使用。</p>
+        <a className="secondary-button update-install-link" href="/">返回姿序</a>
+      </div>
+    </div>
+  );
 }

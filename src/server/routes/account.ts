@@ -6,15 +6,22 @@ import { basename, dirname, resolve, sep } from "node:path";
 import { z } from "zod";
 import {
   clearSessionCookie,
+  hashPassword,
   requireAuthenticatedUserId,
   type SessionStore,
   verifyPassword
 } from "../auth";
 import type { AppDatabase } from "../db";
+import { FixedWindowRateLimiter } from "./auth";
 
 const deleteAccountSchema = z.object({
   password: z.string().min(6).max(128),
-  confirmation: z.string().min(1).max(32)
+  confirmation: z.string().min(1).max(254)
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(6).max(128),
+  newPassword: z.string().min(10).max(128)
 });
 
 interface AccountRouteContext {
@@ -25,6 +32,49 @@ interface AccountRouteContext {
 }
 
 export function registerAccountRoutes(app: FastifyInstance, context: AccountRouteContext): void {
+  const passwordChangeLimiter = new FixedWindowRateLimiter(5, 15 * 60_000);
+
+  app.put("/api/account/password", async (request, reply) => {
+    const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
+    if (!userId) return;
+    const parsed = changePasswordSchema.safeParse(request.body ?? {});
+    if (!parsed.success || parsed.data.currentPassword === parsed.data.newPassword) {
+      return reply.code(400).send({ error: "invalid new password" });
+    }
+    if (!passwordChangeLimiter.consume(`${request.ip}:${userId}`)) {
+      return reply.code(429).send({ error: "too many attempts" });
+    }
+
+    const user = await context.db.get<{ password_hash: string; status: string }>(
+      "SELECT password_hash, status FROM users WHERE id = ?",
+      userId
+    );
+    const passwordMatches = user
+      ? await verifyPassword(parsed.data.currentPassword, user.password_hash)
+      : false;
+    if (!user || user.status !== "active" || !passwordMatches) {
+      return reply.code(403).send({ error: "current password incorrect" });
+    }
+
+    const passwordHash = await hashPassword(parsed.data.newPassword);
+    await context.db.exec("BEGIN IMMEDIATE");
+    try {
+      await context.db.run(
+        "UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        passwordHash,
+        userId
+      );
+      await context.sessions.deleteForUser(userId);
+      await context.db.exec("COMMIT");
+    } catch (error) {
+      await context.db.exec("ROLLBACK");
+      throw error;
+    }
+
+    clearSessionCookie(reply, context.secureCookies);
+    return { ok: true, reauthenticationRequired: true };
+  });
+
   app.delete("/api/account", async (request, reply) => {
     const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
     if (!userId) return;

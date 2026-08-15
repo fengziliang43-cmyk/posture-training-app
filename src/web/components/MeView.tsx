@@ -2,17 +2,17 @@ import { useEffect, useState } from "react";
 import type { TrainingProfile } from "../../core/types";
 import { CURRENT_APP_VERSION } from "../../release";
 import {
+  changePassword,
   clearDeepSeekApiKey,
   deleteAccount,
   describeApiError,
+  describePasswordChangeError,
   downloadBackup,
-  getAdminStats,
   getProfile,
   getSettings,
   saveDeepSeekApiKey,
   testDeepSeekConnection,
   updateSettings,
-  type AdminStatsResponse,
   type SettingsRecord
 } from "../api";
 import {
@@ -29,7 +29,6 @@ export type MeRoute =
   | "deepseek"
   | "notifications"
   | "updates"
-  | "analytics"
   | "privacy"
   | "rules";
 
@@ -48,6 +47,7 @@ interface MeViewProps {
   onOpenRecords: () => void;
   onOpenPosture: () => void;
   onLogout: () => void;
+  onPasswordChanged: () => void;
 }
 
 const initialSettings: SettingsRecord = {
@@ -64,17 +64,21 @@ export function MeView({
   onRouteChange,
   onOpenRecords,
   onOpenPosture,
-  onLogout
+  onLogout,
+  onPasswordChanged
 }: MeViewProps) {
   const [profile, setProfile] = useState<TrainingProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [settings, setSettings] = useState<SettingsRecord>(initialSettings);
   const [settingsLoading, setSettingsLoading] = useState(true);
-  const [adminStats, setAdminStats] = useState<AdminStatsResponse | null>(null);
   const [deepseekApiKeyInput, setDeepseekApiKeyInput] = useState("");
   const [deepseekModel, setDeepseekModel] = useState("deepseek-v4-flash");
   const [saving, setSaving] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirmation, setNewPasswordConfirmation] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -94,9 +98,6 @@ export function MeView({
       .catch(() => setError("设置加载失败。"))
       .finally(() => setSettingsLoading(false));
 
-    getAdminStats()
-      .then(setAdminStats)
-      .catch(() => setAdminStats(null));
   }, []);
 
   useEffect(() => {
@@ -230,7 +231,7 @@ export function MeView({
 
   async function removeAccount() {
     if (!deletePassword || deleteConfirmation !== username) {
-      setError(`请输入密码，并完整输入账号名 ${username}。`);
+      setError(`请输入密码，并完整输入账号或邮箱 ${username}。`);
       return;
     }
 
@@ -243,6 +244,35 @@ export function MeView({
     } catch (requestError) {
       setError(`账号注销失败：${describeApiError(requestError)}`);
       setDeletingAccount(false);
+    }
+  }
+
+  async function updatePassword() {
+    if (newPassword.length < 10) {
+      setError("新密码至少需要 10 位。");
+      return;
+    }
+    if (newPassword !== newPasswordConfirmation) {
+      setError("两次输入的新密码不一致。");
+      return;
+    }
+    if (currentPassword === newPassword) {
+      setError("新密码不能与当前密码相同。");
+      return;
+    }
+
+    setChangingPassword(true);
+    setError(null);
+    setInfo(null);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setNewPasswordConfirmation("");
+      onPasswordChanged();
+    } catch (requestError) {
+      setError(describePasswordChangeError(requestError));
+      setChangingPassword(false);
     }
   }
 
@@ -274,14 +304,6 @@ export function MeView({
             description="DeepSeek、提醒、隐私与规则"
             onClick={() => onRouteChange("settings")}
           />
-          {adminStats && (
-            <EntryButton
-              icon="数"
-              label="运营数据"
-              description="用户、活跃与训练数据"
-              onClick={() => onRouteChange("analytics")}
-            />
-          )}
         </div>
       </section>
     );
@@ -319,7 +341,7 @@ export function MeView({
             onClick={() => onRouteChange("notifications")}
           />
           <EntryButton icon="新" label={settingsMenuEntries[2].label} description={`当前版本 ${CURRENT_APP_VERSION}`} onClick={() => onRouteChange("updates")} />
-          <EntryButton icon="隐" label={settingsMenuEntries[3].label} description="备份、退出与账号注销" onClick={() => onRouteChange("privacy")} />
+          <EntryButton icon="隐" label={settingsMenuEntries[3].label} description="修改密码、备份、退出与账号注销" onClick={() => onRouteChange("privacy")} />
           <EntryButton icon="则" label={settingsMenuEntries[4].label} description="本地规则、AI 与数据边界" onClick={() => onRouteChange("rules")} />
         </div>
       </section>
@@ -385,30 +407,67 @@ export function MeView({
     );
   }
 
-  if (route === "analytics") {
-    return (
-      <section className="stack me-view">
-        <SubpageHeader title="运营数据" onBack={() => onRouteChange("home")} />
-        {adminStats ? (
-          <AdminAnalyticsDashboard stats={adminStats} />
-        ) : (
-          <section className="card setting-panel">
-            <p className="muted">无权访问，或运营数据暂时不可用。</p>
-          </section>
-        )}
-      </section>
-    );
-  }
-
   if (route === "privacy") {
     return (
       <section className="stack me-view">
         <SubpageHeader title="账号与隐私" onBack={() => onRouteChange("settings")} />
         {commonMessages}
+        <form
+          className="card setting-panel password-change-card"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void updatePassword();
+          }}
+        >
+          <p className="eyebrow">账号安全</p>
+          <h3 className="section-title">修改密码</h3>
+          <p className="muted small">修改成功后，当前账号在所有设备上的登录都会失效，需要使用新密码重新登录。</p>
+          <label className="setting-input">
+            当前密码
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              autoComplete="current-password"
+              minLength={6}
+              maxLength={128}
+            />
+          </label>
+          <label className="setting-input">
+            新密码
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              autoComplete="new-password"
+              minLength={10}
+              maxLength={128}
+              placeholder="至少 10 位"
+            />
+          </label>
+          <label className="setting-input">
+            再输入一次新密码
+            <input
+              type="password"
+              value={newPasswordConfirmation}
+              onChange={(event) => setNewPasswordConfirmation(event.target.value)}
+              autoComplete="new-password"
+              minLength={10}
+              maxLength={128}
+            />
+          </label>
+          <button
+            type="submit"
+            className="secondary-button"
+            disabled={changingPassword || !currentPassword || !newPassword || !newPasswordConfirmation}
+          >
+            {changingPassword ? "正在修改…" : "保存新密码"}
+          </button>
+        </form>
         <section className="card setting-panel privacy-summary-card">
           <p className="eyebrow">数据边界</p>
           <h3 className="section-title">你的记录只归当前账号</h3>
-          <p className="muted small">训练记录和体态照片按账号隔离；导出只包含当前账号的数据，不包含任何 DeepSeek API Key。</p>
+          <p className="muted small">训练记录和体态照片按账号隔离保存在姿序服务器；导出只包含当前账号的数据，不包含任何 DeepSeek API Key。</p>
           <button type="button" className="secondary-button" disabled={saving} onClick={() => void exportBackup()}>
             导出账号备份
           </button>
@@ -420,7 +479,13 @@ export function MeView({
 
         <details className="card setting-panel account-danger-zone">
           <summary>注销账号与删除数据</summary>
-          <div className="stack compact-stack">
+          <form
+            className="stack compact-stack"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void removeAccount();
+            }}
+          >
             <p className="muted small">注销后，当前账号的档案、训练记录、设置和体态照片会永久删除。建议先导出备份。</p>
             <label className="setting-input">
               当前密码
@@ -432,7 +497,7 @@ export function MeView({
               />
             </label>
             <label className="setting-input">
-              输入账号名 {username} 确认
+              输入账号或邮箱 {username} 确认
               <input
                 value={deleteConfirmation}
                 onChange={(event) => setDeleteConfirmation(event.target.value)}
@@ -440,14 +505,13 @@ export function MeView({
               />
             </label>
             <button
-              type="button"
+              type="submit"
               className="secondary-button danger-button"
               disabled={deletingAccount || saving || deleteConfirmation !== username || !deletePassword}
-              onClick={() => void removeAccount()}
             >
               {deletingAccount ? "正在注销…" : "永久注销当前账号"}
             </button>
-          </div>
+          </form>
         </details>
       </section>
     );
@@ -676,87 +740,6 @@ function AppUpdateSettings() {
       </button>
     </section>
   );
-}
-
-function AdminAnalyticsDashboard({ stats }: { stats: AdminStatsResponse }) {
-  return (
-    <div className="stack admin-dashboard">
-      <section className="card setting-panel">
-        <div className="mini-head">
-          <div>
-            <p className="eyebrow">用户</p>
-            <h3 className="section-title">账号与活跃</h3>
-          </div>
-          <span className="date-pill">仅管理员</span>
-        </div>
-        <div className="admin-metric-grid">
-          <AdminMetric label="有效账号" value={stats.users.total} />
-          <AdminMetric label="已建档" value={stats.users.onboarded} />
-          <AdminMetric label="7 天新增" value={stats.users.new7d} />
-          <AdminMetric label="30 天新增" value={stats.users.new30d} />
-          <AdminMetric label="7 天活跃" value={stats.users.active7d} />
-          <AdminMetric label="30 天活跃" value={stats.users.active30d} />
-        </div>
-      </section>
-
-      <section className="card setting-panel">
-        <p className="eyebrow">训练使用</p>
-        <h3 className="section-title">聚合活动</h3>
-        <div className="admin-metric-grid three-columns">
-          <AdminMetric label="7 天状态记录" value={stats.activity.checkins7d} />
-          <AdminMetric label="7 天完成训练" value={stats.activity.completedWorkouts7d} />
-          <AdminMetric label="累计完成训练" value={stats.activity.completedWorkoutsTotal} />
-        </div>
-      </section>
-
-      <section className={`card setting-panel ${stats.traffic.available ? "traffic-ready-card" : "traffic-pending-card"}`}>
-        <div className="mini-head">
-          <div>
-            <p className="eyebrow">网站访问</p>
-            <h3 className="section-title">{stats.traffic.available ? "GoAccess 访问统计" : "访问统计尚未接入"}</h3>
-          </div>
-          <span className="date-pill">{stats.traffic.available ? "已接入" : "待配置"}</span>
-        </div>
-        <p className="muted small">
-          {stats.traffic.available
-            ? "统计来自服务器 Nginx 访问日志，可查看真实访问量、访客趋势和热门页面；仅管理员登录后可打开。"
-            : "当前数据库没有页面浏览记录，所以这里不显示假 0。服务器授权接入 GoAccess 后，可显示真实访问量、访客趋势和热门页面。"}
-        </p>
-        {stats.traffic.available && stats.traffic.dashboardUrl && (
-          <a
-            className="secondary-button update-install-link"
-            href={stats.traffic.dashboardUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            打开访问统计
-          </a>
-        )}
-      </section>
-
-      <p className="muted small admin-generated-at">数据生成于 {formatAdminTimestamp(stats.generatedAt)}；本页只显示聚合数字，不显示账号和健康明细。</p>
-    </div>
-  );
-}
-
-function AdminMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="admin-metric">
-      <span>{label}</span>
-      <strong>{value.toLocaleString("zh-CN")}</strong>
-    </div>
-  );
-}
-
-function formatAdminTimestamp(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "刚刚";
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
 }
 
 function DeepSeekSettings({

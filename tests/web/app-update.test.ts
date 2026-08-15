@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CURRENT_APP_VERSION, LATEST_RELEASE_MANIFEST } from "../../src/release";
+import { LATEST_RELEASE_MANIFEST } from "../../src/release";
 import {
   checkForAppUpdate,
   compareVersions,
@@ -36,7 +36,7 @@ describe("应用更新", () => {
 
     expect(result.updateAvailable).toBe(true);
     expect(result.installAvailable).toBe(true);
-    expect(result.latest.version).toBe(CURRENT_APP_VERSION);
+    expect(result.latest.version).toBe("1.0.2");
   });
 
   it("only accepts official HTTPS install destinations", () => {

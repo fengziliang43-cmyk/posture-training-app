@@ -11,6 +11,7 @@ describe("auth", () => {
       payload: { username: "legacy-user", password: "test-password-123" }
     });
     expect(setup.statusCode).toBe(200);
+    expect(setup.json().user.role).toBe("admin");
 
     const row = await (app as any).db.get(
       "SELECT username, password_hash FROM users WHERE username = ?",
@@ -26,6 +27,7 @@ describe("auth", () => {
       payload: { username: "legacy-user", password: "test-password-123" }
     });
     expect(login.statusCode).toBe(200);
+    expect(login.json().user.role).toBe("admin");
     expect(login.headers["set-cookie"]).toBeTruthy();
     expect(login.headers["set-cookie"]).toContain("HttpOnly");
     expect(login.headers["set-cookie"]).toContain("SameSite=Strict");

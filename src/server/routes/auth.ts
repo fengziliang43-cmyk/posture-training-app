@@ -18,12 +18,14 @@ const usernameSchema = z
   .min(3)
   .max(32)
   .regex(/^[a-zA-Z0-9_.-]+$/);
+const emailSchema = z.string().trim().max(254).email();
+const accountIdentifierSchema = z.union([usernameSchema, emailSchema]);
 const loginSchema = z.object({
-  username: usernameSchema,
+  username: accountIdentifierSchema,
   password: z.string().min(6).max(128)
 });
 const registerSchema = z.object({
-  username: usernameSchema,
+  username: accountIdentifierSchema,
   password: z.string().min(10).max(128),
   adultConfirmed: z.literal(true),
   termsAccepted: z.literal(true)
@@ -65,7 +67,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
       usernameNormalized
     );
     if (existing) {
-      return reply.code(409).send({ error: "username unavailable" });
+      return reply.code(409).send({ error: "account already exists" });
     }
 
     const passwordHash = await hashPassword(parsed.data.password);
@@ -88,12 +90,13 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
       return establishSession(request, reply, context, {
         id: userId,
         username: parsed.data.username.trim(),
+        role: "user",
         onboardingCompleted: false
       });
     } catch (error) {
       await context.db.exec("ROLLBACK");
       if (isUniqueConstraintError(error)) {
-        return reply.code(409).send({ error: "username unavailable" });
+        return reply.code(409).send({ error: "account already exists" });
       }
       throw error;
     }
@@ -126,6 +129,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
     return establishSession(request, reply, context, {
       id: userId,
       username: parsed.data.username.trim(),
+      role: "admin",
       onboardingCompleted: true
     });
   });
@@ -144,9 +148,10 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
       id: number;
       username: string;
       password_hash: string;
+      role: string;
       status: string;
     }>(
-      `SELECT id, username, password_hash, status
+      `SELECT id, username, password_hash, role, status
          FROM users WHERE username_normalized = ?`,
       usernameNormalized
     );
@@ -164,6 +169,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
     return establishSession(request, reply, context, {
       id: user.id,
       username: user.username,
+      role: normalizeRole(user.role),
       onboardingCompleted: Boolean(profile?.completed_at)
     });
   });
@@ -179,8 +185,8 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
     const userId = await getAuthenticatedUserId(request, context.sessions);
     if (!userId) return reply.code(401).send({ error: "unauthorized" });
 
-    const user = await context.db.get<{ id: number; username: string; status: string }>(
-      "SELECT id, username, status FROM users WHERE id = ?",
+    const user = await context.db.get<{ id: number; username: string; role: string; status: string }>(
+      "SELECT id, username, role, status FROM users WHERE id = ?",
       userId
     );
     if (!user || user.status !== "active") {
@@ -194,6 +200,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AuthRouteConte
       user: {
         id: user.id,
         username: user.username,
+        role: normalizeRole(user.role),
         onboardingCompleted: Boolean(profile?.completed_at)
       }
     };
@@ -204,7 +211,7 @@ async function establishSession(
   request: FastifyRequest,
   reply: FastifyReply,
   context: AuthRouteContext,
-  user: { id: number; username: string; onboardingCompleted: boolean }
+  user: { id: number; username: string; role: "admin" | "user"; onboardingCompleted: boolean }
 ) {
   const sessionToken = createSessionToken();
   await context.sessions.set(sessionToken, user.id);
@@ -231,6 +238,10 @@ function setSessionCookie(
 
 function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
+}
+
+function normalizeRole(role: string): "admin" | "user" {
+  return role === "admin" ? "admin" : "user";
 }
 
 function isUniqueConstraintError(error: unknown): boolean {

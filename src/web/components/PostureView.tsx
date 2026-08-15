@@ -126,7 +126,7 @@ export function PostureView() {
 
       <div className="privacy-banner" role="note">
         <strong>只做人工对比</strong>
-        <span>不做 AI 或医疗诊断；照片只保存在 Mac，不发送给 DeepSeek。</span>
+        <span>不做 AI 或医疗诊断；照片只保存在服务器，不发送给 DeepSeek。</span>
       </div>
 
       <ScoliosisRiskGuide />

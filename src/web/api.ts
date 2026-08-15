@@ -18,6 +18,7 @@ import {
 export interface AuthUser {
   id: number;
   username: string;
+  role: "admin" | "user";
   onboardingCompleted: boolean;
 }
 
@@ -240,6 +241,14 @@ export async function deleteAccount(password: string, confirmation: string): Pro
   await apiRequest("/api/account", {
     method: "DELETE",
     body: JSON.stringify({ password, confirmation })
+  });
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiRequest<{ ok: true; reauthenticationRequired: true }>("/api/account/password", {
+    method: "PUT",
+    body: JSON.stringify({ currentPassword, newPassword })
   });
   localStorage.removeItem(AUTH_TOKEN_KEY);
 }
@@ -468,7 +477,7 @@ export function describeLoginError(error: unknown): string {
 export function describeRegistrationError(error: unknown): string {
   if (error instanceof ApiRequestError) {
     if (error.status === 409) {
-      return "这个账号名已被使用，请换一个再试。";
+      return "账号重复了，请直接登录或换一个账号/邮箱。";
     }
     if (error.status === 400) {
       return "注册信息不符合要求，请检查账号、密码和确认选项。";
@@ -482,6 +491,25 @@ export function describeRegistrationError(error: unknown): string {
   }
 
   return "注册服务暂时不可用，请稍后再试。";
+}
+
+export function describePasswordChangeError(error: unknown): string {
+  if (error instanceof ApiRequestError) {
+    if (error.status === 403) {
+      return "当前密码不正确，请重新输入。";
+    }
+    if (error.status === 400) {
+      return "新密码至少 10 位，并且不能与当前密码相同。";
+    }
+    if (error.status === 429) {
+      return "尝试次数过多，请稍后再修改密码。";
+    }
+    if (error.retryable) {
+      return "密码修改服务暂时不可用，请检查网络后再试。";
+    }
+  }
+
+  return "密码修改服务暂时不可用，请稍后再试。";
 }
 
 async function apiRequest<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
