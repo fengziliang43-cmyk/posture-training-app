@@ -28,6 +28,9 @@ describe("我的与设置导航", () => {
     expect(appSource).not.toContain("setApiBaseUrl");
     expect(appSource).toContain("四位数字验证码");
     expect(appSource).toContain("至少 6 位");
+    expect(appSource).toContain("password-visibility-button");
+    expect(appSource).toContain('aria-label={passwordVisible ? "隐藏密码" : "显示密码"}');
+    expect(appSource).toContain('type={passwordVisible ? "text" : "password"}');
   });
 
   it("keeps operations data out of ordinary account pages", () => {
@@ -49,5 +52,20 @@ describe("我的与设置导航", () => {
     expect(meSource).toContain("修改密码");
     expect(meSource).toContain("changePassword");
     expect(meSource).toContain("所有设备上的登录都会失效");
+  });
+
+  it("allows an existing profile to be edited and previews equipment library changes", () => {
+    const meSource = readFileSync(new URL("../../src/web/components/MeView.tsx", import.meta.url), "utf8");
+    const onboardingSource = readFileSync(
+      new URL("../../src/web/components/OnboardingView.tsx", import.meta.url),
+      "utf8"
+    );
+
+    expect(meSource).toContain("setProfileEditing(true)");
+    expect(meSource).toContain("initialProfile={profile}");
+    expect(meSource).toContain("setProfile(updatedProfile)");
+    expect(onboardingSource).toContain("getEquipmentCompatibleExercises");
+    expect(onboardingSource).toContain("器械匹配运动库");
+    expect(onboardingSource).toContain("saveProfile");
   });
 });

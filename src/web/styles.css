@@ -2408,6 +2408,46 @@ label,
   box-shadow: 0 8px 18px rgba(52, 49, 64, 0.14);
 }
 
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input-wrap input {
+  padding-right: 52px;
+}
+
+.password-visibility-button {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  width: 40px;
+  min-height: 38px;
+  padding: 0;
+  place-items: center;
+  transform: translateY(-50%);
+  border-radius: 13px;
+  color: #625d70;
+  background: transparent;
+  box-shadow: none;
+}
+
+.password-visibility-button:hover,
+.password-visibility-button:focus-visible {
+  color: #3d3850;
+  background: rgba(226, 222, 244, 0.68);
+}
+
+.password-visibility-button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
 .captcha-field {
   display: grid;
   gap: 8px;
@@ -2615,6 +2655,82 @@ label,
 
 .onboarding-actions {
   margin-top: 2px;
+}
+
+.profile-edit-flow,
+.profile-edit-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.profile-edit-card {
+  gap: 16px;
+}
+
+.profile-edit-card h1 {
+  margin: 4px 0 7px;
+  color: var(--ink);
+  font-size: clamp(24px, 6vw, 30px);
+  line-height: 1.08;
+}
+
+.profile-library-preview {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(177, 168, 225, 0.28);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(235, 232, 255, 0.44);
+}
+
+.profile-library-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-library-preview-head strong {
+  color: #514b72;
+  font-size: 13px;
+}
+
+.profile-library-preview-head span {
+  color: #625a92;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.profile-library-preview p,
+.profile-consent-note,
+.profile-library-note {
+  line-height: 1.55;
+}
+
+.profile-library-preview details {
+  color: #5d567f;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.profile-library-preview summary {
+  cursor: pointer;
+}
+
+.profile-library-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.profile-library-tags span {
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #615a87;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
 }
 
 .sr-only {

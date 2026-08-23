@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getEquipmentCompatibleExercises } from "../../core/exercise-library";
 import type { TrainingProfile } from "../../core/types";
 import { CURRENT_APP_VERSION } from "../../release";
 import {
@@ -21,6 +22,7 @@ import {
   refreshWebApp,
   type AppUpdateResult
 } from "../app-update";
+import { OnboardingView } from "./OnboardingView";
 
 export type MeRoute =
   | "home"
@@ -69,6 +71,7 @@ export function MeView({
 }: MeViewProps) {
   const [profile, setProfile] = useState<TrainingProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [profileEditing, setProfileEditing] = useState(false);
   const [settings, setSettings] = useState<SettingsRecord>(initialSettings);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [deepseekApiKeyInput, setDeepseekApiKeyInput] = useState("");
@@ -103,7 +106,12 @@ export function MeView({
   useEffect(() => {
     setError(null);
     setInfo(null);
+    if (route !== "profile") setProfileEditing(false);
   }, [route]);
+
+  useEffect(() => {
+    if (route === "profile") window.scrollTo({ top: 0, behavior: "auto" });
+  }, [route, profileEditing]);
 
   async function toggleNotifications(checked: boolean) {
     setSaving(true);
@@ -312,9 +320,29 @@ export function MeView({
   if (route === "profile") {
     return (
       <section className="stack me-view">
-        <SubpageHeader title="训练档案" onBack={() => onRouteChange("home")} />
+        <SubpageHeader
+          title={profileEditing ? "修改训练档案" : "训练档案"}
+          onBack={() => profileEditing ? setProfileEditing(false) : onRouteChange("home")}
+        />
         {commonMessages}
-        <ProfileDetails profile={profile} loading={profileLoading} />
+        {profileEditing && profile ? (
+          <OnboardingView
+            username={username}
+            initialProfile={profile}
+            onCancel={() => setProfileEditing(false)}
+            onComplete={(updatedProfile) => {
+              setProfile(updatedProfile);
+              setProfileEditing(false);
+              setInfo("训练档案已更新；新计划和动作替换会按新的器械与条件筛选。");
+            }}
+          />
+        ) : (
+          <ProfileDetails
+            profile={profile}
+            loading={profileLoading}
+            onEdit={() => setProfileEditing(true)}
+          />
+        )}
       </section>
     );
   }
@@ -595,7 +623,15 @@ function TrainingProfileCard({
   );
 }
 
-function ProfileDetails({ profile, loading }: { profile: TrainingProfile | null; loading: boolean }) {
+function ProfileDetails({
+  profile,
+  loading,
+  onEdit
+}: {
+  profile: TrainingProfile | null;
+  loading: boolean;
+  onEdit: () => void;
+}) {
   if (loading) {
     return <section className="card setting-panel"><p className="muted">正在读取训练档案…</p></section>;
   }
@@ -604,8 +640,17 @@ function ProfileDetails({ profile, loading }: { profile: TrainingProfile | null;
     return <section className="card setting-panel"><p className="muted">暂未找到训练档案。</p></section>;
   }
 
+  const compatibleExercises = getEquipmentCompatibleExercises(profile.equipment);
+
   return (
     <section className="card setting-panel profile-detail-card">
+      <div className="mini-head">
+        <div>
+          <p className="eyebrow">当前档案</p>
+          <h3 className="section-title">训练与动作筛选基线</h3>
+        </div>
+        <button type="button" className="text-button" onClick={onEdit}>修改</button>
+      </div>
       <div className="profile-detail-grid">
         <ProfileValue label="年龄段" value={profile.ageRange} />
         <ProfileValue label="体能水平" value={fitnessLabels[profile.fitnessLevel]} />
@@ -617,6 +662,11 @@ function ProfileDetails({ profile, loading }: { profile: TrainingProfile | null;
       <ProfileList label="训练目标" values={profile.goals.map((value) => goalLabels[value])} />
       <ProfileList label="可用器械" values={profile.equipment.map((value) => equipmentLabels[value] ?? value)} />
       <ProfileList label="需要保护" values={profile.limitations.map((value) => limitationLabels[value])} emptyLabel="未标记" />
+      <ProfileList
+        label={`器械匹配运动库 · ${compatibleExercises.length} 个动作`}
+        values={compatibleExercises.map((exercise) => exercise.name)}
+      />
+      <p className="muted small profile-library-note">每日计划还会继续按体能、需要保护的部位和当天状态做保守筛选。修改档案不会改写已经完成或正在执行的历史任务。</p>
     </section>
   );
 }

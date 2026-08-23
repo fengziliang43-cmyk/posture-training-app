@@ -4,8 +4,10 @@ import type {
   ExerciseEquipment,
   FitnessLevel,
   FunctionalLimitation,
+  TrainingProfile,
   TrainingGoal
 } from "../../core/types";
+import { getEquipmentCompatibleExercises } from "../../core/exercise-library";
 import { describeApiError, saveProfile } from "../api";
 
 const goalOptions: Array<{ value: TrainingGoal; label: string }> = [
@@ -71,13 +73,20 @@ const initialForm: OnboardingFormState = {
 
 export function OnboardingView({
   username,
+  initialProfile,
+  onCancel,
   onComplete
 }: {
   username: string;
-  onComplete: () => void;
+  initialProfile?: TrainingProfile;
+  onCancel?: () => void;
+  onComplete: (profile: TrainingProfile) => void;
 }) {
+  const editing = Boolean(initialProfile);
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState<OnboardingFormState>(() =>
+    initialProfile ? profileToForm(initialProfile) : initialForm
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -98,7 +107,7 @@ export function OnboardingView({
     setSaving(true);
     setError(null);
     try {
-      await saveProfile({
+      const response = await saveProfile({
         adultConfirmed: true,
         healthConsent: true,
         ageRange: form.ageRange,
@@ -116,33 +125,39 @@ export function OnboardingView({
         baselineLowBackPain: optionalNumber(form.baselineLowBackPain) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined,
         baselineNeckShoulderPain: optionalNumber(form.baselineNeckShoulderPain) as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined
       });
-      onComplete();
+      if (!response.profile) {
+        throw new Error("profile missing after save");
+      }
+      onComplete(response.profile);
     } catch (error) {
-      setError(`建档保存失败：${describeApiError(error)}`);
+      setError(`${editing ? "档案" : "建档"}保存失败：${describeApiError(error)}`);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="onboarding-screen">
-      <div className="onboarding-shell">
+    <div className={editing ? "profile-edit-flow" : "onboarding-screen"}>
+      <div className={editing ? "profile-edit-shell" : "onboarding-shell"}>
         <header className="onboarding-progress">
           <div>
-            <p className="eyebrow">欢迎，{username}</p>
-            <strong>首次建档 · {step + 1}/3</strong>
+            <p className="eyebrow">{editing ? "修改训练档案" : `欢迎，${username}`}</p>
+            <strong>{editing ? "档案设置" : "首次建档"} · {step + 1}/3</strong>
           </div>
-          <div className="onboarding-progress-track" aria-label={`建档进度 ${step + 1}/3`}>
+          <div className="onboarding-progress-track" aria-label={`${editing ? "档案设置" : "建档"}进度 ${step + 1}/3`}>
             <span style={{ width: `${((step + 1) / 3) * 100}%` }} />
           </div>
         </header>
 
-        <main className="auth-card onboarding-card">
+        <div
+          className={editing ? "card setting-panel profile-edit-card" : "auth-card onboarding-card"}
+          role={editing ? undefined : "main"}
+        >
           {step === 0 && (
             <section className="onboarding-step">
               <div>
                 <p className="eyebrow">基础情况</p>
-                <h1>先找到合适的起点</h1>
+                <h1>{editing ? "更新你的训练起点" : "先找到合适的起点"}</h1>
                 <p className="muted">只收集会影响动作筛选和训练量的信息。身高、体重可不填。</p>
               </div>
               <div className="field-grid two-columns">
@@ -200,7 +215,7 @@ export function OnboardingView({
             <section className="onboarding-step">
               <div>
                 <p className="eyebrow">目标与条件</p>
-                <h1>建立你的候选运动库</h1>
+                <h1>{editing ? "调整你的候选运动库" : "建立你的候选运动库"}</h1>
                 <p className="muted">先按目标、体能和器械筛选，每天再按状态决定当日动作和训练量。</p>
               </div>
               <fieldset className="choice-group">
@@ -238,6 +253,7 @@ export function OnboardingView({
                   ))}
                 </div>
               </fieldset>
+              <ExerciseLibraryPreview equipment={form.equipment} />
               <div className="field-grid two-columns">
                 <label>
                   每周希望训练
@@ -320,19 +336,28 @@ export function OnboardingView({
                 <p>姿序只做运动风险教育和状态匹配，不替代医疗评估。出现麻木、放射痛、明显无力、大小便异常或突发剧痛时，应停止训练并及时就医。</p>
                 <p>动作示范会打开哔哩哔哩第三方页面；视频仅用来看动作，训练量和停止条件以姿序当日任务为准。</p>
               </div>
-              <label className="check-row consent-row">
-                <input
-                  type="checkbox"
-                  checked={form.healthConsent}
-                  onChange={(event) => setForm({ ...form, healthConsent: event.target.checked })}
-                />
-                <span>我同意将以上健康与训练信息用于个人动作筛选和当日计划匹配。</span>
-              </label>
+              {editing ? (
+                <p className="muted small profile-consent-note">保存后继续按你已同意的范围，将这些信息用于个人动作筛选和当日计划匹配。</p>
+              ) : (
+                <label className="check-row consent-row">
+                  <input
+                    type="checkbox"
+                    checked={form.healthConsent}
+                    onChange={(event) => setForm({ ...form, healthConsent: event.target.checked })}
+                  />
+                  <span>我同意将以上健康与训练信息用于个人动作筛选和当日计划匹配。</span>
+                </label>
+              )}
             </section>
           )}
 
           {error && <p className="error-text">{error}</p>}
           <div className="button-row onboarding-actions">
+            {editing && step === 0 && onCancel && (
+              <button className="secondary-button" type="button" disabled={saving} onClick={onCancel}>
+                取消
+              </button>
+            )}
             {step > 0 && (
               <button className="secondary-button" type="button" disabled={saving} onClick={() => setStep(step - 1)}>
                 上一步
@@ -342,12 +367,31 @@ export function OnboardingView({
               <button type="button" onClick={goNext}>下一步</button>
             ) : (
               <button type="button" disabled={saving} onClick={() => void submitProfile()}>
-                {saving ? "正在匹配" : "建立我的运动库"}
+                {saving ? "正在保存" : editing ? "保存训练档案" : "建立我的运动库"}
               </button>
             )}
           </div>
-        </main>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function ExerciseLibraryPreview({ equipment }: { equipment: ExerciseEquipment[] }) {
+  const compatibleExercises = getEquipmentCompatibleExercises(equipment);
+  return (
+    <div className="profile-library-preview" aria-live="polite">
+      <div className="profile-library-preview-head">
+        <strong>器械匹配运动库</strong>
+        <span>{compatibleExercises.length} 个动作</span>
+      </div>
+      <p>勾选或移除器械会立即改变这里；保存后，新计划与动作替换会按新运动库筛选。</p>
+      <details>
+        <summary>查看当前动作</summary>
+        <div className="profile-library-tags">
+          {compatibleExercises.map((exercise) => <span key={exercise.id}>{exercise.name}</span>)}
+        </div>
+      </details>
     </div>
   );
 }
@@ -419,4 +463,24 @@ function optionalNumber(value: string): number | undefined {
   if (value.trim() === "") return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function profileToForm(profile: TrainingProfile): OnboardingFormState {
+  return {
+    ageRange: profile.ageRange,
+    heightCm: profile.heightCm?.toString() ?? "",
+    weightKg: profile.weightKg?.toString() ?? "",
+    fitnessLevel: profile.fitnessLevel,
+    goals: [...profile.goals],
+    equipment: [...profile.equipment],
+    weeklyTrainingDays: profile.weeklyTrainingDays,
+    defaultSessionMinutes: profile.defaultSessionMinutes,
+    canWalk20Minutes: profile.canWalk20Minutes,
+    canChairStand: profile.canChairStand,
+    canHoldSupport20Seconds: profile.canHoldSupport20Seconds,
+    limitations: [...profile.limitations],
+    baselineLowBackPain: profile.baselineLowBackPain?.toString() ?? "",
+    baselineNeckShoulderPain: profile.baselineNeckShoulderPain?.toString() ?? "",
+    healthConsent: true
+  };
 }

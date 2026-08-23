@@ -177,6 +177,47 @@ describe("open registration and onboarding", () => {
     await app.close();
   });
 
+  it("updates an existing profile and applies changed equipment to the next plan", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const user = await registerAndOnboard(app, "profile-editor");
+    const equipment = ["bodyweight", "floor", "wall", "walking-space", "resistance-band"];
+
+    const updated = await app.inject({
+      method: "PUT",
+      url: "/api/profile",
+      headers: { cookie: user.cookie },
+      payload: { ...profilePayload(), equipment }
+    });
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json().profile.equipment).toEqual(equipment);
+
+    await app.inject({
+      method: "POST",
+      url: "/api/checkins",
+      headers: { cookie: user.cookie },
+      payload: { ...checkinPayload("2026-08-10"), availableMinutes: 45 }
+    });
+    const plan = await app.inject({
+      method: "POST",
+      url: "/api/plans/today",
+      headers: { cookie: user.cookie },
+      payload: { date: "2026-08-10" }
+    });
+
+    expect(plan.statusCode).toBe(200);
+    expect(plan.json().plan.exercises.some((exercise: { exerciseId: string }) =>
+      exercise.exerciseId.startsWith("band-")
+    )).toBe(true);
+
+    const persisted = await app.inject({
+      method: "GET",
+      url: "/api/profile",
+      headers: { cookie: user.cookie }
+    });
+    expect(persisted.json().profile.equipment).toEqual(equipment);
+    await app.close();
+  });
+
   it("accepts QQ and Gmail addresses as case-insensitive login identifiers", async () => {
     const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
     const qqRegistration = await app.inject({

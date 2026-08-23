@@ -542,3 +542,12 @@ export const exerciseLibrary: Exercise[] = baseExerciseLibrary.map((exercise) =>
     ...metadata
   };
 });
+
+export function getEquipmentCompatibleExercises(
+  equipment: readonly ExerciseEquipment[]
+): Exercise[] {
+  const availableEquipment = new Set(equipment);
+  return exerciseLibrary.filter((exercise) =>
+    exercise.equipment.every((item) => availableEquipment.has(item))
+  );
+}

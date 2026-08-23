@@ -247,6 +247,8 @@ function AuthScreen({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [passwordConfirmationVisible, setPasswordConfirmationVisible] = useState(false);
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -373,6 +375,8 @@ function AuthScreen({
               type="button"
               onClick={() => {
                 setMode("login");
+                setPasswordVisible(false);
+                setPasswordConfirmationVisible(false);
                 setError(null);
                 setInfo(null);
                 if (captchaEnabled) void refreshCaptcha();
@@ -385,6 +389,8 @@ function AuthScreen({
               type="button"
               onClick={() => {
                 setMode("register");
+                setPasswordVisible(false);
+                setPasswordConfirmationVisible(false);
                 setError(null);
                 setInfo(null);
                 if (captchaEnabled) void refreshCaptcha();
@@ -414,16 +420,27 @@ function AuthScreen({
 
         <label>
           密码
-          <input
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            minLength={6}
-            maxLength={128}
-            placeholder={mode === "register" ? "至少 6 位" : "输入密码"}
-            required
-          />
+          <div className="password-input-wrap">
+            <input
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              type={passwordVisible ? "text" : "password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              minLength={6}
+              maxLength={128}
+              placeholder={mode === "register" ? "至少 6 位" : "输入密码"}
+              required
+            />
+            <button
+              type="button"
+              className="password-visibility-button"
+              aria-label={passwordVisible ? "隐藏密码" : "显示密码"}
+              aria-pressed={passwordVisible}
+              onClick={() => setPasswordVisible((visible) => !visible)}
+            >
+              <PasswordVisibilityIcon visible={passwordVisible} />
+            </button>
+          </div>
           {mode === "register" && (
             <span className="muted small">至少 6 位；建议使用 10 位以上且不要与其他网站重复。</span>
           )}
@@ -433,15 +450,26 @@ function AuthScreen({
           <>
             <label>
               再输入一次密码
-              <input
-                autoComplete="new-password"
-                type="password"
-                value={passwordConfirmation}
-                onChange={(event) => setPasswordConfirmation(event.target.value)}
-                minLength={6}
-                maxLength={128}
-                required
-              />
+              <div className="password-input-wrap">
+                <input
+                  autoComplete="new-password"
+                  type={passwordConfirmationVisible ? "text" : "password"}
+                  value={passwordConfirmation}
+                  onChange={(event) => setPasswordConfirmation(event.target.value)}
+                  minLength={6}
+                  maxLength={128}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-visibility-button"
+                  aria-label={passwordConfirmationVisible ? "隐藏确认密码" : "显示确认密码"}
+                  aria-pressed={passwordConfirmationVisible}
+                  onClick={() => setPasswordConfirmationVisible((visible) => !visible)}
+                >
+                  <PasswordVisibilityIcon visible={passwordConfirmationVisible} />
+                </button>
+              </div>
             </label>
             <label className="check-row consent-row">
               <input
@@ -516,6 +544,16 @@ function AuthScreen({
         <SiteFooter />
       </div>
     </div>
+  );
+}
+
+function PasswordVisibilityIcon({ visible }: { visible: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.75" />
+      {visible && <path d="M4 4l16 16" />}
+    </svg>
   );
 }
 

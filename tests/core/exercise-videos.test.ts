@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { exerciseLibrary } from "../../src/core/exercise-library";
+import {
+  exerciseLibrary,
+  getEquipmentCompatibleExercises
+} from "../../src/core/exercise-library";
 import { generateDailyPlan } from "../../src/core/plan-generator";
 import type { TrainingProfile } from "../../src/core/types";
 
@@ -83,6 +86,30 @@ describe("exercise demonstration videos", () => {
       expect(source?.load.shoulder).toBeLessThanOrEqual(1);
       expect(source?.equipment.every((item) => profileEquipment.has(item))).toBe(true);
     }
+  });
+
+  it("rebuilds the equipment-compatible library when equipment changes", () => {
+    const floorOnly = getEquipmentCompatibleExercises(["bodyweight", "floor", "wall", "walking-space"]);
+    const withBand = getEquipmentCompatibleExercises([
+      "bodyweight",
+      "floor",
+      "wall",
+      "walking-space",
+      "resistance-band"
+    ]);
+
+    expect(floorOnly.some((exercise) => exercise.id === "band-row")).toBe(false);
+    expect(withBand.some((exercise) => exercise.id === "band-row")).toBe(true);
+    expect(withBand.length).toBeGreaterThan(floorOnly.length);
+    expect(withBand.every((exercise) =>
+      exercise.equipment.every((item) => new Set([
+        "bodyweight",
+        "floor",
+        "wall",
+        "walking-space",
+        "resistance-band"
+      ]).has(item))
+    )).toBe(true);
   });
 });
 
