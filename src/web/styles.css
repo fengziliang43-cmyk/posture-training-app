@@ -1476,6 +1476,145 @@ input[type="range"] {
   width: 100%;
 }
 
+.auth-install-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 24px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.54);
+  box-shadow: 0 16px 38px rgba(66, 61, 83, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.auth-install-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-install-heading h2 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+}
+
+.auth-install-heading p {
+  margin: 0;
+}
+
+.auth-install-option {
+  border: 1px solid rgba(140, 132, 170, 0.16);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(251, 249, 244, 0.72);
+}
+
+.android-install-option {
+  display: grid;
+  gap: 12px;
+}
+
+.android-install-option > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.android-install-option p,
+.ios-install-option p {
+  margin: 0;
+}
+
+.auth-install-platform {
+  display: block;
+  color: #706a82;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-install-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-install-download {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  padding: 0 16px;
+  color: #ffffff;
+  background: linear-gradient(180deg, #4d4959, #2d2b34);
+  box-shadow: 0 10px 22px rgba(52, 49, 64, 0.16);
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.auth-install-download:hover,
+.auth-install-download:focus-visible {
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.auth-install-checksum {
+  justify-self: center;
+  color: #5c5574;
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.auth-install-checksum:hover {
+  text-decoration: underline;
+}
+
+.auth-install-note {
+  color: #777181;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.ios-install-option summary {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+}
+
+.ios-install-option summary::-webkit-details-marker {
+  display: none;
+}
+
+.ios-install-option summary > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.ios-install-option summary > span:last-child {
+  color: #6f6880;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ios-install-option[open] summary > span:last-child {
+  visibility: hidden;
+}
+
+.auth-install-steps {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 10px;
+  padding-left: 20px;
+  color: #595463;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .site-footer {
   display: flex;
   flex-wrap: wrap;

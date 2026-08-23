@@ -26,6 +26,7 @@ import { TodayView } from "./components/TodayView";
 import { Layout, type AppTab } from "./components/Layout";
 import { OnboardingView } from "./components/OnboardingView";
 import { SiteFooter } from "./components/SiteFooter";
+import { InstallOptions } from "./components/InstallOptions";
 import { formatLocalDate } from "../core/date";
 import type { ExerciseResult } from "../core/types";
 
@@ -541,6 +542,7 @@ function AuthScreen({
           </button>
         </div>
         </form>
+        <InstallOptions />
         <SiteFooter />
       </div>
     </div>

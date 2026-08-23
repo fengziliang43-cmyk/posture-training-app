@@ -4,12 +4,12 @@
 
 > A safety-first, account-isolated posture and training planner that combines onboarding, daily readiness, workouts, posture records, and long-term trends.
 
-![Version](https://img.shields.io/badge/version-1.0.4-2f855a)
+![Version](https://img.shields.io/badge/version-1.0.5-2f855a)
 ![App](https://img.shields.io/badge/app-PWA%20%2B%20Android%20%2B%20iOS-2563eb)
 ![Privacy](https://img.shields.io/badge/privacy-account%20isolated-7c3aed)
 ![Safety](https://img.shields.io/badge/training-safety%20first-d97706)
 
-[Open the Web App](https://body.liang111.top/) · [Download Android 1.0.4](https://body.liang111.top/releases/zixu-android-1.0.4.apk) · [Checksum](https://body.liang111.top/releases/zixu-android-1.0.4.apk.sha256) · [Release Manifest](https://body.liang111.top/api/releases/latest)
+[Open the Web App](https://body.liang111.top/) · [Download Android 1.0.5](https://body.liang111.top/releases/zixu-android-1.0.5.apk) · [Checksum](https://body.liang111.top/releases/zixu-android-1.0.5.apk.sha256) · [Release Manifest](https://body.liang111.top/api/releases/latest)
 
 ## Purpose
 
@@ -26,7 +26,7 @@ Safety -> Posture -> Fat loss -> Muscle gain -> Conditioning
 
 ## Current Release
 
-Version `1.0.4` keeps the Web/PWA and signed Android package in sync. The iOS Capacitor project is maintained in the same source tree, but there is currently no public App Store, TestFlight, or IPA download. The public service uses HTTPS and isolates registration, sessions, training records, and posture photos by account.
+Version `1.0.5` keeps the Web/PWA and signed Android package in sync. The iOS Capacitor project is maintained in the same source tree, but there is currently no public App Store, TestFlight, or IPA download. The public service uses HTTPS and isolates registration, sessions, training records, and posture photos by account.
 
 Highlights in this release:
 
@@ -98,10 +98,10 @@ The product includes:
 
 ## Android Installation and Updates
 
-1. Open the [official Android download](https://body.liang111.top/releases/zixu-android-1.0.4.apk) on the phone.
+1. Open the [official Android download](https://body.liang111.top/releases/zixu-android-1.0.5.apk) on the phone.
 2. Android completes the installation flow. First-time installation may require enabling “Install unknown apps” for the browser or file manager.
 3. Installation always requires user confirmation; Zixu does not bypass Android with silent installation.
-4. Use the published [SHA-256 checksum](https://body.liang111.top/releases/zixu-android-1.0.4.apk.sha256) to verify the package.
+4. Use the published [SHA-256 checksum](https://body.liang111.top/releases/zixu-android-1.0.5.apk.sha256) to verify the package.
 5. “Me → Settings → Check for updates” reads the official release manifest and lets the user choose whether to download a newer package.
 
 ## Operations Dashboard

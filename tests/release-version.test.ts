@@ -28,7 +28,7 @@ describe("release version consistency", () => {
     expect(LATEST_RELEASE_MANIFEST.platforms.android).toMatchObject({
       version: CURRENT_APP_VERSION,
       build: CURRENT_APP_BUILDS.android,
-      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.4.apk"
+      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.5.apk"
     });
     expect(LATEST_RELEASE_MANIFEST.platforms.ios).toMatchObject({
       version: "1.0.2",

@@ -36,12 +36,12 @@ describe("应用更新", () => {
 
     expect(result.updateAvailable).toBe(true);
     expect(result.installAvailable).toBe(true);
-    expect(result.latest.version).toBe("1.0.4");
+    expect(result.latest.version).toBe("1.0.5");
   });
 
   it("only accepts official HTTPS install destinations", () => {
     expect(
-      isTrustedInstallUrl("android", "https://body.liang111.top/releases/zixu-android-1.0.4.apk")
+      isTrustedInstallUrl("android", "https://body.liang111.top/releases/zixu-android-1.0.5.apk")
     ).toBe(true);
     expect(isTrustedInstallUrl("android", "http://body.liang111.top/app.apk")).toBe(false);
     expect(isTrustedInstallUrl("android", "https://example.test/app.apk")).toBe(false);

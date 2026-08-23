@@ -13,12 +13,12 @@ export interface LatestReleaseManifest {
   platforms: Record<AppPlatform, PlatformRelease>;
 }
 
-export const CURRENT_APP_VERSION = "1.0.4";
+export const CURRENT_APP_VERSION = "1.0.5";
 
 export const CURRENT_APP_BUILDS: Record<AppPlatform, number> = {
-  android: 5,
-  ios: 4,
-  web: 3
+  android: 6,
+  ios: 5,
+  web: 4
 };
 
 const PREVIOUS_NATIVE_RELEASE_NOTES = [
@@ -29,11 +29,11 @@ const PREVIOUS_NATIVE_RELEASE_NOTES = [
   "更新侧弯风险自查的站立与前屈示意图"
 ];
 
-const CURRENT_SECURITY_RELEASE_NOTES = [
-  "开放按账号隔离的个人 DeepSeek API Key，并在服务器加密保存",
-  "登录与注册增加一次性四位图形验证码",
-  "注册和修改密码的最低长度调整为 6 位，并继续建议使用 10 位以上独立密码",
-  "保留账号或标准邮箱登录、重复账号中文提示与管理员后台隔离"
+const CURRENT_APP_RELEASE_NOTES = [
+  "训练档案支持修改，并回填现有目标、体能、器械和训练条件",
+  "器械变化会实时更新候选运动库，并影响后续计划与动作替换",
+  "登录和注册密码框增加显示与隐藏按钮",
+  "登录页增加 Android 正式包下载和 iPhone 添加到主屏幕说明"
 ];
 
 export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
@@ -42,9 +42,9 @@ export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
     android: {
       version: CURRENT_APP_VERSION,
       build: CURRENT_APP_BUILDS.android,
-      publishedAt: "2026-08-15",
-      releaseNotes: CURRENT_SECURITY_RELEASE_NOTES,
-      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.4.apk"
+      publishedAt: "2026-08-23",
+      releaseNotes: CURRENT_APP_RELEASE_NOTES,
+      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.5.apk"
     },
     ios: {
       version: "1.0.2",
@@ -56,8 +56,8 @@ export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
     web: {
       version: CURRENT_APP_VERSION,
       build: CURRENT_APP_BUILDS.web,
-      publishedAt: "2026-08-15",
-      releaseNotes: CURRENT_SECURITY_RELEASE_NOTES,
+      publishedAt: "2026-08-23",
+      releaseNotes: CURRENT_APP_RELEASE_NOTES,
       installUrl: null
     }
   }
