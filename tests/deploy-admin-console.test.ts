@@ -34,6 +34,8 @@ describe("admin console reverse-proxy boundary", () => {
     expect(reportStart).toBeGreaterThan(-1);
     expect(reportLocation).toContain("auth_request /_auth/posture-admin;");
     expect(reportLocation).toContain("alias /var/lib/posture-goaccess/index.html;");
+    expect(reportLocation).toContain("script-src 'unsafe-inline' 'unsafe-eval';");
+    expect(source.match(/'unsafe-eval'/g)).toHaveLength(1);
     expect(slashStart).toBeGreaterThan(-1);
     expect(slashLocation).toContain("return 302 /ops/traffic;");
     expect(slashLocation).not.toContain("alias /var/lib/posture-goaccess/index.html;");
