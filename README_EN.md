@@ -8,8 +8,9 @@
 ![App](https://img.shields.io/badge/app-PWA%20%2B%20Android%20%2B%20iOS-2563eb)
 ![Privacy](https://img.shields.io/badge/privacy-account%20isolated-7c3aed)
 ![Safety](https://img.shields.io/badge/training-safety%20first-d97706)
+![License](https://img.shields.io/badge/license-MIT-0f766e)
 
-[Open the Web App](https://body.liang111.top/) · [Download Android 1.0.5](https://body.liang111.top/releases/zixu-android-1.0.5.apk) · [Checksum](https://body.liang111.top/releases/zixu-android-1.0.5.apk.sha256) · [Release Manifest](https://body.liang111.top/api/releases/latest)
+[Open the Web App](https://body.liang111.top/) · [Download Android 1.0.5](https://body.liang111.top/releases/zixu-android-1.0.5.apk) · [Contribute](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT License](LICENSE)
 
 ## Purpose
 
@@ -36,9 +37,13 @@ Highlights in this release:
 - Login with either an account name or a standard email address such as QQ Mail or Gmail; duplicate accounts receive a clear response.
 - Operations data remains in a separate administrator area and is not exposed in ordinary account pages.
 
-From the candidate directory:
+## Source and Local Development
+
+Clone the repository and run:
 
 ```bash
+git clone https://github.com/fengziliang43-cmyk/posture-training-app.git
+cd posture-training-app
 npm ci
 npm test
 npm run lint
@@ -96,6 +101,14 @@ The product includes:
 | Access | [body.liang111.top](https://body.liang111.top/); HTTPS reverse proxy to a loopback-only API |
 | AI | DeepSeek for explanations and reviews only; local rules continue to decide training |
 
+## Open-source collaboration
+
+Zixu is released under the [MIT License](LICENSE) and is applying to move into the [Shengji Daguai Open Source Community](https://github.com/shengjidaguai-china) for long-term collaboration. The project lead is [@fengziliang43-cmyk](https://github.com/fengziliang43-cmyk).
+
+Useful contribution areas include exercise-link review, mobile accessibility and offline behavior, Web/Android/iOS testing, account-isolation coverage, non-diagnostic health copy, privacy guidance, and tasks labelled [`good first issue`](https://github.com/fengziliang43-cmyk/posture-training-app/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or [`help wanted`](https://github.com/fengziliang43-cmyk/posture-training-app/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22).
+
+Read the [contribution guide](CONTRIBUTING.md), [code of conduct](CODE_OF_CONDUCT.md), [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md) before starting. Never include real health records, posture photos, personal identifiers, credentials, or production data in public collaboration.
+
 ## Android Installation and Updates
 
 1. Open the [official Android download](https://body.liang111.top/releases/zixu-android-1.0.5.apk) on the phone.
@@ -116,6 +129,9 @@ The operations area is not an ordinary user feature. An administrator first sign
 - [Adaptive V3 specification](docs/superpowers/specs/2026-07-15-adaptive-training-engine-design.md)
 - [Alibaba Cloud runbook](docs/setup/aliyun.md)
 - [Public deployment blockers](docs/setup/public-web-deployment.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Maintainers and decision boundaries](MAINTAINERS.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [Project rules](AGENTS.md)
 
 The repository links above use relative paths and do not depend on a local path from any specific computer.

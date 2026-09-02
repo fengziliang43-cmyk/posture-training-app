@@ -1,0 +1,42 @@
+name: 缺陷报告 / Bug report
+description: 报告可复现的问题，不要提交真实健康数据或凭证
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题概述
+      description: 请用一句话说明发生了什么。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 最小复现步骤
+      description: 只使用合成数据；不要粘贴生产日志、Token、API Key 或个人资料。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 环境
+      placeholder: "Web / Android / iOS，浏览器或系统版本"
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 隐私确认
+      options:
+        - label: 我确认内容中没有真实健康资料、体态照片、个人信息、密码、Cookie、Token、API Key 或其他凭证。
+          required: true
+        - label: 这不是需要私下报告的可利用安全漏洞。
+          required: true

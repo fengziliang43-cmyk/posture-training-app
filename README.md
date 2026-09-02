@@ -8,8 +8,9 @@
 ![App](https://img.shields.io/badge/app-PWA%20%2B%20Android%20%2B%20iOS-2563eb)
 ![Privacy](https://img.shields.io/badge/privacy-account%20isolated-7c3aed)
 ![Safety](https://img.shields.io/badge/training-safety%20first-d97706)
+![License](https://img.shields.io/badge/license-MIT-0f766e)
 
-[立即使用网页版](https://body.liang111.top/) · [下载 Android 1.0.5](https://body.liang111.top/releases/zixu-android-1.0.5.apk) · [校验文件](https://body.liang111.top/releases/zixu-android-1.0.5.apk.sha256) · [查看版本清单](https://body.liang111.top/api/releases/latest)
+[立即使用网页版](https://body.liang111.top/) · [下载 Android 1.0.5](https://body.liang111.top/releases/zixu-android-1.0.5.apk) · [参与共建](CONTRIBUTING.md) · [安全报告](SECURITY.md) · [MIT License](LICENSE)
 
 ## 项目定位
 
@@ -36,9 +37,13 @@
 - 支持账号名或 QQ、Gmail 等标准邮箱地址登录；重复账号返回明确中文提示。
 - 运营数据继续放在独立管理员后台，普通用户的“我的”和“设置”中不可见。
 
-在候选目录运行：
+## 源码与本地运行
+
+克隆仓库后运行：
 
 ```bash
+git clone https://github.com/fengziliang43-cmyk/posture-training-app.git
+cd posture-training-app
 npm ci
 npm test
 npm run lint
@@ -96,6 +101,20 @@ Web app:    http://localhost:5173
 | 访问 | [body.liang111.top](https://body.liang111.top/)；HTTPS 反向代理访问 loopback API |
 | AI | DeepSeek 只做解释和复盘，本地规则继续决定训练 |
 
+## 开源共建
+
+姿序以 [MIT License](LICENSE) 开源，并申请迁入[升级打怪开源社区](https://github.com/shengjidaguai-china)长期共建。项目负责人为 [@fengziliang43-cmyk](https://github.com/fengziliang43-cmyk)。
+
+欢迎从这些方向参与：
+
+- 核对动作教学链接、补充失效链接检查；
+- 改善移动端、无障碍和离线体验；
+- 补充 Web、Android、iOS 与账号隔离测试；
+- 改进非诊断健康文案、隐私提示和新手文档；
+- 修复带有 [`good first issue`](https://github.com/fengziliang43-cmyk/posture-training-app/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) 或 [`help wanted`](https://github.com/fengziliang43-cmyk/posture-training-app/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) 标签的问题。
+
+开始前请阅读[贡献指南](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)、[安全报告说明](SECURITY.md)和[第三方材料边界](THIRD_PARTY_NOTICES.md)。公开协作中严禁提交真实健康资料、体态照片、个人信息或凭证。
+
 ## Android 安装与更新
 
 1. 在安卓手机打开 [官方下载地址](https://body.liang111.top/releases/zixu-android-1.0.5.apk)。
@@ -116,6 +135,9 @@ Web app:    http://localhost:5173
 - [Adaptive V3 规格](docs/superpowers/specs/2026-07-15-adaptive-training-engine-design.md)
 - [阿里云部署手册](docs/setup/aliyun.md)
 - [公网部署阻断项](docs/setup/public-web-deployment.md)
+- [贡献指南](CONTRIBUTING.md)
+- [维护者与决策边界](MAINTAINERS.md)
+- [第三方材料边界](THIRD_PARTY_NOTICES.md)
 - [项目规则](AGENTS.md)
 
 以上仓库内链接均使用相对路径，不依赖某台电脑的本机目录。
