@@ -2,7 +2,7 @@
 
 # Zixu
 
-> A safety-first, account-isolated posture and training planner that combines onboarding, daily readiness, workouts, posture records, and long-term trends.
+> An open-source posture tracking and assisted training app built for people with scoliosis.
 
 ![Version](https://img.shields.io/badge/version-1.0.5-2f855a)
 ![App](https://img.shields.io/badge/app-PWA%20%2B%20Android%20%2B%20iOS-2563eb)
@@ -14,7 +14,7 @@
 
 ## Purpose
 
-Zixu is a record-oriented training companion. Onboarding first limits the exercise pool and initial difficulty; daily readiness then selects a conservative workout or recovery task while longer-term feedback drives progression.
+Zixu is built for people with scoliosis. It uses each person's profile and daily readiness to suggest conservative training or recovery tasks while tracking completion and posture changes over time.
 
 Its priorities are fixed:
 
