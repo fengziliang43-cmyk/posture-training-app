@@ -39,15 +39,16 @@ export function TodayView({
   if (mode === "task") {
     return (
       <section className="stack today-task-view">
+        {error && <p className="error-text">{error}</p>}
+        {info && <p className="success-text">{info}</p>}
         <TodayPlan
           plan={plan}
+          latestStatus={latestStatus}
           finishing={finishing}
           onBack={() => onModeChange("overview")}
           onFinishWorkout={onFinishWorkout}
           onPlanChange={onPlanChange}
         />
-        {error && <p className="error-text">{error}</p>}
-        {info && <p className="success-text">{info}</p>}
       </section>
     );
   }
@@ -55,9 +56,9 @@ export function TodayView({
   if (hasSafetyStop(latestStatus, plan)) {
     return (
       <section className="stack">
-        <SafetyStopCard latestStatus={latestStatus} message={plan?.safetyMessage} />
         {error && <p className="error-text">{error}</p>}
         {info && <p className="success-text">{info}</p>}
+        <SafetyStopCard latestStatus={latestStatus} message={plan?.safetyMessage} />
         <StatusUpdateDrawer
           date={date}
           loading={loading}
@@ -70,6 +71,8 @@ export function TodayView({
 
   return (
     <section className="stack">
+      {error && <p className="error-text">{error}</p>}
+      {info && <p className="success-text">{info}</p>}
       <TodayOverviewCard
         date={date}
         latestStatus={latestStatus}
@@ -77,8 +80,6 @@ export function TodayView({
         onViewTask={() => onModeChange("task")}
       />
       <AiCoachCard plan={plan} onOpenSettings={onOpenSettings} />
-      {error && <p className="error-text">{error}</p>}
-      {info && <p className="success-text">{info}</p>}
       {plan ? (
         <StatusUpdateDrawer
           date={date}
@@ -178,19 +179,24 @@ function TodayOverviewCard({
   plan: PlanResponsePlan | null;
   onViewTask: () => void;
 }) {
-  const lowBackPain = latestStatus?.lowBackPain ?? 2;
-  const energy = latestStatus?.energy ?? 4;
-  const availableMinutes = latestStatus?.availableMinutes ?? 45;
+  const hasRecordedStatus = latestStatus !== null;
+  const lowBackPain = latestStatus?.lowBackPain;
+  const energy = latestStatus?.energy;
+  const availableMinutes = latestStatus?.availableMinutes;
   const hasRedFlags = Object.values(latestStatus?.redFlags ?? {}).some(Boolean);
   const safetyStop = hasRedFlags || plan?.safetyMessage?.includes("红旗") === true;
-  const recoveryScore = plan?.decision?.readinessScore || Math.max(
-    30,
-    Math.min(96, 72 + energy * 5 - lowBackPain * 4 + Math.min(8, Math.floor(availableMinutes / 10)))
+  const recoveryScore = plan?.decision?.readinessScore ?? (
+    hasRecordedStatus && typeof energy === "number" && typeof lowBackPain === "number"
+      ? Math.max(
+          30,
+          Math.min(96, 72 + energy * 5 - lowBackPain * 4 + Math.min(8, Math.floor((availableMinutes ?? 45) / 10)))
+        )
+      : null
   );
-  const painRisk = Math.min(100, lowBackPain * 10);
-  const load = plan
-    ? Math.min(100, Math.round((plan.estimatedMinutes / Math.max(1, availableMinutes)) * 100))
-    : 34;
+  const painRisk = typeof lowBackPain === "number" ? Math.min(100, lowBackPain * 10) : null;
+  const load = plan && typeof availableMinutes === "number" && availableMinutes > 0
+    ? Math.min(100, Math.round((plan.estimatedMinutes / availableMinutes) * 100))
+    : null;
 
   return (
     <section className="today-overview-card card">
@@ -205,10 +211,10 @@ function TodayOverviewCard({
       <div className="readiness-panel">
         <div
           className="readiness-ring"
-          style={{ "--score": `${recoveryScore}%` } as CSSProperties & Record<"--score", string>}
+          style={{ "--score": `${recoveryScore ?? 0}%` } as CSSProperties & Record<"--score", string>}
         >
-          <strong>{recoveryScore}</strong>
-          <span>恢复度</span>
+          <strong>{recoveryScore !== null ? recoveryScore : "--"}</strong>
+          <span>{recoveryScore !== null ? "恢复度" : "还没记录"}</span>
         </div>
         <div className="readiness-copy">
           <p className="eyebrow">今日判断</p>
@@ -225,9 +231,9 @@ function TodayOverviewCard({
       </div>
 
       <div className="signal-grid">
-        <SignalTile label="恢复" value={`${recoveryScore}%`} tone="good" />
-        <SignalTile label="训练压力" value={`${load}%`} tone="warn" />
-        <SignalTile label="腰酸" value={`${lowBackPain}/10`} />
+        <SignalTile label="恢复" value={recoveryScore !== null ? `${recoveryScore}%` : "未记录"} tone="good" />
+        <SignalTile label="训练压力" value={load !== null ? `${load}%` : "未记录"} tone="warn" />
+        <SignalTile label="腰酸" value={typeof lowBackPain === "number" ? `${lowBackPain}/10` : "未记录"} />
       </div>
 
       <div className="body-signal-card">
@@ -236,9 +242,9 @@ function TodayOverviewCard({
             <p className="eyebrow">今日状态</p>
             <h3>三项决定强度</h3>
           </div>
-          <span className="date-pill">{safetyStop ? "有红旗" : "无红旗"}</span>
+          <span className="date-pill">{!hasRecordedStatus ? "待记录" : safetyStop ? "有红旗" : "无红旗"}</span>
         </div>
-        <SignalBar label="睡眠与精神" value={Math.min(100, energy * 20)} />
+        <SignalBar label="睡眠与精神" value={typeof energy === "number" ? Math.min(100, energy * 20) : null} />
         <SignalBar label="腰酸风险" value={painRisk} />
         <SignalBar label="本周累计量" value={load} />
       </div>
@@ -263,15 +269,16 @@ function SignalTile({
   );
 }
 
-function SignalBar({ label, value }: { label: string; value: number }) {
+function SignalBar({ label, value }: { label: string; value: number | null }) {
+  const displayPercent = value !== null ? `${Math.round(value)}%` : "未记录";
   return (
     <div className="signal-bar">
       <div className="signal-bar-label">
         <span>{label}</span>
-        <strong>{value}%</strong>
+        <strong>{displayPercent}</strong>
       </div>
       <div className="signal-track">
-        <span style={{ width: `${value}%` }} />
+        <span style={{ width: value !== null ? `${value}%` : "0%" }} />
       </div>
     </div>
   );

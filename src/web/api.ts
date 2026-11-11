@@ -10,6 +10,7 @@ import type {
 import type { WeeklyReview } from "../core/weekly-review";
 import {
   cacheTodayPlan,
+  clearCachedTodayPlan,
   flushOfflineActions,
   getCachedTodayPlan,
   queueOfflineAction
@@ -258,9 +259,13 @@ export async function setup(username: string, password: string): Promise<AuthRes
 
 export async function logout(): Promise<void> {
   try {
-    await apiRequest("/api/auth/logout", { method: "POST" });
+    await apiRequest("/api/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({})
+    });
   } finally {
     localStorage.removeItem(AUTH_TOKEN_KEY);
+    clearCachedTodayPlan();
   }
 }
 
@@ -447,6 +452,12 @@ export async function updatePhotoNote(photoId: number, note: string): Promise<{ 
   return apiRequest<{ photo: PhotoRecord }>(`/api/photos/${photoId}/note`, {
     method: "PUT",
     body: JSON.stringify({ note })
+  });
+}
+
+export async function deletePhoto(photoId: number): Promise<void> {
+  await apiRequest<{ ok: true }>(`/api/photos/${photoId}`, {
+    method: "DELETE"
   });
 }
 

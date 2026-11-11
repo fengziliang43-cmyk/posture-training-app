@@ -123,4 +123,47 @@ describe("auth", () => {
 
     await app.close();
   });
+
+  it("logs out successfully, clears cookie and revokes session even with empty json body", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+
+    const setup = await app.inject({
+      method: "POST",
+      url: "/api/auth/setup",
+      payload: { username: "logout-user", password: "test-password-123" }
+    });
+    const setCookie = setup.headers["set-cookie"];
+    const cookie = Array.isArray(setCookie) ? setCookie[0] : setCookie;
+    const cookieHeader = cookie ? cookie.split(";")[0] : "";
+
+    const meBefore = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      headers: { cookie: cookieHeader }
+    });
+    expect(meBefore.statusCode).toBe(200);
+
+    const logoutRes = await app.inject({
+      method: "POST",
+      url: "/api/auth/logout",
+      headers: {
+        cookie: cookieHeader,
+        "content-type": "application/json"
+      }
+    });
+    expect(logoutRes.statusCode).toBe(200);
+    expect(logoutRes.json()).toEqual({ ok: true });
+    const logoutCookie = logoutRes.headers["set-cookie"];
+    const clearedCookie = Array.isArray(logoutCookie) ? logoutCookie[0] : logoutCookie;
+    expect(clearedCookie).toContain("Max-Age=0");
+
+    const meAfter = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      headers: { cookie: cookieHeader }
+    });
+    expect(meAfter.statusCode).toBe(401);
+
+    await app.close();
+  });
 });

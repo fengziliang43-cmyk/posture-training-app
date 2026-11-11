@@ -92,6 +92,7 @@ export function App() {
         exerciseResults
       });
       setTodayInfo(result.queued ? "网络暂不可用，已离线保存，联网后自动同步。" : "训练完成已记录。");
+      setTodayMode("overview");
     } catch {
       setTodayError("训练完成记录提交失败。");
     } finally {

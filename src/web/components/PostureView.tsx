@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { downloadPhotoFile, listPhotos, updatePhotoNote, uploadPhoto, type PhotoRecord } from "../api";
+import { deletePhoto, downloadPhotoFile, listPhotos, updatePhotoNote, uploadPhoto, type PhotoRecord } from "../api";
 import { formatLocalDate } from "../../core/date";
 import { ScoliosisRiskGuide } from "./ScoliosisRiskGuide";
 
@@ -88,16 +88,33 @@ export function PostureView() {
 
     setBusy(true);
     try {
+      const originalFile = fileInput.files[0];
+      const preparedFile = await preparePhotoUpload(originalFile);
       const formData = new FormData();
       formData.append("photoDate", dateInput.value);
       formData.append("angle", angleInput.value);
       formData.append("note", noteInput?.value ?? "");
-      formData.append("file", fileInput.files[0]);
+      formData.append("file", preparedFile, originalFile.name);
       await uploadPhoto(formData);
       form.reset();
       await refreshPhotos();
     } catch {
       setError("照片上传失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeletePhoto(photoId: number) {
+    if (!window.confirm("确定删除这张体态照片吗？删除后不可恢复。")) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await deletePhoto(photoId);
+      await refreshPhotos();
+    } catch {
+      setError("删除照片失败。");
     } finally {
       setBusy(false);
     }
@@ -265,7 +282,7 @@ export function PostureView() {
                       <div className="photo-loading muted">加载中</div>
                     )}
                     <figcaption>
-                      {photo.angle} · {photo.createdAt.slice(11, 16)}
+                      {formatAngleLabel(photo.angle)} · {formatLocalTime(photo.createdAt)}
                     </figcaption>
                     {photo.note && <p className="muted small">{photo.note}</p>}
                     <div className="photo-note-row">
@@ -287,6 +304,15 @@ export function PostureView() {
                         onClick={() => void saveNote(photo.id)}
                       >
                         保存
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button compact-button"
+                        style={{ color: "#9b3826" }}
+                        disabled={busy}
+                        onClick={() => void handleDeletePhoto(photo.id)}
+                      >
+                        删除
                       </button>
                     </div>
                   </figure>
@@ -322,4 +348,67 @@ function groupPhotosByDate(photos: PhotoRecord[]) {
   }
 
   return Array.from(byDate.entries()).map(([date, items]) => ({ date, items }));
+}
+
+function formatAngleLabel(angle: string): string {
+  if (angle === "front") return "正面";
+  if (angle === "side") return "侧面";
+  if (angle === "back") return "背面";
+  return angle;
+}
+
+function formatLocalTime(isoDateString: string): string {
+  try {
+    const d = new Date(isoDateString);
+    if (isNaN(d.getTime())) return isoDateString.slice(11, 16);
+    return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  } catch {
+    return isoDateString.slice(11, 16);
+  }
+}
+
+async function preparePhotoUpload(file: File): Promise<Blob | File> {
+  if (typeof window === "undefined" || !file.type.startsWith("image/")) {
+    return file;
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const maxDim = 1600;
+      let width = img.width;
+      let height = img.height;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          resolve(blob || file);
+        },
+        "image/jpeg",
+        0.82
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    img.src = url;
+  });
 }

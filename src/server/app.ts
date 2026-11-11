@@ -40,6 +40,20 @@ export async function buildApp(
     trustProxy: config.isProduction ? "127.0.0.1" : false
   });
 
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
+    const content = typeof body === "string" ? body : (body as Buffer).toString("utf-8");
+    if (!content || content.trim() === "") {
+      done(null, {});
+      return;
+    }
+    try {
+      done(null, JSON.parse(content));
+    } catch (err: any) {
+      err.statusCode = 400;
+      done(err, undefined);
+    }
+  });
+
   app.addHook("onRequest", (request, reply, done) => {
     const origin = request.headers.origin;
     const originAllowed = !origin || config.allowedOrigins.includes(origin);

@@ -149,6 +149,17 @@ describe("server app", () => {
     expect(photos.statusCode).toBe(200);
     expect(photos.json().photos.length).toBe(1);
 
+    const deletePhotoRes = await app.inject({
+      method: "DELETE",
+      url: `/api/photos/${photo.json().photo.id}`,
+      headers: { cookie }
+    });
+    expect(deletePhotoRes.statusCode).toBe(200);
+    expect(deletePhotoRes.json()).toEqual({ ok: true });
+
+    const photosAfterDelete = await app.inject({ method: "GET", url: "/api/photos", headers: { cookie } });
+    expect(photosAfterDelete.json().photos.length).toBe(0);
+
     const settings = await app.inject({ method: "GET", url: "/api/settings", headers: { cookie } });
     expect(settings.statusCode).toBe(200);
     expect(settings.json().settings.deepseekEnabled).toBe(false);

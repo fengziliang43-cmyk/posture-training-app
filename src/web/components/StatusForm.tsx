@@ -13,25 +13,26 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
   const [lowBackPain, setLowBackPain] = useState<number>(initialStatus?.lowBackPain ?? 2);
   const [energy, setEnergy] = useState<number>(initialStatus?.energy ?? 4);
   const [availableMinutes, setAvailableMinutes] = useState(initialStatus?.availableMinutes ?? 45);
-  const [neckShoulderPain, setNeckShoulderPain] = useState<number>(initialStatus?.neckShoulderPain ?? 2);
-  const [sleepHours, setSleepHours] = useState(String(initialStatus?.sleepHours ?? 7));
-  const [sleepQuality, setSleepQuality] = useState<number>(initialStatus?.sleepQuality ?? 4);
-  const [steps, setSteps] = useState(String(initialStatus?.steps ?? 3000));
-  const [eatingStatus, setEatingStatus] = useState<"poor" | "normal" | "good">(initialStatus?.eatingStatus ?? "normal");
-  const [weightKg, setWeightKg] = useState(initialStatus?.weightKg === undefined ? "" : String(initialStatus.weightKg));
+  const [neckShoulderPain, setNeckShoulderPain] = useState<number | null>(initialStatus?.neckShoulderPain ?? null);
+  const [sleepHours, setSleepHours] = useState(initialStatus?.sleepHours !== undefined ? String(initialStatus.sleepHours) : "");
+  const [sleepQuality, setSleepQuality] = useState<number | null>(initialStatus?.sleepQuality ?? null);
+  const [steps, setSteps] = useState(initialStatus?.steps !== undefined ? String(initialStatus.steps) : "");
+  const [eatingStatus, setEatingStatus] = useState<"poor" | "normal" | "good" | "">(initialStatus?.eatingStatus ?? "");
+  const [weightKg, setWeightKg] = useState(initialStatus?.weightKg !== undefined ? String(initialStatus.weightKg) : "");
   const [redFlags, setRedFlags] = useState(normalizeRedFlags(initialStatus));
+  const [showRedFlagsDetail, setShowRedFlagsDetail] = useState(false);
 
   useEffect(() => {
     if (!initialStatus) return;
     setLowBackPain(initialStatus.lowBackPain);
     setEnergy(initialStatus.energy);
     setAvailableMinutes(initialStatus.availableMinutes);
-    setNeckShoulderPain(initialStatus.neckShoulderPain ?? 2);
-    setSleepHours(String(initialStatus.sleepHours ?? 7));
-    setSleepQuality(initialStatus.sleepQuality ?? 4);
-    setSteps(String(initialStatus.steps ?? 3000));
-    setEatingStatus(initialStatus.eatingStatus ?? "normal");
-    setWeightKg(initialStatus.weightKg === undefined ? "" : String(initialStatus.weightKg));
+    setNeckShoulderPain(initialStatus.neckShoulderPain ?? null);
+    setSleepHours(initialStatus.sleepHours !== undefined ? String(initialStatus.sleepHours) : "");
+    setSleepQuality(initialStatus.sleepQuality ?? null);
+    setSteps(initialStatus.steps !== undefined ? String(initialStatus.steps) : "");
+    setEatingStatus(initialStatus.eatingStatus ?? "");
+    setWeightKg(initialStatus.weightKg !== undefined ? String(initialStatus.weightKg) : "");
     setRedFlags(normalizeRedFlags(initialStatus));
   }, [initialStatus]);
 
@@ -45,12 +46,12 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
       lowBackPain: lowBackPain as DailyCheckinInput["lowBackPain"],
       energy: energy as DailyCheckinInput["energy"],
       availableMinutes,
-      neckShoulderPain: neckShoulderPain as DailyCheckinInput["neckShoulderPain"],
-      sleepHours: sleepHours ? Number(sleepHours) : undefined,
-      sleepQuality: sleepQuality as DailyCheckinInput["sleepQuality"],
-      steps: steps ? Number(steps) : undefined,
-      eatingStatus,
-      weightKg: weightKg ? Number(weightKg) : undefined,
+      ...(neckShoulderPain !== null ? { neckShoulderPain: neckShoulderPain as DailyCheckinInput["neckShoulderPain"] } : {}),
+      ...(sleepHours.trim() ? { sleepHours: Number(sleepHours) } : {}),
+      ...(sleepQuality !== null ? { sleepQuality: sleepQuality as DailyCheckinInput["sleepQuality"] } : {}),
+      ...(steps.trim() ? { steps: Number(steps) } : {}),
+      ...(eatingStatus ? { eatingStatus: eatingStatus as DailyCheckinInput["eatingStatus"] } : {}),
+      ...(weightKg.trim() ? { weightKg: Number(weightKg) } : {}),
       redFlags
     };
 
@@ -95,80 +96,45 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
         />
       </div>
 
-      <details className="advanced-panel">
-        <summary>高级状态</summary>
-        <div className="field-stack">
-          <SliderField
-            label="肩颈酸"
-            value={neckShoulderPain}
-            min={0}
-            max={10}
-            onChange={setNeckShoulderPain}
-            suffix="/10"
-          />
-
-          <label>
-            睡眠时长
-            <input
-              type="number"
-              min="0"
-              max="24"
-              step="0.5"
-              value={sleepHours}
-              onChange={(event) => setSleepHours(event.target.value)}
-            />
-          </label>
-
-          <SliderField
-            label="睡眠质量"
-            value={sleepQuality}
-            min={1}
-            max={5}
-            onChange={setSleepQuality}
-            suffix="/5"
-          />
-
-          <label>
-            步数
-            <input
-              type="number"
-              min="0"
-              step="100"
-              value={steps}
-              onChange={(event) => setSteps(event.target.value)}
-            />
-          </label>
-
-          <label>
-            饮食状态
-            <select
-              value={eatingStatus}
-              onChange={(event) =>
-                setEatingStatus(event.target.value as "poor" | "normal" | "good")
-              }
+      <div className="card" style={{ padding: "12px 14px", margin: "12px 0 6px", background: "rgba(255, 255, 255, 0.45)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
+          <div>
+            <strong style={{ fontSize: "14px", display: "block" }}>今天是否有以下危险信号？</strong>
+            <p className="muted small" style={{ margin: "2px 0 0" }}>腿麻、放射痛、明显无力、大小便异常、突发锐痛</p>
+          </div>
+          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+            <button
+              type="button"
+              className={redFlagCount === 0 && !showRedFlagsDetail ? "secondary-button active-chip" : "secondary-button"}
+              onClick={() => {
+                setRedFlags({
+                  legNumbness: false,
+                  radiatingPain: false,
+                  weakness: false,
+                  bowelBladderChange: false,
+                  sharpSuddenPain: false
+                });
+                setShowRedFlagsDetail(false);
+              }}
             >
-              <option value="poor">差</option>
-              <option value="normal">一般</option>
-              <option value="good">好</option>
-            </select>
-          </label>
+              无
+            </button>
+            <button
+              type="button"
+              className={redFlagCount > 0 || showRedFlagsDetail ? "secondary-button active-chip" : "secondary-button"}
+              onClick={() => setShowRedFlagsDetail(true)}
+            >
+              有
+            </button>
+          </div>
+        </div>
 
-          <label>
-            体重（可选）
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              value={weightKg}
-              onChange={(event) => setWeightKg(event.target.value)}
-            />
-          </label>
-
-          <fieldset className="flag-group">
-            <legend>红旗症状</legend>
+        {(redFlagCount > 0 || showRedFlagsDetail) && (
+          <fieldset className="flag-group" style={{ marginTop: "12px" }}>
+            <legend>危险信号勾选（任意一项勾选将阻断今日训练）</legend>
             <div className="flag-grid">
               {Object.entries({
-                legNumbness: "腿麻",
+                legNumbness: "腿麻或持续刺痛",
                 radiatingPain: "放射痛",
                 weakness: "明显无力",
                 bowelBladderChange: "大小便异常",
@@ -177,7 +143,7 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
                 <label className="check-row" key={key}>
                   <input
                     type="checkbox"
-                    checked={redFlags[key as keyof typeof redFlags]}
+                    checked={Boolean(redFlags[key as keyof typeof redFlags])}
                     onChange={(event) =>
                       setRedFlags((current) => ({
                         ...current,
@@ -189,10 +155,95 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
                 </label>
               ))}
             </div>
-            <p className="muted small">
-              已选 {redFlagCount} 项，选择后今天会自动停训并进入恢复建议。
+            <p className="error-text small" style={{ margin: "6px 0 0" }}>
+              已勾选 {redFlagCount} 项。选择后今天会自动停训并给出安全就医建议。
             </p>
           </fieldset>
+        )}
+      </div>
+
+      <details className="advanced-panel">
+        <summary>选填信息（不填不存，避免污染统计）</summary>
+        <div className="field-stack">
+          <label className="slider-field">
+            <span className="slider-label">
+              肩颈酸（选填）
+              <strong>{neckShoulderPain !== null ? `${neckShoulderPain}/10` : "未记"}</strong>
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={10}
+              value={neckShoulderPain ?? 0}
+              onChange={(event) => setNeckShoulderPain(Number(event.target.value))}
+            />
+          </label>
+
+          <label>
+            睡眠时长（小时，选填）
+            <input
+              type="number"
+              min="0"
+              max="24"
+              step="0.5"
+              placeholder="未记录"
+              value={sleepHours}
+              onChange={(event) => setSleepHours(event.target.value)}
+            />
+          </label>
+
+          <label className="slider-field">
+            <span className="slider-label">
+              睡眠质量（选填）
+              <strong>{sleepQuality !== null ? `${sleepQuality}/5` : "未记"}</strong>
+            </span>
+            <input
+              type="range"
+              min={1}
+              max={5}
+              value={sleepQuality ?? 3}
+              onChange={(event) => setSleepQuality(Number(event.target.value))}
+            />
+          </label>
+
+          <label>
+            步数（选填）
+            <input
+              type="number"
+              min="0"
+              step="100"
+              placeholder="未记录"
+              value={steps}
+              onChange={(event) => setSteps(event.target.value)}
+            />
+          </label>
+
+          <label>
+            饮食状态（选填）
+            <select
+              value={eatingStatus}
+              onChange={(event) =>
+                setEatingStatus(event.target.value as "poor" | "normal" | "good" | "")
+              }
+            >
+              <option value="">未记录</option>
+              <option value="poor">差</option>
+              <option value="normal">一般</option>
+              <option value="good">好</option>
+            </select>
+          </label>
+
+          <label>
+            体重（kg，选填）
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder="未记录"
+              value={weightKg}
+              onChange={(event) => setWeightKg(event.target.value)}
+            />
+          </label>
         </div>
       </details>
 

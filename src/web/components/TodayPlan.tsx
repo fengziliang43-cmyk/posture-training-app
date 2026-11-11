@@ -10,6 +10,7 @@ import {
   generateDailyExplanation,
   replacePlanExercise,
   revertPlanExercise,
+  type DailyCheckinInput,
   type PlanResponsePlan
 } from "../api";
 
@@ -25,6 +26,7 @@ const feedbackLabels: Record<ExerciseFeedback, string> = {
 
 interface TodayPlanProps {
   plan: PlanResponsePlan | null;
+  latestStatus?: DailyCheckinInput | null;
   finishing: boolean;
   onBack?: () => void;
   onFinishWorkout: (lowBackPainAfter: number, exerciseResults: ExerciseResult[]) => Promise<void> | void;
@@ -33,13 +35,15 @@ interface TodayPlanProps {
 
 type LocalExerciseResult = ExerciseResult | null;
 
-export function TodayPlan({ plan, finishing, onBack, onFinishWorkout, onPlanChange }: TodayPlanProps) {
+export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorkout, onPlanChange }: TodayPlanProps) {
+  const preWorkoutPain = latestStatus?.lowBackPain ?? 2;
   const [exerciseResults, setExerciseResults] = useState<LocalExerciseResult[]>([]);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [planInfo, setPlanInfo] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [actionBusyKey, setActionBusyKey] = useState<string | null>(null);
-  const [lowBackPainAfter, setLowBackPainAfter] = useState(2);
+  const [lowBackPainAfter, setLowBackPainAfter] = useState<number>(preWorkoutPain);
+  const [painConfirmed, setPainConfirmed] = useState(false);
   const exerciseSignature = plan?.exercises
     .map((exercise) =>
       [exercise.exerciseId, exercise.sets, exercise.reps ?? "", exercise.seconds ?? "", exercise.restSeconds].join(":")
@@ -50,7 +54,8 @@ export function TodayPlan({ plan, finishing, onBack, onFinishWorkout, onPlanChan
     setAiExplanation(null);
     setPlanInfo(null);
     setPlanError(null);
-    setLowBackPainAfter(2);
+    setLowBackPainAfter(preWorkoutPain);
+    setPainConfirmed(false);
     if (!plan) {
       setExerciseResults([]);
       return;
@@ -113,6 +118,22 @@ export function TodayPlan({ plan, finishing, onBack, onFinishWorkout, onPlanChan
             {plan.algorithmVersion === "legacy-v1" ? "历史计划" : `约 ${plan.estimatedMinutes} 分钟`}
           </span>
         </div>
+      </div>
+
+      <div
+        className="card"
+        style={{
+          background: "rgba(253, 240, 217, 0.95)",
+          borderLeft: "4px solid #e0932c",
+          padding: "10px 14px",
+          margin: "12px 0 6px"
+        }}
+        role="alert"
+      >
+        <strong style={{ color: "#754700", fontSize: "14px", display: "block" }}>停止规则（全过程有效）</strong>
+        <p style={{ margin: "3px 0 0", color: "#754700", fontSize: "13px", lineHeight: "1.5" }}>
+          出现麻木、放射痛，动作严重变形，或腰背不适比练前上升 2 分以上：<b>立即停训</b>。
+        </p>
       </div>
 
       <p className="reason-text">{plan.reason}</p>
@@ -300,7 +321,7 @@ export function TodayPlan({ plan, finishing, onBack, onFinishWorkout, onPlanChan
               <p className="eyebrow">训练后反馈</p>
               <h3>记录现在的腰酸</h3>
             </div>
-            <span className="date-pill">{lowBackPainAfter} / 10</span>
+            <span className="date-pill">练前 {preWorkoutPain} / 10 → 练后 {lowBackPainAfter} / 10</span>
           </div>
           <label className="slider-field">
             <span className="slider-label"><span>无不适</span><span>明显疼痛</span></span>
@@ -309,20 +330,61 @@ export function TodayPlan({ plan, finishing, onBack, onFinishWorkout, onPlanChan
               min="0"
               max="10"
               value={lowBackPainAfter}
-              onChange={(event) => setLowBackPainAfter(Number(event.target.value))}
+              onChange={(event) => {
+                setLowBackPainAfter(Number(event.target.value));
+                setPainConfirmed(true);
+              }}
             />
           </label>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", margin: "6px 0 10px" }}>
+            <button
+              type="button"
+              className={painConfirmed && lowBackPainAfter === preWorkoutPain ? "secondary-button active-chip" : "secondary-button"}
+              onClick={() => {
+                setLowBackPainAfter(preWorkoutPain);
+                setPainConfirmed(true);
+              }}
+            >
+              和练前一样（{preWorkoutPain}）
+            </button>
+            <button
+              type="button"
+              className={painConfirmed && lowBackPainAfter < preWorkoutPain ? "secondary-button active-chip" : "secondary-button"}
+              onClick={() => {
+                setLowBackPainAfter(Math.max(0, preWorkoutPain - 1));
+                setPainConfirmed(true);
+              }}
+            >
+              感觉有所减轻（{Math.max(0, preWorkoutPain - 1)}）
+            </button>
+            <button
+              type="button"
+              className={painConfirmed && lowBackPainAfter > preWorkoutPain ? "secondary-button active-chip" : "secondary-button"}
+              onClick={() => {
+                setLowBackPainAfter(Math.min(10, preWorkoutPain + 1));
+                setPainConfirmed(true);
+              }}
+            >
+              略有加重（{Math.min(10, preWorkoutPain + 1)}）
+            </button>
+          </div>
           <p className="muted small">
             {allResolved
-              ? "动作结果已完整记录，可以保存本次训练。"
+              ? painConfirmed
+                ? "腰背感受已确认，可以保存本次训练。"
+                : "请滑动或点击上方选项确认练后感受，比练前高 2 分以上下次会自动降一档。"
               : `还剩 ${plan.exercises.length - resolvedCount} 个动作需要记录；完成、部分或跳过都可以。`}
           </p>
           <button
             type="button"
-            disabled={finishing || !allResolved}
+            disabled={finishing || !allResolved || !painConfirmed}
             onClick={() => void onFinishWorkout(lowBackPainAfter, exerciseResults as ExerciseResult[])}
           >
-            {finishing ? "保存中" : "保存本次训练反馈"}
+            {finishing
+              ? "保存中"
+              : !painConfirmed
+                ? "请确认练后腰酸再保存"
+                : "保存本次训练反馈"}
           </button>
         </section>
       )}
@@ -464,6 +526,9 @@ function formatVolume(exercise: PlanResponsePlan["exercises"][number]): string {
   if (typeof exercise.seconds === "number") {
     if (exercise.seconds >= 60 && exercise.seconds % 60 === 0) {
       return `${exercise.sets} 组 × ${exercise.seconds / 60} 分钟`;
+    }
+    if (exercise.seconds >= 120) {
+      return `${exercise.sets} 组 × 约 ${Math.round(exercise.seconds / 60)} 分钟`;
     }
     return `${exercise.sets} 组 × ${exercise.seconds} 秒`;
   }

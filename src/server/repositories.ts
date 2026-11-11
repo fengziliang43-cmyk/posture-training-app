@@ -53,6 +53,7 @@ export interface UserRepositories {
   listPhotos: () => Promise<PhotoRecord[]>;
   getPhotoById: (photoId: number) => Promise<PhotoRecord | undefined>;
   updatePhotoNote: (photoId: number, note: string) => Promise<PhotoRecord>;
+  deletePhoto: (photoId: number) => Promise<boolean>;
   getSettings: () => Promise<SettingsRecord>;
   setSettings: (settings: Record<string, unknown>) => Promise<SettingsRecord>;
   getDeepseekApiKey: () => Promise<string | undefined>;
@@ -143,6 +144,7 @@ export function createRepositories(db: AppDatabase, secretRoot: string): AppRepo
       listPhotos: () => listPhotos(db, userId),
       getPhotoById: (photoId) => getPhotoById(db, userId, photoId),
       updatePhotoNote: (photoId, note) => updatePhotoNote(db, userId, photoId, note),
+      deletePhoto: (photoId) => deletePhoto(db, userId, photoId),
       getSettings: () => getSettings(db, userId, secretCipher),
       setSettings: (settings) => setSettings(db, userId, settings, secretCipher),
       getDeepseekApiKey: () => getDeepseekApiKey(db, userId, secretCipher),
@@ -1079,6 +1081,15 @@ async function updatePhotoNote(
     throw new Error("photo not found");
   }
   return photo;
+}
+
+async function deletePhoto(db: AppDatabase, userId: number, photoId: number): Promise<boolean> {
+  const result = await db.run(
+    "DELETE FROM posture_photos WHERE user_id = ? AND id = ?",
+    userId,
+    photoId
+  );
+  return Boolean(result && result.changes && result.changes > 0);
 }
 
 async function getSettings(

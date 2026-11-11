@@ -36,7 +36,6 @@ export type MeRoute =
 
 export const settingsMenuEntries = [
   { id: "deepseek", label: "DeepSeek AI" },
-  { id: "notifications", label: "训练提醒" },
   { id: "updates", label: "检查更新" },
   { id: "privacy", label: "账号与隐私" },
   { id: "rules", label: "规则与说明" }
@@ -362,15 +361,9 @@ export function MeView({
         {commonMessages}
         <div className="me-entry-list card" aria-label="设置项目">
           <EntryButton icon="AI" label={settingsMenuEntries[0].label} description={deepseekDescription} onClick={() => onRouteChange("deepseek")} />
-          <EntryButton
-            icon="醒"
-            label={settingsMenuEntries[1].label}
-            description={settings.notificationsEnabled ? "已开启" : "未开启"}
-            onClick={() => onRouteChange("notifications")}
-          />
-          <EntryButton icon="新" label={settingsMenuEntries[2].label} description={`当前版本 ${CURRENT_APP_VERSION}`} onClick={() => onRouteChange("updates")} />
-          <EntryButton icon="隐" label={settingsMenuEntries[3].label} description="修改密码、备份、退出与账号注销" onClick={() => onRouteChange("privacy")} />
-          <EntryButton icon="则" label={settingsMenuEntries[4].label} description="本地规则、AI 与数据边界" onClick={() => onRouteChange("rules")} />
+          <EntryButton icon="新" label={settingsMenuEntries[1].label} description={`当前版本 ${CURRENT_APP_VERSION}`} onClick={() => onRouteChange("updates")} />
+          <EntryButton icon="隐" label={settingsMenuEntries[2].label} description="修改密码、备份、退出与账号注销" onClick={() => onRouteChange("privacy")} />
+          <EntryButton icon="则" label={settingsMenuEntries[3].label} description="本地规则、AI 与数据边界" onClick={() => onRouteChange("rules")} />
         </div>
       </section>
     );

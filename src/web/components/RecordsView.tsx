@@ -132,7 +132,8 @@ export function RecordsView() {
             title="睡眠趋势"
             values={chronologicalCheckins.map((checkin) => ({
               label: checkin.date.slice(5),
-              value: Math.round((checkin.sleepHours ?? 0) * 10) / 10,
+              value: typeof checkin.sleepHours === "number" ? Math.round(checkin.sleepHours * 10) / 10 : null,
+              displayValue: typeof checkin.sleepHours === "number" ? `${Math.round(checkin.sleepHours * 10) / 10}h` : "未记",
               max: 10
             }))}
           />
@@ -142,8 +143,8 @@ export function RecordsView() {
               title="体重趋势"
               values={chronologicalWeights.map((checkin) => ({
                 label: checkin.date.slice(5),
-                value: checkin.weightKg ?? 0,
-                max: Math.max(...chronologicalWeights.map((item) => item.weightKg ?? 0)) || 1
+                value: typeof checkin.weightKg === "number" ? checkin.weightKg : null,
+                displayValue: typeof checkin.weightKg === "number" ? `${checkin.weightKg}kg` : "未记"
               }))}
             />
           )}
@@ -155,7 +156,7 @@ export function RecordsView() {
                 <div className="record-row" key={checkin.id}>
                   <span>{checkin.date}</span>
                   <span>腰酸 {checkin.lowBackPain}</span>
-                  <span>睡眠 {checkin.sleepHours ?? "-"}h</span>
+                  <span>{typeof checkin.sleepHours === "number" ? `睡眠 ${checkin.sleepHours}h` : "睡眠未记"}</span>
                   <span>精神 {checkin.energy}</span>
                 </div>
               ))}
@@ -395,24 +396,39 @@ function TrendBlock({
   values
 }: {
   title: string;
-  values: Array<{ label: string; value: number; max: number }>;
+  values: Array<{ label: string; value: number | null; displayValue?: string; max?: number; min?: number }>;
 }) {
+  const numericValues = values.map((v) => v.value).filter((v): v is number => typeof v === "number");
+  const overallMin = numericValues.length > 0 ? Math.min(...numericValues) : 0;
+  const overallMax = numericValues.length > 0 ? Math.max(...numericValues) : 1;
+
   return (
     <section className="card">
       <h3 className="section-title">{title}</h3>
       <div className="trend-grid">
-        {values.slice(-7).map((entry) => (
-          <div className="trend-item" key={`${title}-${entry.label}`}>
-            <span className="trend-label">{entry.label}</span>
-            <div className="trend-bar-track">
-              <div
-                className="trend-bar"
-                style={{ width: `${Math.min(100, (entry.value / entry.max) * 100)}%` }}
-              />
+        {values.slice(-7).map((entry) => {
+          let percentage = 0;
+          if (entry.value !== null) {
+            const min = entry.min !== undefined ? entry.min : (title === "体重趋势" && overallMax - overallMin > 0 ? Math.max(0, overallMin - 2) : 0);
+            const max = entry.max !== undefined ? entry.max : overallMax;
+            const span = max - min;
+            percentage = span > 0 ? Math.max(10, Math.min(100, Math.round(((entry.value - min) / span) * 100))) : 50;
+          }
+          return (
+            <div className="trend-item" key={`${title}-${entry.label}`}>
+              <span className="trend-label">{entry.label}</span>
+              <div className="trend-bar-track">
+                <div
+                  className="trend-bar"
+                  style={{ width: entry.value !== null ? `${percentage}%` : "0%" }}
+                />
+              </div>
+              <span className="trend-value">
+                {entry.displayValue ?? (entry.value !== null ? `${entry.value}` : "未记")}
+              </span>
             </div>
-            <span className="trend-value">{entry.value}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

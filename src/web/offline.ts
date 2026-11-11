@@ -30,6 +30,10 @@ export function cacheTodayPlan(planResponse: PlanResponse): void {
   localStorage.setItem(CACHED_TODAY_PLAN_KEY, JSON.stringify(planResponse));
 }
 
+export function clearCachedTodayPlan(): void {
+  localStorage.removeItem(CACHED_TODAY_PLAN_KEY);
+}
+
 export function getCachedTodayPlan(date?: string): PlanResponse | null {
   const raw = localStorage.getItem(CACHED_TODAY_PLAN_KEY);
   if (!raw) return null;

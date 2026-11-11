@@ -13,11 +13,11 @@ describe("我的与设置导航", () => {
   it("keeps low-frequency settings behind entry rows", () => {
     expect(settingsMenuEntries.map((entry) => entry.label)).toEqual([
       "DeepSeek AI",
-      "训练提醒",
       "检查更新",
       "账号与隐私",
       "规则与说明"
     ]);
+    expect(settingsMenuEntries.map((entry) => entry.label)).not.toContain("训练提醒");
     expect(settingsMenuEntries.map((entry) => entry.label)).not.toContain("服务器");
   });
 

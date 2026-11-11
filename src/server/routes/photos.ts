@@ -127,6 +127,32 @@ export function registerPhotoRoutes(app: FastifyInstance, context: PhotosRouteCo
     }
   });
 
+  app.delete("/api/photos/:id", async (request, reply) => {
+    const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
+    if (!userId) {
+      return;
+    }
+
+    const photoId = Number((request.params as Record<string, string>).id);
+    if (!Number.isInteger(photoId) || photoId <= 0) {
+      return reply.code(400).send({ error: "invalid photo id" });
+    }
+
+    const photo = await context.repositories.forUser(userId).getPhotoById(photoId);
+    if (!photo) {
+      return reply.code(404).send({ error: "photo not found" });
+    }
+
+    const uploadRoot = resolve(context.uploadDir);
+    const filePath = resolve(uploadRoot, photo.filePath);
+    if (filePath.startsWith(`${uploadRoot}${sep}`)) {
+      await rm(filePath, { force: true }).catch(() => undefined);
+    }
+
+    await context.repositories.forUser(userId).deletePhoto(photoId);
+    return { ok: true };
+  });
+
   app.get("/api/photos/:id/file", async (request, reply) => {
     const userId = await requireAuthenticatedUserId(request, reply, context.sessions);
     if (!userId) {
