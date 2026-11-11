@@ -117,6 +117,8 @@ export interface RecordsSummaryResponse {
     calendarCheckins: Array<DailyCheckinInput & { id: number; createdAt: string }>;
     weeklyReview: WeeklyReview;
     weeklyTrainingCount: number;
+    /** Days with a finished main workout: the week of the requested date and the whole month of it. */
+    trainedDates: string[];
     progressionRecords: Array<{
       id: number;
       date: string;

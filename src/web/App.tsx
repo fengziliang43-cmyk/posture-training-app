@@ -8,7 +8,9 @@ import {
   getAuthCaptcha,
   getAuthCapabilities,
   getMe,
+  getProfile,
   getRecentCheckins,
+  getRecordsSummary,
   getTodayPlan,
   login,
   logout,
@@ -30,6 +32,8 @@ import { ScoliosisRiskGuide } from "./components/ScoliosisRiskGuide";
 import { SiteFooter } from "./components/SiteFooter";
 import { InstallOptions } from "./components/InstallOptions";
 import { formatLocalDate } from "../core/date";
+import { formatDayLabel } from "./format";
+import { buildWeekSummary, type WeekSummary } from "./week";
 import type { ExerciseResult } from "../core/types";
 import { deriveCompletionStatus } from "../core/workout";
 
@@ -62,6 +66,8 @@ export function App() {
   const [finishLoading, setFinishLoading] = useState(false);
   const [todayError, setTodayError] = useState<string | null>(null);
   const [todayInfo, setTodayInfo] = useState<string | null>(null);
+  const [week, setWeek] = useState<WeekSummary | null>(null);
+  const [defaultMinutes, setDefaultMinutes] = useState<number | undefined>(undefined);
 
   // Whoever signs in next must not see the previous account's plan or check-in that are still in memory,
   // and starts on Today instead of the page the last person left from.
@@ -75,6 +81,8 @@ export function App() {
     setTodayMode("overview");
     setTodayError(null);
     setTodayInfo(null);
+    setWeek(null);
+    setDefaultMinutes(undefined);
 
     if (signedOut && typeof window !== "undefined") {
       setActiveTab("today");
@@ -101,7 +109,17 @@ export function App() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
-  async function handleStatusSubmit(status: DailyCheckinInput) {
+  function refreshWeek() {
+    const requestedFor = signedInUserId.current;
+    getRecordsSummary(formatLocalDate())
+      .then((response) => {
+        if (signedInUserId.current === requestedFor) setWeek(buildWeekSummary(response.summary));
+      })
+      .catch(() => undefined);
+  }
+
+  /** Resolves to false when saving failed, so the form can stay open with what was typed. */
+  async function handleStatusSubmit(status: DailyCheckinInput): Promise<boolean> {
     setPlanLoading(true);
     setTodayError(null);
     setTodayInfo(null);
@@ -112,14 +130,13 @@ export function App() {
       setLatestStatus(checkinResponse.checkin);
       setTodayPlan(result.plan);
       setTodayMode("overview");
-      setTodayInfo(
-        Object.values(status.redFlags ?? {}).some(Boolean)
-          ? "风险信号已记录，今天停止训练。"
-          : "今天任务已生成。"
-      );
+      // No banner: the page itself changes (the plan, or the stop card) and says it.
       window.scrollTo({ top: 0, behavior: "auto" });
+      return true;
     } catch {
       setTodayError("今天任务生成失败，请检查服务器连接。");
+      window.scrollTo({ top: 0, behavior: "auto" });
+      return false;
     } finally {
       setPlanLoading(false);
     }
@@ -152,7 +169,9 @@ export function App() {
         exerciseResults: result.workoutLog.exerciseResults ?? exerciseResults
       };
       setTodayPlan({ ...todayPlan, workout });
-      setTodayInfo(result.queued ? "网络暂不可用，已离线保存，联网后自动同步。" : "训练完成已记录。");
+      refreshWeek();
+      // Online, the page shows the finished state; only the offline case needs a note.
+      setTodayInfo(result.queued ? "网络暂不可用，已离线保存，联网后自动同步。" : null);
       setTodayMode("overview");
       window.scrollTo({ top: 0, behavior: "auto" });
     } catch {
@@ -200,6 +219,16 @@ export function App() {
         if (today) setLatestStatus(today);
       })
       .catch(() => undefined);
+
+    const requestedFor = signedInUserId.current;
+    getProfile()
+      .then((response) => {
+        if (signedInUserId.current === requestedFor && response.profile) {
+          setDefaultMinutes(response.profile.defaultSessionMinutes);
+        }
+      })
+      .catch(() => undefined);
+    refreshWeek();
 
     flushQueuedOfflineActions()
       .then((flushed) => {
@@ -288,7 +317,7 @@ export function App() {
   return (
     <Layout
       activeTab={activeTab}
-      username={authUser.username}
+      subtitle={activeTab === "today" ? formatDayLabel(formatLocalDate()) : undefined}
       hideNav={activeTab === "today" && todayMode === "task"}
       onTabChange={handleTabChange}
     >
@@ -302,6 +331,8 @@ export function App() {
           info={todayInfo}
           mode={todayMode}
           latestStatus={latestStatus}
+          defaultMinutes={defaultMinutes}
+          week={week}
           onModeChange={setTodayMode}
           onSubmitStatus={handleStatusSubmit}
           onFinishWorkout={handleFinishTodayWorkout}

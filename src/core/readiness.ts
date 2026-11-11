@@ -1,4 +1,5 @@
 import type { DailyStatus, PlanType, TimeVersion, TrainingHistory } from "./types";
+import { MAX_MAIN_SESSIONS_PER_WEEK } from "./weekly-schedule";
 
 export interface ReadinessContext {
   history?: TrainingHistory;
@@ -78,7 +79,7 @@ export function evaluateReadiness(
   }
 
   const completedMainSessionsThisWeek = context.completedMainSessionsThisWeek ?? 0;
-  if (completedMainSessionsThisWeek >= 3) {
+  if (completedMainSessionsThisWeek >= MAX_MAIN_SESSIONS_PER_WEEK) {
     triggers.push(`本周已完成 ${completedMainSessionsThisWeek} 次主训练`);
   }
 
@@ -95,7 +96,7 @@ export function evaluateReadiness(
     status.sleepQuality === 1 ||
     (lastPainDelta !== undefined && lastPainDelta >= 3) ||
     recentPainDeltas.filter((delta) => delta >= 2).length >= 2 ||
-    completedMainSessionsThisWeek >= 3 ||
+    completedMainSessionsThisWeek >= MAX_MAIN_SESSIONS_PER_WEEK ||
     consecutiveRecoveryDays >= 3
   ) {
     if (status.lowBackPain >= 6) triggers.unshift(`腰酸 ${status.lowBackPain}/10`);

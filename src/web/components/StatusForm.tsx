@@ -1,18 +1,45 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { DailyCheckinInput } from "../api";
+import { ENERGY_LABELS } from "../format";
+import { describePainLevel } from "../pain-feedback";
+import { Icon, PainScale, Segmented } from "./ui";
 
 interface StatusFormProps {
   date: string;
   loading: boolean;
   initialStatus?: DailyCheckinInput | null;
+  /** Minutes offered first when nothing is recorded yet (from the training profile). */
+  defaultMinutes?: number;
+  /** Heading of the update form. The first record of the day has none: the page greets instead. */
+  title?: string;
   submitLabel?: string;
-  onSubmit: (status: DailyCheckinInput) => Promise<void> | void;
+  onSubmit: (status: DailyCheckinInput) => unknown;
+  onCancel?: () => void;
 }
 
-export function StatusForm({ date, loading, initialStatus, submitLabel = "生成今天任务", onSubmit }: StatusFormProps) {
-  const [lowBackPain, setLowBackPain] = useState<number>(initialStatus?.lowBackPain ?? 2);
-  const [energy, setEnergy] = useState<number>(initialStatus?.energy ?? 4);
-  const [availableMinutes, setAvailableMinutes] = useState(initialStatus?.availableMinutes ?? 45);
+const ENERGY_OPTIONS = ENERGY_LABELS.map((label, index) => ({ value: index + 1, label }));
+const MINUTE_CHOICES = [10, 20, 30, 45, 60];
+const FLAG_OPTIONS = [
+  { value: false, label: "没有" },
+  { value: true, label: "有" }
+] as const;
+
+export function StatusForm({
+  date,
+  loading,
+  initialStatus,
+  defaultMinutes,
+  title,
+  submitLabel = "生成今天的训练",
+  onSubmit,
+  onCancel
+}: StatusFormProps) {
+  // Pain and energy have no default: an answer nobody gave must not be saved as if it were theirs.
+  const [lowBackPain, setLowBackPain] = useState<number | null>(initialStatus?.lowBackPain ?? null);
+  const [energy, setEnergy] = useState<number | null>(initialStatus?.energy ?? null);
+  const [availableMinutes, setAvailableMinutes] = useState<number>(
+    initialStatus?.availableMinutes ?? defaultMinutes ?? 30
+  );
   const [neckShoulderPain, setNeckShoulderPain] = useState<number | null>(initialStatus?.neckShoulderPain ?? null);
   const [sleepHours, setSleepHours] = useState(initialStatus?.sleepHours !== undefined ? String(initialStatus.sleepHours) : "");
   const [sleepQuality, setSleepQuality] = useState<number | null>(initialStatus?.sleepQuality ?? null);
@@ -37,11 +64,21 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
   }, [initialStatus]);
 
   const redFlagCount = useMemo(() => Object.values(redFlags).filter(Boolean).length, [redFlags]);
+  const hasFlags = redFlagCount > 0 || showRedFlagsDetail;
   // "有" was chosen but no specific signal ticked: do not generate a normal workout from an unfinished answer.
   const redFlagsNeedChoice = showRedFlagsDetail && redFlagCount === 0;
+  const minuteOptions = useMemo(
+    () =>
+      [...new Set([...MINUTE_CHOICES, availableMinutes])]
+        .sort((a, b) => a - b)
+        .map((minutes) => ({ value: minutes, label: String(minutes) })),
+    [availableMinutes]
+  );
+  const missingAnswer = lowBackPain === null || energy === null;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (lowBackPain === null || energy === null) return;
 
     const payload: DailyCheckinInput = {
       date,
@@ -60,80 +97,76 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
     await onSubmit(payload);
   }
 
+  function chooseFlags(has: boolean) {
+    if (has) {
+      setShowRedFlagsDetail(true);
+      return;
+    }
+    setRedFlags({
+      legNumbness: false,
+      radiatingPain: false,
+      weakness: false,
+      bowelBladderChange: false,
+      sharpSuddenPain: false
+    });
+    setShowRedFlagsDetail(false);
+  }
+
   return (
-    <form className="status-form card" onSubmit={handleSubmit}>
-      <div className="form-head">
-        <div>
-          <p className="eyebrow">今日状态</p>
-          <h2>先记录再生成任务</h2>
+    <form className="status-form card-solid" onSubmit={handleSubmit}>
+      {title && (
+        <div className="form-title">
+          <h2>{title}</h2>
+          {onCancel && (
+            <button type="button" className="text-button" onClick={onCancel}>
+              取消
+            </button>
+          )}
         </div>
-        <span className="date-pill">{date}</span>
-      </div>
+      )}
 
-      <div className="field-stack">
-        <SliderField
-          label="腰酸"
-          value={lowBackPain}
-          min={0}
-          max={10}
-          onChange={setLowBackPain}
-          suffix="/10"
-        />
-        <SliderField
-          label="精神"
-          value={energy}
-          min={1}
-          max={5}
-          onChange={setEnergy}
-          suffix="/5"
-        />
-        <SliderField
-          label="可训练时间"
+      <section className="field-block">
+        <div className="field-head">
+          <span>腰背不适</span>
+          <b>{lowBackPain === null ? "请选择" : `${lowBackPain} · ${describePainLevel(lowBackPain)}`}</b>
+        </div>
+        <PainScale label="今天的腰背不适，0 到 10" value={lowBackPain} onChange={setLowBackPain} />
+      </section>
+
+      <section className="field-block">
+        <div className="field-head">
+          <span>精神</span>
+          <b>{energy === null ? "请选择" : ENERGY_LABELS[energy - 1]}</b>
+        </div>
+        <Segmented label="今天的精神状态" options={ENERGY_OPTIONS} value={energy} onChange={setEnergy} />
+      </section>
+
+      <section className="field-block">
+        <div className="field-head">
+          <span>今天能练多久</span>
+          <b>{availableMinutes} 分钟</b>
+        </div>
+        <Segmented
+          label="今天能练多久，单位分钟"
+          options={minuteOptions}
           value={availableMinutes}
-          min={10}
-          max={60}
-          step={5}
           onChange={setAvailableMinutes}
-          suffix="分钟"
         />
-      </div>
+      </section>
 
-      <div className="card" style={{ padding: "12px 14px", margin: "12px 0 6px", background: "rgba(255, 255, 255, 0.45)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
+      <section className="flag-row">
+        <div className="flag-row-head">
+          <Icon name="shield" size={24} />
           <div>
-            <strong style={{ fontSize: "14px", display: "block" }}>今天是否有以下危险信号？</strong>
-            <p className="muted small" style={{ margin: "2px 0 0" }}>腿麻、放射痛、明显无力、大小便异常、突发锐痛</p>
+            <b>今天有没有这些情况？</b>
+            <p>腿麻、放射痛、明显无力、大小便异常、突发锐痛</p>
           </div>
-          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-            <button
-              type="button"
-              className={redFlagCount === 0 && !showRedFlagsDetail ? "secondary-button active-chip" : "secondary-button"}
-              onClick={() => {
-                setRedFlags({
-                  legNumbness: false,
-                  radiatingPain: false,
-                  weakness: false,
-                  bowelBladderChange: false,
-                  sharpSuddenPain: false
-                });
-                setShowRedFlagsDetail(false);
-              }}
-            >
-              无
-            </button>
-            <button
-              type="button"
-              className={redFlagCount > 0 || showRedFlagsDetail ? "secondary-button active-chip" : "secondary-button"}
-              onClick={() => setShowRedFlagsDetail(true)}
-            >
-              有
-            </button>
-          </div>
+          <Segmented label="今天有没有危险信号" options={FLAG_OPTIONS} value={hasFlags} onChange={chooseFlags} />
         </div>
 
-        {(redFlagCount > 0 || showRedFlagsDetail) && (
-          <fieldset className="flag-group" style={{ marginTop: "12px" }}>
-            <legend>危险信号勾选（任意一项勾选将阻断今日训练）</legend>
+        {hasFlags && (
+          <fieldset className="flag-group">
+            <legend>勾选出现的情况：任意一项都会让今天停训</legend>
             <div className="flag-grid">
               {Object.entries({
                 legNumbness: "腿麻或持续刺痛",
@@ -157,21 +190,24 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
                 </label>
               ))}
             </div>
-            <p className="error-text small" style={{ margin: "6px 0 0" }} role={redFlagsNeedChoice ? "alert" : undefined}>
+            <p className="error-text small" role={redFlagsNeedChoice ? "alert" : undefined}>
               {redFlagsNeedChoice
-                ? "请勾选具体是哪一项；如果其实没有，请点上面的“无”。"
-                : `已勾选 ${redFlagCount} 项。选择后今天会自动停训并给出安全就医建议。`}
+                ? "请勾选具体是哪一项；如果其实没有，请点上面的“没有”。"
+                : `已勾选 ${redFlagCount} 项。今天会停训，并给出就医建议。`}
             </p>
           </fieldset>
         )}
-      </div>
+      </section>
 
-      <details className="advanced-panel">
-        <summary>选填信息（不填不存，避免污染统计）</summary>
+      <details className="optional-fields">
+        <summary>
+          <Icon name="plus" size={16} />
+          睡眠、步数、体重（选填，不填就不记）
+        </summary>
         <div className="field-stack">
           <label className="slider-field">
             <span className="slider-label">
-              肩颈酸（选填）
+              肩颈酸
               <strong>{neckShoulderPain !== null ? `${neckShoulderPain}/10` : "未记"}</strong>
             </span>
             <input
@@ -184,9 +220,10 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
           </label>
 
           <label>
-            睡眠时长（小时，选填）
+            睡眠时长（小时）
             <input
               type="number"
+              inputMode="decimal"
               min="0"
               max="24"
               step="0.5"
@@ -198,7 +235,7 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
 
           <label className="slider-field">
             <span className="slider-label">
-              睡眠质量（选填）
+              睡眠质量
               <strong>{sleepQuality !== null ? `${sleepQuality}/5` : "未记"}</strong>
             </span>
             <input
@@ -211,9 +248,10 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
           </label>
 
           <label>
-            步数（选填）
+            步数
             <input
               type="number"
+              inputMode="numeric"
               min="0"
               step="100"
               placeholder="未记录"
@@ -223,12 +261,10 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
           </label>
 
           <label>
-            饮食状态（选填）
+            饮食状态
             <select
               value={eatingStatus}
-              onChange={(event) =>
-                setEatingStatus(event.target.value as "poor" | "normal" | "good" | "")
-              }
+              onChange={(event) => setEatingStatus(event.target.value as "poor" | "normal" | "good" | "")}
             >
               <option value="">未记录</option>
               <option value="poor">差</option>
@@ -238,9 +274,10 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
           </label>
 
           <label>
-            体重（kg，选填）
+            体重（kg）
             <input
               type="number"
+              inputMode="decimal"
               min="0"
               step="0.1"
               placeholder="未记录"
@@ -251,8 +288,14 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
         </div>
       </details>
 
-      <button type="submit" disabled={loading || redFlagsNeedChoice}>
-        {loading ? "生成中" : redFlagsNeedChoice ? "请先勾选危险信号，或选“无”" : submitLabel}
+      <button type="submit" className="wide" disabled={loading || missingAnswer || redFlagsNeedChoice}>
+        {loading
+          ? "生成中"
+          : missingAnswer
+            ? "先选腰背不适和精神"
+            : redFlagsNeedChoice
+              ? "请先勾选危险信号，或选“没有”"
+              : submitLabel}
       </button>
     </form>
   );
@@ -266,36 +309,4 @@ function normalizeRedFlags(status?: DailyCheckinInput | null) {
     bowelBladderChange: Boolean(status?.redFlags?.bowelBladderChange),
     sharpSuddenPain: Boolean(status?.redFlags?.sharpSuddenPain)
   };
-}
-
-interface SliderFieldProps {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  suffix: string;
-  onChange: (value: number) => void;
-}
-
-function SliderField({ label, value, min, max, step = 1, suffix, onChange }: SliderFieldProps) {
-  return (
-    <label className="slider-field">
-      <span className="slider-label">
-        {label}
-        <strong>
-          {value}
-          {suffix}
-        </strong>
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    </label>
-  );
 }

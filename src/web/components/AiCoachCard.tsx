@@ -7,12 +7,14 @@ import {
   type PlanResponsePlan,
   type SettingsRecord
 } from "../api";
+import { Icon } from "./ui";
 
 interface AiCoachCardProps {
   plan: PlanResponsePlan | null;
   onOpenSettings: () => void;
 }
 
+/** One closed row on Today; opens to the AI's explanation of today's plan. */
 export function AiCoachCard({ plan, onOpenSettings }: AiCoachCardProps) {
   const [settings, setSettings] = useState<SettingsRecord | null>(null);
   const [result, setResult] = useState<AiTextResponse | null>(null);
@@ -34,18 +36,6 @@ export function AiCoachCard({ plan, onOpenSettings }: AiCoachCardProps) {
   const enabled = settings?.deepseekEnabled === true;
   const available = settings !== null && settings.deepseekAvailable !== false;
   const ready = available && configured && enabled;
-  const source = result?.source === "deepseek" ? "DeepSeek" : "本地规则";
-  const state = loading
-    ? "loading"
-    : error
-      ? "error"
-      : result?.source === "deepseek"
-        ? "success"
-        : result?.source === "local"
-          ? "fallback"
-          : ready
-            ? "ready"
-            : "setup";
 
   async function generate() {
     if (!plan) return;
@@ -61,86 +51,60 @@ export function AiCoachCard({ plan, onOpenSettings }: AiCoachCardProps) {
   }
 
   return (
-    <section className={`ai-coach-card liquid-glass ai-state-${state}`} aria-live="polite">
-      <div className="ai-card-glow" aria-hidden="true" />
-      <div className="ai-card-head">
-        <div className="ai-orb" aria-hidden="true">
-          <span>AI</span>
-        </div>
-        <div>
-          <p className="eyebrow">AI 教练解读</p>
-          <h3>{aiTitle(state, available, configured, enabled)}</h3>
-        </div>
-        <span className={`source-badge source-${result?.source ?? "local"}`}>{source}</span>
-      </div>
+    <details className="ai-row" aria-live="polite">
+      <summary>
+        <Icon name="spark" />
+        <span>让 AI 讲讲今天的安排</span>
+        <Icon name="right" size={16} />
+      </summary>
 
-      {loading ? (
-        <div className="ai-skeleton" aria-label="DeepSeek 正在生成解读">
-          <span />
-          <span />
-          <span />
-          <p>DeepSeek 正在解释今天的本地训练计划…</p>
-        </div>
-      ) : (
-        <p className="ai-copy">
-          {error
-            ? `连接失败：${error}`
-            : result?.explanation ??
-              plan?.explanation?.summary ??
-              plan?.reason ??
-              "先完成今日状态填写并生成计划，AI 才能解释今天为什么这样练。"}
-        </p>
-      )}
-
-      {result?.source === "local" && (
-        <p className="ai-state-note">{fallbackMessage(result.fallbackReason)}</p>
-      )}
-      {!ready && !result && (
-        <p className="ai-state-note">
-          {!available
-            ? "个人 API Key 当前被服务器安全开关暂停，训练计划继续由本地规则生成。"
-            : configured
-              ? "DeepSeek 当前已关闭；本地规则仍正常生成训练。"
-              : "尚未配置 DeepSeek API Key。"}
-        </p>
-      )}
-
-      <div className="ai-card-footer">
-        <div>
-          <strong>只解释，不改计划</strong>
-          <span>
-            {result?.generatedAt ? `更新于 ${formatTime(result.generatedAt)}` : "不做医疗诊断，不读取体态照片"}
-          </span>
-        </div>
-        {!ready && !result ? (
-          <button type="button" className="glass-button" onClick={onOpenSettings}>
-            {available ? "去配置" : "查看说明"}
-          </button>
+      <div className="ai-row-body">
+        {loading ? (
+          <p className="muted">DeepSeek 正在解释今天的训练计划…</p>
+        ) : error ? (
+          <p className="error-text">这次没连上：{error}</p>
+        ) : result?.explanation ? (
+          <>
+            <p className="ai-copy">{result.explanation}</p>
+            <p className="muted small">
+              {result.source === "deepseek" ? "DeepSeek" : "本地规则"}
+              {result.generatedAt ? ` · 更新于 ${formatTime(result.generatedAt)}` : ""}
+            </p>
+          </>
         ) : (
-          <button type="button" className="glass-button" disabled={!plan || loading} onClick={() => void generate()}>
-            {loading ? "生成中" : result ? "重新生成" : "生成今日解读"}
-          </button>
+          <p className="muted">
+            {!ready
+              ? !available
+                ? "个人 API Key 当前被服务器的安全开关暂停，训练计划继续由本地规则生成。"
+                : configured
+                  ? "DeepSeek 当前已关闭；本地规则仍正常生成训练。"
+                  : "还没连接 DeepSeek。连接后，这里会用你自己的 Key 解释今天为什么这样练。"
+              : "点下面的按钮，让 DeepSeek 解释今天为什么这样练。"}
+          </p>
         )}
-      </div>
-    </section>
-  );
-}
 
-function aiTitle(
-  state: "loading" | "error" | "success" | "fallback" | "ready" | "setup",
-  available: boolean,
-  configured: boolean,
-  enabled: boolean
-): string {
-  if (state === "loading") return "正在读懂今天的训练";
-  if (state === "error") return "这次没连上，可重试";
-  if (state === "success") return "DeepSeek 解读已生成";
-  if (state === "fallback") return "已切回本地规则说明";
-  if (state === "ready") return "让 DeepSeek 解释今天为什么这样练";
-  if (!available) return "当前使用本地规则";
-  if (!configured) return "连接你的 DeepSeek";
-  if (!enabled) return "DeepSeek 当前已关闭";
-  return "AI 教练待命";
+        {result?.source === "local" && <p className="ai-state-note">{fallbackMessage(result.fallbackReason)}</p>}
+
+        <div className="ai-row-actions">
+          <span className="muted small">只解释，不改计划；不做医疗诊断，不读取体态照片。</span>
+          {!ready && !result ? (
+            <button type="button" className="secondary-button compact-button" onClick={onOpenSettings}>
+              {available ? "去配置" : "查看说明"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="secondary-button compact-button"
+              disabled={!plan || loading}
+              onClick={() => void generate()}
+            >
+              {loading ? "生成中" : result ? "重新生成" : "生成今日解读"}
+            </button>
+          )}
+        </div>
+      </div>
+    </details>
+  );
 }
 
 function fallbackMessage(reason?: AiTextResponse["fallbackReason"]): string {

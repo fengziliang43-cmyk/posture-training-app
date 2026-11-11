@@ -243,6 +243,7 @@ describe("server app", () => {
     expect(records.json().summary.checkins.length).toBeGreaterThan(0);
     expect(records.json().summary.calendarCheckins[0].date).toBe("2026-06-11");
     expect(records.json().summary.weeklyTrainingCount).toBe(1);
+    expect(records.json().summary.trainedDates).toEqual(["2026-06-11"]);
 
     const photo = await app.inject({
       method: "POST",

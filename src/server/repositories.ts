@@ -99,6 +99,8 @@ export interface RecordsSummary {
   calendarCheckins: CheckinRecord[];
   weeklyReview: WeeklyReview;
   weeklyTrainingCount: number;
+  /** Days with a finished main workout, for the week of `date` and for the month of `date`. */
+  trainedDates: string[];
   progressionRecords: Array<{
     id: number;
     date: string;
@@ -910,8 +912,41 @@ async function getRecordsSummary(
     calendarCheckins: await listMonthCheckins(db, userId, date),
     weeklyReview: await getWeeklyReview(db, userId, date),
     weeklyTrainingCount: await countCompletedMainSessionsThisWeek(db, userId, date),
+    trainedDates: await listTrainedDates(db, userId, date),
     progressionRecords: await listProgressionRecords(db, userId)
   };
+}
+
+// Dates with a finished main workout (full or reduced plan, the kind the weekly limit counts), covering the
+// whole week of `date` and the whole month of `date`.
+async function listTrainedDates(db: AppDatabase, userId: number, date: string): Promise<string[]> {
+  const weekStart = getWeekStart(date);
+  const weekEnd = addDaysToDate(weekStart, 6);
+  const { start: monthStart, end: monthEnd } = monthRange(date);
+  const rows = await db.all<Array<{ date: string }>>(
+    `
+      SELECT DISTINCT p.date AS date
+      FROM workout_logs wl
+      JOIN plans p ON p.id = wl.plan_id
+      WHERE p.user_id = ?
+        AND wl.user_id = ?
+        AND wl.completion_status = 'completed'
+        AND p.type IN ('full', 'reduced')
+        AND p.date BETWEEN ? AND ?
+      ORDER BY p.date ASC
+    `,
+    userId,
+    userId,
+    weekStart < monthStart ? weekStart : monthStart,
+    weekEnd > monthEnd ? weekEnd : monthEnd
+  );
+  return rows.map((row) => row.date);
+}
+
+function addDaysToDate(date: string, days: number): string {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
 }
 
 async function getWeeklyReview(db: AppDatabase, userId: number, date: string): Promise<WeeklyReview> {
