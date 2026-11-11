@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   ExerciseCompletionStatus,
   ExerciseFeedback,
   ExerciseResult
 } from "../../core/types";
 import { exerciseLibrary } from "../../core/exercise-library";
+import { shortReason } from "../format";
 import { describePainChange } from "../pain-feedback";
 import {
   describeApiError,
@@ -14,6 +15,7 @@ import {
   type DailyCheckinInput,
   type PlanResponsePlan
 } from "../api";
+import { Icon, PainScale, Segmented } from "./ui";
 
 const exerciseById = new Map(exerciseLibrary.map((exercise) => [exercise.id, exercise]));
 const exerciseNameById = new Map(exerciseLibrary.map((exercise) => [exercise.id, exercise.name]));
@@ -24,11 +26,18 @@ const feedbackLabels: Record<ExerciseFeedback, string> = {
   pain: "出现不适",
   technique: "动作控制困难"
 };
+const STATUS_OPTIONS: ReadonlyArray<{ value: ExerciseCompletionStatus; label: string }> = [
+  { value: "completed", label: "完整完成" },
+  { value: "partial", label: "部分完成" },
+  { value: "skipped", label: "跳过" }
+];
 
 interface TodayPlanProps {
   plan: PlanResponsePlan | null;
   latestStatus?: DailyCheckinInput | null;
   finishing: boolean;
+  /** Shown above the save button: that is where the person is when saving fails. */
+  finishError?: string | null;
   onBack?: () => void;
   onFinishWorkout: (lowBackPainAfter: number, exerciseResults: ExerciseResult[]) => Promise<void> | void;
   onPlanChange?: (plan: PlanResponsePlan) => void;
@@ -38,26 +47,34 @@ type LocalExerciseResult = ExerciseResult | null;
 
 const DEFAULT_STOP_RULE = "训练中腰酸升高 2 分、动作变形、出现麻木或放射痛时立即停止。";
 
-export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorkout, onPlanChange }: TodayPlanProps) {
+export function TodayPlan({ plan, latestStatus, finishing, finishError, onBack, onFinishWorkout, onPlanChange }: TodayPlanProps) {
   // Before the workout; unknown when today's check-in has not been loaded.
   const preWorkoutPain = typeof latestStatus?.lowBackPain === "number" ? latestStatus.lowBackPain : null;
   const [exerciseResults, setExerciseResults] = useState<LocalExerciseResult[]>([]);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [planInfo, setPlanInfo] = useState<string | null>(null);
+  const [aiNote, setAiNote] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   const [actionBusyKey, setActionBusyKey] = useState<string | null>(null);
   // null until the person picks a number: there is no default that could be saved by accident.
   const [lowBackPainAfter, setLowBackPainAfter] = useState<number | null>(null);
+  // Which exercise is open: null follows the first one still to do, "none" folds them all, a number is the person's pick.
+  const [expanded, setExpanded] = useState<number | "none" | null>(null);
   const exerciseSignature = plan?.exercises
     .map((exercise) =>
       [exercise.exerciseId, exercise.sets, exercise.reps ?? "", exercise.seconds ?? "", exercise.restSeconds].join(":")
     )
     .join("|") ?? "";
+  // The exercise being worked on is the first one with no result yet (done, partial and skipped all count as recorded).
+  const currentActiveIndex = plan ? plan.exercises.findIndex((_, i) => !exerciseResults[i]) : -1;
 
   useEffect(() => {
     setAiExplanation(null);
-    setPlanInfo(null);
+    setAiNote(null);
+    setAiError(null);
     setPlanError(null);
+    setExpanded(null);
     if (!plan) {
       setLowBackPainAfter(null);
       setExerciseResults([]);
@@ -79,302 +96,281 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
     );
   }, [plan?.id, exerciseSignature]);
 
+  // When the next exercise opens, bring it to the top. Opening the page itself stays where it is.
+  const lastCurrent = useRef<string | null>(null);
+  useEffect(() => {
+    if (!plan || currentActiveIndex < 0) return;
+    const key = `${plan.id}:${currentActiveIndex}`;
+    const isFirst = lastCurrent.current === null;
+    lastCurrent.current = key;
+    if (isFirst) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    document
+      .getElementById(`exercise-${currentActiveIndex}`)
+      ?.scrollIntoView?.({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+  }, [plan?.id, currentActiveIndex]);
+
   if (!plan) {
     return (
-      <section className="plan-card card">
-        <div className="plan-topline">
-          {onBack && (
-            <button type="button" className="text-button" onClick={onBack}>
-              返回今日
-            </button>
-          )}
-          <span className="date-pill">任务详情</span>
-        </div>
-        <p className="eyebrow">今日 / 任务详情</p>
-        <h2>还没有生成任务</h2>
-        <p>先填状态，再点“生成今天任务”。</p>
+      <section className="card-solid">
+        {onBack && <BackButton onBack={onBack} />}
+        <h2>还没有生成训练</h2>
+        <p className="muted">先在“今日”记录状态，再生成今天的训练。</p>
       </section>
     );
   }
 
   const activePlan = plan;
-
+  const total = plan.exercises.length;
   const resolvedCount = exerciseResults.filter(Boolean).length;
-  const completedCount = exerciseResults.filter(
-    (result) => result?.completionStatus === "completed"
-  ).length;
-  const allResolved = plan.exercises.length > 0 && resolvedCount === plan.exercises.length;
-  // The exercise being worked on is the first one with no result yet (done, partial and skipped all count as recorded).
-  const currentActiveIndex = plan.exercises.findIndex((_, i) => !exerciseResults[i]);
+  const allResolved = total > 0 && resolvedCount === total;
+  const openIndex = expanded === null ? currentActiveIndex : expanded === "none" ? -1 : expanded;
+  const minutesLabel = plan.algorithmVersion === "legacy-v1" ? "历史计划" : `约 ${plan.estimatedMinutes} 分钟`;
 
   return (
-    <section className="plan-card card">
-      <div className="plan-topline">
-        {onBack && (
-          <button type="button" className="text-button" onClick={onBack}>
-            返回今日
-          </button>
-        )}
-        <span className="date-pill">自适应计划</span>
-      </div>
-      <div className="plan-head">
+    <div className="stack train-view">
+      {onBack && <BackButton onBack={onBack} />}
+
+      <section className="card-solid train-brief">
         <div>
-          <p className="eyebrow">今日 / 任务详情</p>
           <h2>{describePlanFocus(plan)}</h2>
+          <p className="meta">{[describeTimeVersion(plan.timeVersion), minutesLabel, `${total} 个动作`].join(" · ")}</p>
         </div>
-        <div className="plan-head-pills">
-          <span className="date-pill">{describeTimeVersion(plan.timeVersion)}</span>
-          <span className="date-pill">
-            {plan.algorithmVersion === "legacy-v1" ? "历史计划" : `约 ${plan.estimatedMinutes} 分钟`}
-          </span>
-        </div>
-      </div>
 
-      {plan.exercises.length > 0 && (
-        <div className="card stop-rule-banner" role="note">
-          <strong>停止规则（全过程有效）</strong>
-          {/* The rule comes from the plan itself so the screen can never say something looser than the plan. */}
-          <p>{plan.safetyMessage ?? DEFAULT_STOP_RULE}</p>
-        </div>
-      )}
+        {total > 0 && (
+          <>
+            <div className="progress-line">
+              <div
+                className="progress-bar"
+                role="progressbar"
+                aria-label="已记录的动作"
+                aria-valuemin={0}
+                aria-valuemax={total}
+                aria-valuenow={resolvedCount}
+              >
+                <span style={{ width: `${(resolvedCount / total) * 100}%` }} />
+              </div>
+              <b>
+                已记录 {resolvedCount}/{total}
+              </b>
+            </div>
 
-      <p className="reason-text">{plan.reason}</p>
-
-      <section className="decision-summary-card">
-        <div className="mini-head">
-          <div>
-            <p className="eyebrow">为什么是这套</p>
-            <h3>{plan.decision.focusLabel}</h3>
-          </div>
-          <span className="readiness-badge">
-            {plan.algorithmVersion === "legacy-v1" ? "历史" : `${plan.decision.readinessScore}/100`}
-          </span>
-        </div>
-        <ul className="decision-reason-list">
-          {plan.decision.reasons.slice(0, 4).map((reason) => <li key={reason}>{reason}</li>)}
-        </ul>
-        {plan.decision.avoidedReasons.length > 0 && (
-          <p className="muted small">已主动避开：{plan.decision.avoidedReasons.join("；")}</p>
+            {/* The rule comes from the plan itself so the screen can never say something looser than the plan. */}
+            <p className="stop-rule" role="note">
+              <Icon name="alert" size={20} />
+              <span>{plan.safetyMessage ?? DEFAULT_STOP_RULE}</span>
+            </p>
+          </>
         )}
-      </section>
 
-      <section className="explanation-card task-brief-card">
-        <div className="mini-head">
-          <div>
-            <p className="eyebrow">计划解释</p>
-            <h3>{plan.explanation?.title ?? `${describePlanType(plan.type)}，守住执行`}</h3>
+        <details className="why-panel">
+          <summary>为什么这样安排</summary>
+          <p className="why-lead">{shortReason(plan.explanation?.summary ?? plan.reason)}</p>
+          <ul>
+            {plan.decision.reasons.slice(0, 4).map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+          {plan.decision.avoidedReasons.length > 0 && (
+            <p className="muted small">已主动避开：{plan.decision.avoidedReasons.join("；")}</p>
+          )}
+          <div className="why-ai">
+            {aiExplanation && <p className="ai-copy">{aiExplanation}</p>}
+            {aiNote && <p className="muted small">{aiNote}</p>}
+            {aiError && <p className="error-text small">{aiError}</p>}
+            <button
+              type="button"
+              className="secondary-button compact-button"
+              disabled={aiLoading}
+              onClick={() => void handleAiExplanation(plan.id)}
+            >
+              {aiLoading ? "生成中" : aiExplanation ? "重新讲一次" : "让 AI 讲讲"}
+            </button>
           </div>
-          <button
-            type="button"
-            className="secondary-button compact-button"
-            onClick={() => void handleAiExplanation(plan.id)}
-          >
-            AI 解释
-          </button>
-        </div>
-        <p>{aiExplanation ?? plan.explanation?.summary ?? plan.reason}</p>
+        </details>
       </section>
 
-      {planInfo && <p className="success-text">{planInfo}</p>}
-      {planError && <p className="error-text">{planError}</p>}
+      {planError && <p className="error-text" role="alert">{planError}</p>}
 
-      {plan.exercises.length === 0 ? (
+      {total === 0 ? (
         <section className="safety-stop-card compact-safety-card" role="alert">
           <p className="eyebrow">当前没有可执行动作</p>
           <h3>今天先停训</h3>
           <p>{plan.safetyMessage ?? "先处理安全信号，再决定是否训练。"}</p>
         </section>
       ) : (
-        <section className="action-list-card">
-          <div className="mini-head">
-            <div>
-              <p className="eyebrow">动作顺序</p>
-              <h3>{plan.exercises.length} 个动作</h3>
-            </div>
-            <span className="date-pill">已完成 {completedCount}/{plan.exercises.length}</span>
-          </div>
+        <div className="ex-list">
+          {plan.exercises.map((exercise, index) => {
+            const exerciseKey = getExerciseInstanceKey(plan.id, index, exercise);
+            const result = exerciseResults[index];
+            const status = result?.completionStatus;
+            const isCurrent = index === currentActiveIndex;
+            const isOpen = index === openIndex;
+            const cardClasses = ["ex-card", status ?? "", isCurrent ? "current" : "", isOpen ? "open" : ""]
+              .filter(Boolean)
+              .join(" ");
 
-          <div className="exercise-stack">
-            {plan.exercises.map((exercise, index) => {
-              const exerciseKey = getExerciseInstanceKey(plan.id, index, exercise);
-              const result = exerciseResults[index];
-              const status = result?.completionStatus;
-              const isCurrentActive = index === currentActiveIndex;
+            return (
+              <article className={cardClasses} key={exerciseKey} id={`exercise-${index}`}>
+                <button
+                  type="button"
+                  className="ex-head"
+                  aria-expanded={isOpen}
+                  aria-controls={`exercise-body-${index}`}
+                  onClick={() => setExpanded(isOpen ? "none" : index)}
+                >
+                  <span className="ex-index" aria-hidden="true">
+                    {status === "completed" ? (
+                      <Icon name="check" size={16} />
+                    ) : status === "skipped" ? (
+                      <Icon name="close" size={14} />
+                    ) : status === "partial" ? (
+                      "–"
+                    ) : (
+                      index + 1
+                    )}
+                  </span>
+                  <span className="ex-title">
+                    <b>{exercise.name}</b>
+                    <small>
+                      {formatVolume(exercise)} · 休息 {formatRest(exercise.restSeconds)}
+                    </small>
+                  </span>
+                  <span className="ex-state">
+                    {status ? statusLabel(status) : isCurrent ? "进行中" : ""}
+                    <Icon name="right" size={16} />
+                  </span>
+                </button>
 
-              const cardClasses = [
-                "exercise-card",
-                status ? status : "",
-                isCurrentActive ? "active-exercise" : "",
-                status === "completed" ? "completed-dimmed" : ""
-              ]
-                .filter(Boolean)
-                .join(" ");
+                {isOpen && (
+                  <div className="ex-body" id={`exercise-body-${index}`}>
+                    {exercise.notes.length > 0 && (
+                      <ul className="ex-notes">
+                        {exercise.notes.map((note, noteIndex) => (
+                          <li key={`${exerciseKey}-note-${noteIndex}`}>{note}</li>
+                        ))}
+                      </ul>
+                    )}
 
-              return (
-                <article className={cardClasses} key={exerciseKey}>
-                    <div className="exercise-row">
-                      <span className="exercise-index">{index + 1}</span>
-                      <div className="exercise-copy">
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <h3>{exercise.name}</h3>
-                          {isCurrentActive && <span className="date-pill" style={{ background: "#2e7d5b", color: "#fff", fontSize: "11px", padding: "1px 6px" }}>进行中</span>}
-                        </div>
-                        <p className="muted">
-                          {formatVolume(exercise)} · 休息 {formatRest(exercise.restSeconds)}
-                        </p>
-                        <span className="exercise-status-label">{statusLabel(status)}</span>
+                    <div className="ex-facts">
+                      <div>
+                        <span>停止条件</span>
+                        <p>{exercise.stopCondition}</p>
                       </div>
-                      <button
-                        type="button"
-                        className={isCurrentActive ? "primary-button compact-button" : "secondary-button compact-button"}
-                        onClick={() => updateExerciseResult(index, status === "completed" ? null : "completed")}
-                      >
-                        {status === "completed" ? "撤销" : "完成"}
-                      </button>
+                      <div>
+                        <span>替代动作</span>
+                        <p>{formatReplacement(exercise.replacementId)}</p>
+                        {exercise.replacedFromId ? (
+                          <button
+                            type="button"
+                            className="secondary-button compact-button"
+                            disabled={actionBusyKey === exerciseKey}
+                            onClick={() => void handleRevert(plan.id, exercise.exerciseId, exerciseKey)}
+                          >
+                            撤回替换
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="secondary-button compact-button"
+                            disabled={!exercise.replacementId || actionBusyKey === exerciseKey}
+                            onClick={() => void handleReplace(plan.id, exercise.exerciseId, exerciseKey)}
+                          >
+                            换成替代动作
+                          </button>
+                        )}
+                      </div>
+                      <div>
+                        <span>为什么选它</span>
+                        <p>{exercise.selectionReason ?? "按当天训练槽位和安全条件选择"}</p>
+                      </div>
                     </div>
 
-                  <p className="exercise-selection-reason">
-                    <span>选择原因</span>{exercise.selectionReason ?? "按当天训练槽位和安全条件选择"}
-                  </p>
-
-                  <details className="exercise-details">
-                    <summary>动作要点与反馈</summary>
                     <a
-                      className="exercise-video-link"
+                      className="ex-video"
                       href={exercise.videoUrl ?? exerciseById.get(exercise.exerciseId)?.videoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
+                      <Icon name="play" size={16} />
                       查看动作视频
                     </a>
-                    <p className="muted small video-boundary-note">
-                      视频只用于理解动作；组数、次数和停止条件以姿序当天任务为准。
-                    </p>
-                    <ul className="note-list">
-                      {exercise.notes.map((note, noteIndex) => (
-                        <li key={`${exerciseKey}-note-${noteIndex}`}>{note}</li>
-                      ))}
-                    </ul>
+                    <p className="muted small">视频只用于理解动作；组数、次数和停止条件以姿序当天任务为准。</p>
 
-                    <div className="detail-grid">
-                      <div>
-                        <span className="detail-label">替代动作</span>
-                        <p>{formatReplacement(exercise.replacementId)}</p>
+                    {status ? (
+                      <div className="ex-actions">
+                        <Segmented
+                          label="这个动作的完成情况"
+                          options={STATUS_OPTIONS}
+                          value={status}
+                          onChange={(value) => updateExerciseResult(index, value)}
+                        />
+                        <label className="ex-feedback">
+                          反馈原因
+                          <select
+                            value={result?.feedback ?? "none"}
+                            onChange={(event) => updateExerciseFeedback(index, event.target.value as ExerciseFeedback)}
+                          >
+                            {Object.entries(feedbackLabels).map(([value, label]) => (
+                              <option key={value} value={value}>{label}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <button type="button" className="text-button" onClick={() => updateExerciseResult(index, null)}>
+                          撤销这条记录
+                        </button>
                       </div>
-                      <div>
-                        <span className="detail-label">停止条件</span>
-                        <p>{exercise.stopCondition}</p>
+                    ) : (
+                      <div className="ex-actions">
+                        <button type="button" className="wide" onClick={() => updateExerciseResult(index, "completed")}>
+                          完成这个动作
+                        </button>
+                        <div className="ex-actions-row">
+                          <button type="button" className="secondary-button" onClick={() => updateExerciseResult(index, "partial")}>
+                            只做了一部分
+                          </button>
+                          <button type="button" className="secondary-button" onClick={() => updateExerciseResult(index, "skipped")}>
+                            跳过
+                          </button>
+                        </div>
                       </div>
-                    </div>
-
-                    <label className="exercise-feedback-field">
-                      <span>完成情况</span>
-                      <select
-                        value={status ?? ""}
-                        onChange={(event) =>
-                          updateExerciseResult(
-                            index,
-                            event.target.value as ExerciseCompletionStatus | ""
-                          )
-                        }
-                      >
-                        <option value="">请选择</option>
-                        <option value="completed">完整完成</option>
-                        <option value="partial">部分完成</option>
-                        <option value="skipped">跳过</option>
-                      </select>
-                    </label>
-                    {result && (
-                      <label className="exercise-feedback-field">
-                        <span>反馈原因</span>
-                        <select
-                          value={result.feedback}
-                          onChange={(event) =>
-                            updateExerciseFeedback(index, event.target.value as ExerciseFeedback)
-                          }
-                        >
-                          {Object.entries(feedbackLabels).map(([value, label]) => (
-                            <option key={value} value={value}>{label}</option>
-                          ))}
-                        </select>
-                      </label>
                     )}
-
-                    <div className="button-row">
-                      {exercise.replacedFromId ? (
-                        <button
-                          type="button"
-                          className="secondary-button compact-button"
-                          disabled={actionBusyKey === exerciseKey}
-                          onClick={() => void handleRevert(plan.id, exercise.exerciseId, exerciseKey)}
-                        >
-                          撤回替换
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="secondary-button compact-button"
-                          disabled={!exercise.replacementId || actionBusyKey === exerciseKey}
-                          onClick={() => void handleReplace(plan.id, exercise.exerciseId, exerciseKey)}
-                        >
-                          换成替代动作
-                        </button>
-                      )}
-                    </div>
-                  </details>
-                </article>
-              );
-            })}
-          </div>
-        </section>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
       )}
 
-      {plan.exercises.length > 0 && (
-        <section className={allResolved ? "finish-card ready" : "finish-card"}>
-          <div className="mini-head">
-            <div>
-              <p className="eyebrow">训练后反馈</p>
-              <h3>记录现在的腰酸</h3>
-            </div>
-            <span className="date-pill">
+      {total > 0 && (
+        <section className={allResolved ? "card-solid train-finish ready" : "card-solid train-finish"}>
+          <h3>练后记录</h3>
+          <div className="field-head">
+            <span>现在的腰背不适</span>
+            <b>
               练前 {preWorkoutPain ?? "未记"} → 练后 {lowBackPainAfter ?? "待选"}
-            </span>
+            </b>
           </div>
-          <div className="pain-scale" role="radiogroup" aria-label="练后腰背不适，0 到 10">
-            {Array.from({ length: 11 }, (_, score) => (
-              <button
-                key={score}
-                type="button"
-                role="radio"
-                aria-checked={lowBackPainAfter === score}
-                className={[
-                  "pain-scale-dot",
-                  lowBackPainAfter === score ? "selected" : "",
-                  preWorkoutPain === score ? "before" : ""
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={() => setLowBackPainAfter(score)}
-              >
-                {score}
-              </button>
-            ))}
-          </div>
-          <div className="pain-scale-ends">
-            <span>没有不适</span>
-            <span>很痛</span>
-          </div>
+          <PainScale
+            label="练后腰背不适，0 到 10"
+            value={lowBackPainAfter}
+            onChange={setLowBackPainAfter}
+            before={preWorkoutPain}
+          />
           <p className="muted small">
             {!allResolved
-              ? `还剩 ${plan.exercises.length - resolvedCount} 个动作需要记录；完成、部分或跳过都可以。`
+              ? `还剩 ${total - resolvedCount} 个动作需要记录；完成、部分或跳过都可以。`
               : lowBackPainAfter === null
                 ? `选一个数${preWorkoutPain !== null ? `（紫圈是你练前选的 ${preWorkoutPain}）` : ""}。比练前高 2 分以上，会影响下一次的训练安排。`
                 : preWorkoutPain !== null
                   ? describePainChange(preWorkoutPain, lowBackPainAfter)
                   : `已选 ${lowBackPainAfter}。`}
           </p>
+          {finishError && <p className="error-text" role="alert">{finishError}</p>}
           <button
             type="button"
+            className="wide"
             disabled={finishing || !allResolved || lowBackPainAfter === null}
             onClick={() =>
               lowBackPainAfter !== null &&
@@ -387,11 +383,11 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
                 ? "先记录完所有动作"
                 : lowBackPainAfter === null
                   ? "请选练后腰背不适再保存"
-                  : "保存本次训练反馈"}
+                  : "保存本次训练"}
           </button>
         </section>
       )}
-    </section>
+    </div>
   );
 
   function updateExerciseResult(
@@ -413,6 +409,8 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
       saveExerciseResults(activePlan.id, exerciseSignature, next);
       return next;
     });
+    // Back to following the first exercise still to do, so the next one opens by itself.
+    setExpanded(null);
   }
 
   function updateExerciseFeedback(index: number, feedback: ExerciseFeedback) {
@@ -427,25 +425,27 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
   }
 
   async function handleAiExplanation(planId: number) {
-    setPlanError(null);
-    setPlanInfo(null);
+    setAiLoading(true);
+    setAiError(null);
+    setAiNote(null);
     try {
       const result = await generateDailyExplanation(planId);
       setAiExplanation(result.explanation ?? "");
-      setPlanInfo(result.source === "deepseek" ? "AI 解释已生成。" : "当前使用本地规则解释。");
+      setAiNote(result.source === "deepseek" ? "来自 DeepSeek。" : "当前使用本地规则解释。");
     } catch (error) {
-      setPlanError(`AI 解释生成失败：${describeApiError(error)}`);
+      setAiError(`AI 解释生成失败：${describeApiError(error)}`);
+    } finally {
+      setAiLoading(false);
     }
   }
 
   async function handleReplace(planId: number, exerciseId: string, exerciseKey: string) {
     setActionBusyKey(exerciseKey);
     setPlanError(null);
-    setPlanInfo(null);
     try {
+      // The swapped exercise shows up in its place, so there is no extra banner.
       const response = await replacePlanExercise(planId, exerciseId);
       onPlanChange?.(response.plan);
-      setPlanInfo("已换成当天安全范围内的替代动作。");
     } catch (error) {
       setPlanError(`替换动作失败：${describeApiError(error)}`);
     } finally {
@@ -456,17 +456,24 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
   async function handleRevert(planId: number, exerciseId: string, exerciseKey: string) {
     setActionBusyKey(exerciseKey);
     setPlanError(null);
-    setPlanInfo(null);
     try {
       const response = await revertPlanExercise(planId, exerciseId);
       onPlanChange?.(response.plan);
-      setPlanInfo("已撤回替换。");
     } catch (error) {
       setPlanError(`撤回替换失败：${describeApiError(error)}`);
     } finally {
       setActionBusyKey(null);
     }
   }
+}
+
+function BackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <button type="button" className="text-button train-back" onClick={onBack}>
+      <Icon name="left" size={16} />
+      返回今日
+    </button>
+  );
 }
 
 function getExerciseInstanceKey(
@@ -507,12 +514,6 @@ function saveExerciseResults(
 
 function exerciseStorageKey(planId: number): string {
   return `posture-training.exercise-feedback.${planId}`;
-}
-
-function describePlanType(type: PlanResponsePlan["type"]): string {
-  if (type === "full") return "完整训练";
-  if (type === "reduced") return "降级训练";
-  return "恢复日";
 }
 
 function describeTimeVersion(timeVersion: PlanResponsePlan["timeVersion"]): string {

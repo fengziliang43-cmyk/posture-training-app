@@ -317,6 +317,7 @@ export function App() {
   return (
     <Layout
       activeTab={activeTab}
+      title={activeTab === "today" && todayMode === "task" ? "今日训练" : undefined}
       subtitle={activeTab === "today" ? formatDayLabel(formatLocalDate()) : undefined}
       hideNav={activeTab === "today" && todayMode === "task"}
       onTabChange={handleTabChange}
@@ -333,7 +334,10 @@ export function App() {
           latestStatus={latestStatus}
           defaultMinutes={defaultMinutes}
           week={week}
-          onModeChange={setTodayMode}
+          onModeChange={(mode) => {
+            setTodayMode(mode);
+            setTodayError(null);
+          }}
           onSubmitStatus={handleStatusSubmit}
           onFinishWorkout={handleFinishTodayWorkout}
           onPlanChange={setTodayPlan}

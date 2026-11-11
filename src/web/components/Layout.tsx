@@ -25,7 +25,7 @@ export function Layout({ activeTab, title, subtitle, hideNav = false, children, 
   const heading = title ?? mainTabs.find((tab) => tab.id === activeTab)?.label ?? "姿序";
 
   return (
-    <div className="app-shell">
+    <div className={hideNav ? "app-shell no-nav" : "app-shell"}>
       <header className="top-bar">
         <span className="app-mark ink-logo-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="22" height="22">

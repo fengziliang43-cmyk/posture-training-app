@@ -58,11 +58,12 @@ export function TodayView({
   if (mode === "task") {
     return (
       <section className="stack today-task-view">
-        {messages}
+        {info && <p className="success-text" role="status">{info}</p>}
         <TodayPlan
           plan={plan}
           latestStatus={latestStatus}
           finishing={finishing}
+          finishError={error}
           onBack={() => onModeChange("overview")}
           onFinishWorkout={onFinishWorkout}
           onPlanChange={onPlanChange}
