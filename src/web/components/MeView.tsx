@@ -301,14 +301,14 @@ export function MeView({
           onOpen={() => onRouteChange("profile")}
         />
         <div className="me-shortcut-grid" aria-label="训练数据快捷入口">
-          <ShortcutButton icon="记" label="训练记录" description="查看状态与完成情况" onClick={onOpenRecords} />
-          <ShortcutButton icon="态" label="体态记录" description="查看照片与变化" onClick={onOpenPosture} />
+          <ShortcutButton icon={<Icons.Records />} label="训练记录" description="查看状态与完成情况" onClick={onOpenRecords} />
+          <ShortcutButton icon={<Icons.Posture />} label="体态记录" description="查看照片与变化" onClick={onOpenPosture} />
         </div>
         <div className="me-entry-list card">
           <EntryButton
-            icon="设"
+            icon={<Icons.Settings />}
             label="设置"
-            description="DeepSeek、提醒、隐私与规则"
+            description="DeepSeek、隐私与规则"
             onClick={() => onRouteChange("settings")}
           />
         </div>
@@ -360,10 +360,10 @@ export function MeView({
         <SubpageHeader title="设置" onBack={() => onRouteChange("home")} />
         {commonMessages}
         <div className="me-entry-list card" aria-label="设置项目">
-          <EntryButton icon="AI" label={settingsMenuEntries[0].label} description={deepseekDescription} onClick={() => onRouteChange("deepseek")} />
-          <EntryButton icon="新" label={settingsMenuEntries[1].label} description={`当前版本 ${CURRENT_APP_VERSION}`} onClick={() => onRouteChange("updates")} />
-          <EntryButton icon="隐" label={settingsMenuEntries[2].label} description="修改密码、备份、退出与账号注销" onClick={() => onRouteChange("privacy")} />
-          <EntryButton icon="则" label={settingsMenuEntries[3].label} description="本地规则、AI 与数据边界" onClick={() => onRouteChange("rules")} />
+          <EntryButton icon={<Icons.DeepSeek />} label={settingsMenuEntries[0].label} description={deepseekDescription} onClick={() => onRouteChange("deepseek")} />
+          <EntryButton icon={<Icons.Updates />} label={settingsMenuEntries[1].label} description={`当前版本 ${CURRENT_APP_VERSION}`} onClick={() => onRouteChange("updates")} />
+          <EntryButton icon={<Icons.Privacy />} label={settingsMenuEntries[2].label} description="修改密码、备份、退出与账号注销" onClick={() => onRouteChange("privacy")} />
+          <EntryButton icon={<Icons.Rules />} label={settingsMenuEntries[3].label} description="本地规则、AI 与数据边界" onClick={() => onRouteChange("rules")} />
         </div>
       </section>
     );
@@ -923,7 +923,7 @@ function ShortcutButton({
   description,
   onClick
 }: {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   description: string;
   onClick: () => void;
@@ -943,7 +943,7 @@ function EntryButton({
   description,
   onClick
 }: {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   description: string;
   onClick: () => void;
@@ -959,6 +959,61 @@ function EntryButton({
     </button>
   );
 }
+
+function SvgIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+}
+
+const Icons = {
+  Records: () => (
+    <SvgIcon>
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
+    </SvgIcon>
+  ),
+  Posture: () => (
+    <SvgIcon>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="M21 15l-5-5L5 21" />
+    </SvgIcon>
+  ),
+  Settings: () => (
+    <SvgIcon>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </SvgIcon>
+  ),
+  DeepSeek: () => (
+    <SvgIcon>
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+    </SvgIcon>
+  ),
+  Updates: () => (
+    <SvgIcon>
+      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+    </SvgIcon>
+  ),
+  Privacy: () => (
+    <SvgIcon>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </SvgIcon>
+  ),
+  Rules: () => (
+    <SvgIcon>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </SvgIcon>
+  )
+};
 
 function RuleCard({ title, description }: { title: string; description: string }) {
   return (

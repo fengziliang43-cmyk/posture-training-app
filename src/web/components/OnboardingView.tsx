@@ -47,6 +47,9 @@ interface OnboardingFormState {
   canWalk20Minutes: boolean;
   canChairStand: boolean;
   canHoldSupport20Seconds: boolean;
+  hasSpineSurgeryHistory: boolean;
+  hasBraceHistory: boolean;
+  hasDoctorRestriction: boolean;
   limitations: FunctionalLimitation[];
   baselineLowBackPain: string;
   baselineNeckShoulderPain: string;
@@ -65,6 +68,9 @@ const initialForm: OnboardingFormState = {
   canWalk20Minutes: true,
   canChairStand: true,
   canHoldSupport20Seconds: true,
+  hasSpineSurgeryHistory: false,
+  hasBraceHistory: false,
+  hasDoctorRestriction: false,
   limitations: [],
   baselineLowBackPain: "",
   baselineNeckShoulderPain: "",
@@ -255,15 +261,12 @@ export function OnboardingView({
               </fieldset>
               <ExerciseLibraryPreview equipment={form.equipment} />
               <div className="field-grid two-columns">
-                <label>
-                  每周希望训练
-                  <select
-                    value={form.weeklyTrainingDays}
-                    onChange={(event) => setForm({ ...form, weeklyTrainingDays: Number(event.target.value) })}
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7].map((day) => <option key={day} value={day}>{day} 天</option>)}
-                  </select>
-                </label>
+                <div className="info-block" style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 800, color: "#44544f", marginBottom: "4px" }}>每周训练频率</span>
+                  <p style={{ margin: 0, fontSize: "13px", color: "#64746f", lineHeight: "1.4" }}>
+                    每周最多安排 <b>3 次主训练</b>，其余为主动恢复
+                  </p>
+                </div>
                 <label>
                   默认单次时长
                   <select
@@ -284,7 +287,7 @@ export function OnboardingView({
               <div>
                 <p className="eyebrow">安全边界</p>
                 <h1>把不合适的动作先排除</h1>
-                <p className="muted">这些信息用于保守降阶，不用于诊断或治疗。</p>
+                <p className="muted">这些信息用于保守降阶与动作排除，不用于诊断或治疗。</p>
               </div>
               <div className="field-grid">
                 <BooleanSelect
@@ -303,6 +306,46 @@ export function OnboardingView({
                   onChange={(value) => setForm({ ...form, canHoldSupport20Seconds: value })}
                 />
               </div>
+
+              <fieldset className="choice-group">
+                <legend>病史与医疗限制筛查（保守判定）</legend>
+                <div className="field-grid">
+                  <BooleanQuestion
+                    label="是否有脊柱手术史或严重外伤史？"
+                    value={form.hasSpineSurgeryHistory}
+                    onChange={(has) => setForm({ ...form, hasSpineSurgeryHistory: has })}
+                  />
+                  <BooleanQuestion
+                    label="是否正处于脊柱支具矫形治疗期？"
+                    value={form.hasBraceHistory}
+                    onChange={(has) => setForm({ ...form, hasBraceHistory: has })}
+                  />
+                  <BooleanQuestion
+                    label="医生是否明确限制进行负重或屈伸运动？"
+                    value={form.hasDoctorRestriction}
+                    onChange={(has) => setForm({ ...form, hasDoctorRestriction: has })}
+                  />
+                </div>
+                {(form.hasSpineSurgeryHistory || form.hasBraceHistory || form.hasDoctorRestriction) && (
+                  <div
+                    className="card"
+                    style={{
+                      background: "rgba(253, 240, 217, 0.95)",
+                      borderLeft: "4px solid #e0932c",
+                      padding: "10px 14px",
+                      margin: "10px 0 0"
+                    }}
+                    role="alert"
+                  >
+                    <strong style={{ color: "#754700", fontSize: "14px", display: "block" }}>
+                      专科康复提示
+                    </strong>
+                    <p style={{ margin: "4px 0 0", color: "#754700", fontSize: "13px", lineHeight: "1.5" }}>
+                      存在脊柱手术、支具矫形或医嘱运动限制时，姿序动作库仅供体态认知参考。<b>请严格遵循专科医师或康复治疗师制定的方案</b>，切勿盲目自行加练。
+                    </p>
+                  </div>
+                )}
+              </fieldset>
               <fieldset className="choice-group">
                 <legend>平时容易不适或需要更保守的部位（可不选）</legend>
                 <div className="choice-grid">
@@ -413,6 +456,26 @@ function Choice({
   );
 }
 
+function BooleanQuestion({
+  label,
+  value,
+  onChange
+}: {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label>
+      {label}
+      <select value={String(value)} onChange={(event) => onChange(event.target.value === "true")}>
+        <option value="false">否</option>
+        <option value="true">是</option>
+      </select>
+    </label>
+  );
+}
+
 function BooleanSelect({
   label,
   value,
@@ -478,6 +541,9 @@ function profileToForm(profile: TrainingProfile): OnboardingFormState {
     canWalk20Minutes: profile.canWalk20Minutes,
     canChairStand: profile.canChairStand,
     canHoldSupport20Seconds: profile.canHoldSupport20Seconds,
+    hasSpineSurgeryHistory: false,
+    hasBraceHistory: false,
+    hasDoctorRestriction: false,
     limitations: [...profile.limitations],
     baselineLowBackPain: profile.baselineLowBackPain?.toString() ?? "",
     baselineNeckShoulderPain: profile.baselineNeckShoulderPain?.toString() ?? "",

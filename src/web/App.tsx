@@ -25,6 +25,7 @@ import { AdminConsole } from "./components/AdminConsole";
 import { TodayView } from "./components/TodayView";
 import { Layout, type AppTab } from "./components/Layout";
 import { OnboardingView } from "./components/OnboardingView";
+import { ScoliosisRiskGuide } from "./components/ScoliosisRiskGuide";
 import { SiteFooter } from "./components/SiteFooter";
 import { InstallOptions } from "./components/InstallOptions";
 import { formatLocalDate } from "../core/date";
@@ -39,6 +40,9 @@ export function isAdminConsolePath(pathname: string): boolean {
 
 export function App() {
   const [activeTab, setActiveTab] = useState<AppTab>("today");
+  const [currentHash, setCurrentHash] = useState(() =>
+    typeof window !== "undefined" ? window.location.hash : ""
+  );
   const [meRoute, setMeRoute] = useState<MeRoute>("home");
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -50,6 +54,29 @@ export function App() {
   const [finishLoading, setFinishLoading] = useState(false);
   const [todayError, setTodayError] = useState<string | null>(null);
   const [todayInfo, setTodayInfo] = useState<string | null>(null);
+  const [completedWorkout, setCompletedWorkout] = useState<{ lowBackPainAfter?: number; completedCount?: number } | null>(() => {
+    try {
+      const raw = localStorage.getItem(`posture-training.completed-workout.${formatLocalDate()}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    function handleHashChange() {
+      const hash = window.location.hash;
+      setCurrentHash(hash);
+      if (hash === "#today" || hash === "#records" || hash === "#posture" || hash === "#me") {
+        setActiveTab(hash.slice(1) as AppTab);
+      }
+    }
+    window.addEventListener("hashchange", handleHashChange);
+    if (window.location.hash) {
+      handleHashChange();
+    }
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   async function handleStatusSubmit(status: DailyCheckinInput) {
     setPlanLoading(true);
@@ -91,6 +118,19 @@ export function App() {
         lowBackPainAfter,
         exerciseResults
       });
+      const completedInfo = {
+        lowBackPainAfter,
+        completedCount: exerciseResults.filter((r) => r.completionStatus === "completed").length
+      };
+      setCompletedWorkout(completedInfo);
+      try {
+        localStorage.setItem(
+          `posture-training.completed-workout.${formatLocalDate()}`,
+          JSON.stringify(completedInfo)
+        );
+      } catch {
+        // ignore
+      }
       setTodayInfo(result.queued ? "网络暂不可用，已离线保存，联网后自动同步。" : "训练完成已记录。");
       setTodayMode("overview");
     } catch {
@@ -102,6 +142,9 @@ export function App() {
 
   function handleTabChange(tab: AppTab) {
     setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      window.location.hash = `#${tab}`;
+    }
     if (tab === "today") {
       setTodayMode("overview");
     }
@@ -166,10 +209,27 @@ export function App() {
     );
   }
 
+  if (currentHash === "#guide") {
+    return (
+      <PublicGuideScreen
+        onBack={() => {
+          if (typeof window !== "undefined") {
+            window.location.hash = authUser ? "#posture" : "";
+          }
+        }}
+      />
+    );
+  }
+
   if (!authUser) {
     return (
       <AuthScreen
         initialInfo={authNotice}
+        onOpenGuide={() => {
+          if (typeof window !== "undefined") {
+            window.location.hash = "#guide";
+          }
+        }}
         onAuthed={(user) => {
           setAuthNotice(null);
           setAuthUser(user);
@@ -200,7 +260,12 @@ export function App() {
   }
 
   return (
-    <Layout activeTab={activeTab} username={authUser.username} onTabChange={handleTabChange}>
+    <Layout
+      activeTab={activeTab}
+      username={authUser.username}
+      hideNav={activeTab === "today" && todayMode === "task"}
+      onTabChange={handleTabChange}
+    >
       {activeTab === "today" && (
         <TodayView
           date={formatLocalDate()}
@@ -211,11 +276,13 @@ export function App() {
           info={todayInfo}
           mode={todayMode}
           latestStatus={latestStatus}
+          completedWorkout={completedWorkout}
           onModeChange={setTodayMode}
           onSubmitStatus={handleStatusSubmit}
           onFinishWorkout={handleFinishTodayWorkout}
           onPlanChange={setTodayPlan}
           onOpenSettings={() => openMeRoute("deepseek")}
+          onOpenRecords={() => handleTabChange("records")}
         />
       )}
       {activeTab === "records" && <RecordsView />}
@@ -240,9 +307,11 @@ export function App() {
 
 function AuthScreen({
   onAuthed,
+  onOpenGuide,
   initialInfo
 }: {
   onAuthed: (user: AuthUser) => void;
+  onOpenGuide?: () => void;
   initialInfo?: string | null;
 }) {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -357,8 +426,60 @@ function AuthScreen({
   }
 
   return (
-    <div className="center-screen">
-      <div className="auth-shell">
+    <div className="center-screen auth-page">
+      <div className="auth-shell auth-shell-responsive">
+        <div className="auth-intro-card">
+          <div className="auth-intro-brand">
+            <span className="app-mark ink-logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="34" height="34">
+                <circle cx="12.5" cy="5" r="2.7" fill="#c8402f" stroke="none" />
+                <path d="M12.5 9.6c-3.6 2.2-3.8 6.6-.9 9.4 1.2 1.2 2.4 1.8 3.6 2.1" stroke="#1f1e24" strokeWidth="3" fill="none" strokeLinecap="round" />
+              </svg>
+            </span>
+            <div>
+              <h1 className="auth-brand-title">姿序</h1>
+              <p className="auth-brand-subtitle">脊柱侧弯保守辅助训练</p>
+            </div>
+          </div>
+          <p className="auth-intro-lead">
+            不盲目上量，不承诺矫正。先按体能、目标与器械建立安全运动库，每天按身体状态动态决定训练量。
+          </p>
+
+          <div className="auth-value-props">
+            <div className="auth-prop-item">
+              <span className="auth-prop-dot" />
+              <div>
+                <strong>不盲目练</strong>
+                <p>先做三步安全筛查，排除不适合动作，设定活动边界。</p>
+              </div>
+            </div>
+            <div className="auth-prop-item">
+              <span className="auth-prop-dot" />
+              <div>
+                <strong>动态匹配</strong>
+                <p>每天根据腰酸、精神与可用时间匹配低门槛动作，杜绝硬撑。</p>
+              </div>
+            </div>
+            <div className="auth-prop-item">
+              <span className="auth-prop-dot" />
+              <div>
+                <strong>保守降阶</strong>
+                <p>红旗症状严格停训，练后不适主动降阶，把安全放在第一位。</p>
+              </div>
+            </div>
+          </div>
+
+          {onOpenGuide && (
+            <button
+              type="button"
+              className="text-button auth-guide-link"
+              onClick={onOpenGuide}
+            >
+              了解脊柱侧弯与运动安全指南 →
+            </button>
+          )}
+        </div>
+
         <form
           className="auth-card"
           onSubmit={(event) => {
@@ -367,7 +488,7 @@ function AuthScreen({
           }}
         >
         <p className="eyebrow">个人化运动与状态匹配</p>
-        <h1>姿序</h1>
+        <h2>{mode === "login" ? "账号登录" : "新用户建档"}</h2>
         <p className="muted">先按你的体能、目标与器械建立运动库，再按当天精力、疼痛和可用时间生成任务。</p>
 
         {registrationEnabled && (
@@ -543,6 +664,27 @@ function AuthScreen({
           </button>
         </div>
         </form>
+        <InstallOptions />
+        <SiteFooter />
+      </div>
+    </div>
+  );
+}
+
+function PublicGuideScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="center-screen public-guide-screen">
+      <div className="auth-shell">
+        <header className="public-guide-header card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", marginBottom: "16px" }}>
+          <button type="button" className="secondary-button" onClick={onBack}>
+            ‹ 返回
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontWeight: 800, fontSize: "16px", color: "#17201d" }}>姿序</span>
+            <span className="date-pill">公开科普</span>
+          </div>
+        </header>
+        <ScoliosisRiskGuide openByDefault />
         <InstallOptions />
         <SiteFooter />
       </div>

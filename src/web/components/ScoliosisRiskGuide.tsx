@@ -8,7 +8,7 @@ const observations: Array<{ key: ObservationKey; label: string }> = [
   { key: "lean", label: "身体经常偏向一侧，或衣服下摆总向一边歪" }
 ];
 
-export function ScoliosisRiskGuide() {
+export function ScoliosisRiskGuide({ openByDefault = false }: { openByDefault?: boolean } = {}) {
   const [checked, setChecked] = useState<Record<ObservationKey, boolean>>({
     standing: false,
     bend: false,
@@ -17,7 +17,7 @@ export function ScoliosisRiskGuide() {
   const hasObservation = Object.values(checked).some(Boolean);
 
   return (
-    <details className="scoliosis-guide card">
+    <details className="scoliosis-guide card" open={openByDefault ? true : undefined}>
       <summary>
         <span className="guide-summary-icon" aria-hidden="true">S</span>
         <span>

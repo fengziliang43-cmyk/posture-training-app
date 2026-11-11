@@ -96,6 +96,9 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
     (result) => result?.completionStatus === "completed"
   ).length;
   const allResolved = plan.exercises.length > 0 && resolvedCount === plan.exercises.length;
+  const currentActiveIndex = plan.exercises.findIndex(
+    (_, i) => exerciseResults[i]?.completionStatus !== "completed"
+  );
 
   return (
     <section className="plan-card card">
@@ -197,26 +200,39 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
               const exerciseKey = getExerciseInstanceKey(plan.id, index, exercise);
               const result = exerciseResults[index];
               const status = result?.completionStatus;
+              const isCurrentActive = index === currentActiveIndex;
+
+              const cardClasses = [
+                "exercise-card",
+                status ? status : "",
+                isCurrentActive ? "active-exercise" : "",
+                status === "completed" ? "completed-dimmed" : ""
+              ]
+                .filter(Boolean)
+                .join(" ");
 
               return (
-                <article className={status ? `exercise-card ${status}` : "exercise-card"} key={exerciseKey}>
-                  <div className="exercise-row">
-                    <span className="exercise-index">{index + 1}</span>
-                    <div className="exercise-copy">
-                      <h3>{exercise.name}</h3>
-                      <p className="muted">
-                        {formatVolume(exercise)} · 休息 {formatRest(exercise.restSeconds)}
-                      </p>
-                      <span className="exercise-status-label">{statusLabel(status)}</span>
+                <article className={cardClasses} key={exerciseKey}>
+                    <div className="exercise-row">
+                      <span className="exercise-index">{index + 1}</span>
+                      <div className="exercise-copy">
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <h3>{exercise.name}</h3>
+                          {isCurrentActive && <span className="date-pill" style={{ background: "#2e7d5b", color: "#fff", fontSize: "11px", padding: "1px 6px" }}>进行中</span>}
+                        </div>
+                        <p className="muted">
+                          {formatVolume(exercise)} · 休息 {formatRest(exercise.restSeconds)}
+                        </p>
+                        <span className="exercise-status-label">{statusLabel(status)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={isCurrentActive ? "primary-button compact-button" : "secondary-button compact-button"}
+                        onClick={() => updateExerciseResult(index, status === "completed" ? null : "completed")}
+                      >
+                        {status === "completed" ? "撤销" : "完成"}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="secondary-button compact-button"
-                      onClick={() => updateExerciseResult(index, status === "completed" ? null : "completed")}
-                    >
-                      {status === "completed" ? "撤销" : "完成"}
-                    </button>
-                  </div>
 
                   <p className="exercise-selection-reason">
                     <span>选择原因</span>{exercise.selectionReason ?? "按当天训练槽位和安全条件选择"}

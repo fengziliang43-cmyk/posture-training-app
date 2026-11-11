@@ -1,4 +1,39 @@
 :root {
+  /* 品牌与基础色彩变量 */
+  --bg-primary: #eef4f2;
+  --bg-surface: rgba(255, 255, 255, 0.72);
+  --bg-card: rgba(255, 255, 255, 0.88);
+  --text-primary: #17201d;
+  --text-muted: #64746f;
+  --text-subtle: #8a9994;
+  --color-primary: #1a382c;
+  --color-primary-light: #2d5a47;
+  --color-accent: #2e7d5b;
+  --color-warn: #b86214;
+  --color-danger: #c43826;
+  --color-success: #1b8a5a;
+  --border-light: rgba(25, 45, 38, 0.08);
+  --border-focus: #2e7d5b;
+
+  /* 字号 */
+  --font-xs: 11px;
+  --font-sm: 13px;
+  --font-base: 15px;
+  --font-lg: 18px;
+  --font-xl: 24px;
+  --font-hero: 32px;
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-full: 999px;
+
+  /* 阴影 */
+  --shadow-subtle: 0 2px 8px rgba(24, 34, 31, 0.04);
+  --shadow-card: 0 8px 24px rgba(24, 34, 31, 0.06);
+  --shadow-float: 0 16px 36px rgba(24, 34, 31, 0.12);
+
   color: #17201d;
   background: #eef4f2;
   font-family:
@@ -3535,3 +3570,151 @@ label,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 桌面端自适应双列登录与落地页 */
+.auth-page {
+  padding: 24px 16px;
+}
+
+.auth-shell-responsive {
+  width: min(100%, 460px);
+  margin: 0 auto;
+  transition: width 0.2s ease;
+}
+
+@media (min-width: 768px) {
+  .auth-shell-responsive {
+    width: min(100%, 860px);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .auth-intro-card {
+    position: sticky;
+    top: 24px;
+  }
+}
+
+.auth-intro-card {
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg, 22px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 8px 24px rgba(24, 34, 31, 0.05);
+  margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+  .auth-intro-card {
+    margin-bottom: 0;
+  }
+}
+
+.auth-intro-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.auth-brand-title {
+  margin: 0;
+  font-size: 26px;
+  color: #17201d;
+  letter-spacing: -0.5px;
+}
+
+.auth-brand-subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #64746f;
+  font-weight: 600;
+}
+
+.auth-intro-lead {
+  font-size: 14px;
+  color: #44544f;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.auth-value-props {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.auth-prop-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.auth-prop-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2e7d5b;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.auth-prop-item strong {
+  display: block;
+  font-size: 14px;
+  color: #17201d;
+  margin-bottom: 2px;
+}
+
+.auth-prop-item p {
+  margin: 0;
+  font-size: 13px;
+  color: #64746f;
+  line-height: 1.5;
+}
+
+.auth-guide-link {
+  display: inline-block;
+  font-size: 13px;
+  color: #2e7d5b;
+  font-weight: 700;
+  padding: 6px 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* 动作列表状态 */
+.exercise-card.active-exercise {
+  border: 2px solid #2e7d5b;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 6px 18px rgba(46, 125, 91, 0.12);
+}
+
+.exercise-card.completed-dimmed {
+  opacity: 0.72;
+  transition: opacity 0.2s ease;
+}
+
+.exercise-card.completed-dimmed:hover {
+  opacity: 1;
+}
+
+/* 状态 3 完成卡片 */
+.today-completed-hero {
+  border-left: 5px solid #1b8a5a;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(240, 248, 244, 0.88));
+}
+
+/* 公开科普落地页 */
+.public-guide-screen {
+  padding: 16px;
+}
+
+.public-guide-header {
+  border-radius: var(--radius-md, 14px);
+}
+

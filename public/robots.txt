@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /guide
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /admin
+Disallow: /uploads/
+
+Sitemap: https://body.liang111.top/sitemap.xml

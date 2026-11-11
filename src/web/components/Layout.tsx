@@ -12,21 +12,27 @@ export const mainTabs: ReadonlyArray<{ id: AppTab; label: string }> = [
 interface LayoutProps {
   activeTab: AppTab;
   username?: string;
+  hideNav?: boolean;
   children: ReactNode;
   onTabChange: (tab: AppTab) => void;
 }
 
-export function Layout({ activeTab, username, children, onTabChange }: LayoutProps) {
+export function Layout({ activeTab, username, hideNav = false, children, onTabChange }: LayoutProps) {
   const displayName = username ?? "未登录";
 
   return (
     <div className="app-shell">
       <header className="top-bar">
         <div className="brand-lockup">
-          <span className="app-mark" aria-hidden="true">锻</span>
+          <span className="app-mark ink-logo-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22">
+              <circle cx="12.5" cy="5" r="2.7" fill="#c8402f" stroke="none" />
+              <path d="M12.5 9.6c-3.6 2.2-3.8 6.6-.9 9.4 1.2 1.2 2.4 1.8 3.6 2.1" stroke="#1f1e24" stroke-width="3" fill="none" stroke-linecap="round" />
+            </svg>
+          </span>
           <div className="brand-copy">
             <strong>姿序</strong>
-            <span>体态训练与状态教练</span>
+            <span>脊柱侧弯保守辅助训练</span>
           </div>
         </div>
         <div className="user-pill">{displayName}</div>
@@ -34,19 +40,21 @@ export function Layout({ activeTab, username, children, onTabChange }: LayoutPro
 
       <main className="page-content">{children}</main>
 
-      <nav className="bottom-nav" aria-label="主导航">
-        {mainTabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={tab.id === activeTab ? "nav-item active" : "nav-item"}
-            type="button"
-            onClick={() => onTabChange(tab.id)}
-          >
-            <NavIcon tab={tab.id} />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </nav>
+      {!hideNav && (
+        <nav className="bottom-nav" aria-label="主导航">
+          {mainTabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={tab.id === activeTab ? "nav-item active" : "nav-item"}
+              type="button"
+              onClick={() => onTabChange(tab.id)}
+            >
+              <NavIcon tab={tab.id} />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

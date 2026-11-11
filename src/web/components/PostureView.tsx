@@ -9,11 +9,16 @@ const angles = [
   { value: "back", label: "背面" }
 ] as const;
 
+type ViewType = "side" | "blend" | "slider";
+
 export function PostureView() {
   const [photos, setPhotos] = useState<PhotoRecord[]>([]);
   const [selectedAngle, setSelectedAngle] = useState<(typeof angles)[number]["value"]>("front");
   const [compareMode, setCompareMode] = useState<"latest" | "month">("latest");
+  const [viewType, setViewType] = useState<ViewType>("side");
   const [compareBlend, setCompareBlend] = useState(50);
+  const [sliderPos, setSliderPos] = useState(50);
+  const [showGuideLines, setShowGuideLines] = useState(false);
   const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
   const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -154,11 +159,19 @@ export function PostureView() {
         <div className="mini-head">
           <div>
             <p className="eyebrow">对比视图</p>
-            <h3 className="section-title">{angles.find((angle) => angle.value === selectedAngle)?.label} · 最新</h3>
+            <h3 className="section-title">{angles.find((angle) => angle.value === selectedAngle)?.label}对比</h3>
           </div>
-          <span className="date-pill">{compareBlend}%</span>
+          <button
+            type="button"
+            className={showGuideLines ? "secondary-button active-chip" : "secondary-button"}
+            style={{ minHeight: "32px", padding: "0 10px", fontSize: "13px" }}
+            onClick={() => setShowGuideLines((prev) => !prev)}
+          >
+            {showGuideLines ? "隐藏参考线" : "显示参考线"}
+          </button>
         </div>
-        <div className="chip-row">
+
+        <div className="chip-row" style={{ marginTop: "6px" }}>
           <button
             type="button"
             className={compareMode === "latest" ? "secondary-button active-chip" : "secondary-button"}
@@ -174,33 +187,120 @@ export function PostureView() {
             本月对比
           </button>
         </div>
+
+        <div className="chip-row" style={{ marginTop: "6px", marginBottom: "12px" }}>
+          <button
+            type="button"
+            className={viewType === "side" ? "secondary-button active-chip" : "secondary-button"}
+            onClick={() => setViewType("side")}
+          >
+            并排
+          </button>
+          <button
+            type="button"
+            className={viewType === "slider" ? "secondary-button active-chip" : "secondary-button"}
+            onClick={() => setViewType("slider")}
+          >
+            滑动
+          </button>
+          <button
+            type="button"
+            className={viewType === "blend" ? "secondary-button active-chip" : "secondary-button"}
+            onClick={() => setViewType("blend")}
+          >
+            叠加
+          </button>
+        </div>
+
         {comparisonReady ? (
           <div className="compare-wrap">
-            <div className="compare-stage">
-              <img className="compare-image base" src={photoUrls[anglePhotos[0].id]} alt="" />
-              <img
-                className="compare-image overlay"
-                src={photoUrls[anglePhotos[1].id]}
-                alt=""
-                style={{ opacity: compareBlend / 100 }}
-              />
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={compareBlend}
-              onChange={(event) => setCompareBlend(Number(event.target.value))}
-            />
-            <p className="muted small">
-              正在对比 {angles.find((angle) => angle.value === selectedAngle)?.label} 的
-              {compareMode === "latest" ? "两张最新照片" : "本月第一张和最新照片"}。
+            {viewType === "side" && (
+              <div className="compare-side-by-side" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                <div style={{ position: "relative" }}>
+                  <img className="compare-image base" src={photoUrls[anglePhotos[0].id]} alt="较早照片" style={{ width: "100%", borderRadius: "8px" }} />
+                  <span className="date-pill" style={{ position: "absolute", top: "8px", left: "8px" }}>{anglePhotos[0].photoDate}</span>
+                  {showGuideLines && <GuideLineOverlay />}
+                </div>
+                <div style={{ position: "relative" }}>
+                  <img className="compare-image base" src={photoUrls[anglePhotos[1].id]} alt="最新照片" style={{ width: "100%", borderRadius: "8px" }} />
+                  <span className="date-pill" style={{ position: "absolute", top: "8px", left: "8px" }}>{anglePhotos[1].photoDate}</span>
+                  {showGuideLines && <GuideLineOverlay />}
+                </div>
+              </div>
+            )}
+
+            {viewType === "blend" && (
+              <>
+                <div className="compare-stage" style={{ position: "relative" }}>
+                  <img className="compare-image base" src={photoUrls[anglePhotos[0].id]} alt="" />
+                  <img
+                    className="compare-image overlay"
+                    src={photoUrls[anglePhotos[1].id]}
+                    alt=""
+                    style={{ opacity: compareBlend / 100 }}
+                  />
+                  {showGuideLines && <GuideLineOverlay />}
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={compareBlend}
+                  onChange={(event) => setCompareBlend(Number(event.target.value))}
+                />
+              </>
+            )}
+
+            {viewType === "slider" && (
+              <>
+                <div className="compare-stage" style={{ position: "relative", overflow: "hidden" }}>
+                  <img className="compare-image base" src={photoUrls[anglePhotos[0].id]} alt="底图" />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      bottom: 0,
+                      width: `${sliderPos}%`,
+                      overflow: "hidden",
+                      borderRight: "2px solid #2e7d5b"
+                    }}
+                  >
+                    <img
+                      className="compare-image"
+                      src={photoUrls[anglePhotos[1].id]}
+                      alt="切片图"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover"
+                      }}
+                    />
+                  </div>
+                  {showGuideLines && <GuideLineOverlay />}
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={sliderPos}
+                  onChange={(event) => setSliderPos(Number(event.target.value))}
+                />
+              </>
+            )}
+
+            <p className="muted small" style={{ marginTop: "8px" }}>
+              正在对比 {angles.find((angle) => angle.value === selectedAngle)?.label} 的{" "}
+              {compareMode === "latest" ? "两张最新照片" : "本月第一张和最新照片"}（左/底：{anglePhotos[0].photoDate}，右/顶：{anglePhotos[1].photoDate}）。
             </p>
           </div>
         ) : anglePhotos.length >= 2 ? (
           <p className="muted">正在加载照片……</p>
         ) : (
-          <p className="muted">先上传同角度两张照片，再开启滑块对比。</p>
+          <p className="muted">先上传同角度两张照片，再开启对比视图。</p>
         )}
       </section>
 
@@ -337,6 +437,57 @@ function selectComparisonPhotos(photos: PhotoRecord[], mode: "latest" | "month")
   const monthPhotos = photos.filter((photo) => photo.photoDate.startsWith(month));
   const oldestThisMonth = monthPhotos[monthPhotos.length - 1];
   return oldestThisMonth && oldestThisMonth.id !== latest.id ? [latest, oldestThisMonth] : photos.slice(0, 2);
+}
+
+function GuideLineOverlay() {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 10
+      }}
+      aria-hidden="true"
+    >
+      {/* 垂直中轴线 */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: "50%",
+          width: "1.5px",
+          background: "rgba(220, 50, 50, 0.75)",
+          boxShadow: "0 0 2px rgba(255, 255, 255, 0.8)"
+        }}
+      />
+      {/* 水平双肩参考线 (约 35%) */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: "35%",
+          height: "1px",
+          background: "rgba(46, 125, 91, 0.8)",
+          borderTop: "1px dashed rgba(46, 125, 91, 0.9)"
+        }}
+      />
+      {/* 水平骨盆参考线 (约 65%) */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: "65%",
+          height: "1px",
+          background: "rgba(46, 125, 91, 0.8)",
+          borderTop: "1px dashed rgba(46, 125, 91, 0.9)"
+        }}
+      />
+    </div>
+  );
 }
 
 function groupPhotosByDate(photos: PhotoRecord[]) {

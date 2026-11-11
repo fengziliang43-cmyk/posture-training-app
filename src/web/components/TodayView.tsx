@@ -14,11 +14,13 @@ interface TodayViewProps {
   info: string | null;
   mode: "overview" | "task";
   latestStatus: DailyCheckinInput | null;
+  completedWorkout?: { lowBackPainAfter?: number; completedCount?: number } | null;
   onModeChange: (mode: "overview" | "task") => void;
   onSubmitStatus: (status: DailyCheckinInput) => Promise<void> | void;
   onFinishWorkout: (lowBackPainAfter: number, exerciseResults: ExerciseResult[]) => Promise<void> | void;
   onPlanChange: (plan: PlanResponsePlan) => void;
   onOpenSettings: () => void;
+  onOpenRecords?: () => void;
 }
 
 export function TodayView({
@@ -30,11 +32,13 @@ export function TodayView({
   info,
   mode,
   latestStatus,
+  completedWorkout,
   onModeChange,
   onSubmitStatus,
   onFinishWorkout,
   onPlanChange,
-  onOpenSettings
+  onOpenSettings,
+  onOpenRecords
 }: TodayViewProps) {
   if (mode === "task") {
     return (
@@ -77,7 +81,9 @@ export function TodayView({
         date={date}
         latestStatus={latestStatus}
         plan={plan}
+        completedWorkout={completedWorkout}
         onViewTask={() => onModeChange("task")}
+        onOpenRecords={onOpenRecords}
       />
       <AiCoachCard plan={plan} onOpenSettings={onOpenSettings} />
       {plan ? (
@@ -172,13 +178,94 @@ function TodayOverviewCard({
   date,
   latestStatus,
   plan,
-  onViewTask
+  completedWorkout,
+  onViewTask,
+  onOpenRecords
 }: {
   date: string;
   latestStatus: DailyCheckinInput | null;
   plan: PlanResponsePlan | null;
+  completedWorkout?: { lowBackPainAfter?: number; completedCount?: number } | null;
   onViewTask: () => void;
+  onOpenRecords?: () => void;
 }) {
+  if (completedWorkout) {
+    const painBefore = latestStatus?.lowBackPain;
+    const painAfter = completedWorkout.lowBackPainAfter;
+    const completedExerciseCount = completedWorkout.completedCount ?? plan?.exercises.length ?? 0;
+
+    return (
+      <section className="today-overview-card card today-completed-hero">
+        <div className="today-hero-head">
+          <div>
+            <p className="eyebrow">今日 · 稳步前行</p>
+            <h2 style={{ display: "flex", alignItems: "center", gap: "10px", color: "#1b8a5a" }}>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  background: "#1b8a5a",
+                  color: "#fff",
+                  fontSize: "16px"
+                }}
+                aria-hidden="true"
+              >
+                ✓
+              </span>
+              今天练完了
+            </h2>
+          </div>
+          <span className="date-pill">{formatDisplayDate(date)}</span>
+        </div>
+
+        <div className="completed-summary-panel">
+          <div className="signal-grid" style={{ marginTop: "14px", marginBottom: "14px" }}>
+            <SignalTile label="完成动作" value={`${completedExerciseCount} 个`} tone="good" />
+            <SignalTile
+              label="练前腰酸"
+              value={typeof painBefore === "number" ? `${painBefore}/10` : "未记"}
+            />
+            <SignalTile
+              label="练后腰酸"
+              value={typeof painAfter === "number" ? `${painAfter}/10` : "未记"}
+              tone={typeof painAfter === "number" && typeof painBefore === "number" && painAfter > painBefore ? "warn" : "good"}
+            />
+          </div>
+
+          <div
+            className="card"
+            style={{
+              background: "rgba(235, 245, 240, 0.8)",
+              borderLeft: "4px solid #1b8a5a",
+              padding: "10px 14px",
+              marginBottom: "14px"
+            }}
+          >
+            <strong style={{ color: "#14593b", fontSize: "14px", display: "block" }}>明日指引</strong>
+            <p style={{ margin: "4px 0 0", color: "#214a38", fontSize: "13px", lineHeight: "1.5" }}>
+              今日主动作已完成。明天优先安排主动恢复、散步或轻度拉伸，避免连续大负荷；今晚请注意睡眠质量，明早观察腰背体感。
+            </p>
+          </div>
+
+          <div className="button-row">
+            <button type="button" className="secondary-button" onClick={onViewTask}>
+              回顾今日动作
+            </button>
+            {onOpenRecords && (
+              <button type="button" className="primary-button" onClick={onOpenRecords}>
+                查看打卡与历史
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   const hasRecordedStatus = latestStatus !== null;
   const lowBackPain = latestStatus?.lowBackPain;
   const energy = latestStatus?.energy;

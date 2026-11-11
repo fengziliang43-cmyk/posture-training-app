@@ -112,42 +112,10 @@ export function RecordsView() {
             onGenerate={() => void handleWeeklyAiSummary(summary.weeklyReview.weekEnd)}
           />
 
-          <TrendBlock
-            title="腰酸趋势"
-            values={chronologicalCheckins.map((checkin) => ({
-              label: checkin.date.slice(5),
-              value: checkin.lowBackPain,
-              max: 10
-            }))}
+          <CombinedTrendCard
+            checkins={chronologicalCheckins}
+            weights={chronologicalWeights}
           />
-          <TrendBlock
-            title="精神趋势"
-            values={chronologicalCheckins.map((checkin) => ({
-              label: checkin.date.slice(5),
-              value: checkin.energy,
-              max: 5
-            }))}
-          />
-          <TrendBlock
-            title="睡眠趋势"
-            values={chronologicalCheckins.map((checkin) => ({
-              label: checkin.date.slice(5),
-              value: typeof checkin.sleepHours === "number" ? Math.round(checkin.sleepHours * 10) / 10 : null,
-              displayValue: typeof checkin.sleepHours === "number" ? `${Math.round(checkin.sleepHours * 10) / 10}h` : "未记",
-              max: 10
-            }))}
-          />
-
-          {chronologicalWeights.length > 0 && (
-            <TrendBlock
-              title="体重趋势"
-              values={chronologicalWeights.map((checkin) => ({
-                label: checkin.date.slice(5),
-                value: typeof checkin.weightKg === "number" ? checkin.weightKg : null,
-                displayValue: typeof checkin.weightKg === "number" ? `${checkin.weightKg}kg` : "未记"
-              }))}
-            />
-          )}
 
           <section className="card">
             <h3 className="section-title">最近记录</h3>
@@ -268,18 +236,48 @@ function MonthlyStatusCalendar({
   selectedDate: string;
   onSelectDate: (date: string) => void;
 }) {
-  const anchorDate = checkins[0]?.date ?? formatLocalDate();
+  const initialAnchor = checkins[0]?.date ? checkins[0].date.slice(0, 7) : formatLocalDate().slice(0, 7);
+  const [activeMonth, setActiveMonth] = useState(initialAnchor);
+
+  function shiftMonth(delta: number) {
+    const [y, m] = activeMonth.split("-").map(Number);
+    const nextDate = new Date(y, m - 1 + delta, 1);
+    const nextMonthStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
+    setActiveMonth(nextMonthStr);
+  }
+
+  const anchorDate = `${activeMonth}-01`;
   const days = buildCalendarDays(anchorDate);
   const checkinByDate = new Map(checkins.map((checkin) => [checkin.date, checkin]));
 
   return (
     <section className="card calendar-card">
-      <div className="calendar-head">
+      <div className="calendar-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <p className="eyebrow">月历</p>
           <h2>状态分布</h2>
         </div>
-        <span className="date-pill">{formatMonthTitle(anchorDate)}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <button
+            type="button"
+            className="secondary-button compact-button"
+            style={{ minHeight: "32px", padding: "0 10px", fontSize: "14px" }}
+            aria-label="上一月"
+            onClick={() => shiftMonth(-1)}
+          >
+            ‹
+          </button>
+          <span className="date-pill">{formatMonthTitle(anchorDate)}</span>
+          <button
+            type="button"
+            className="secondary-button compact-button"
+            style={{ minHeight: "32px", padding: "0 10px", fontSize: "14px" }}
+            aria-label="下一月"
+            onClick={() => shiftMonth(1)}
+          >
+            ›
+          </button>
+        </div>
       </div>
 
       <div className="calendar-weekdays" aria-hidden="true">
@@ -391,46 +389,155 @@ function formatTemplateName(templateId: string): string {
   return templateNameById.get(templateId) ?? templateId;
 }
 
-function TrendBlock({
-  title,
-  values
+type TrendTab = "pain" | "energy" | "sleep" | "weight";
+
+function CombinedTrendCard({
+  checkins,
+  weights
 }: {
-  title: string;
+  checkins: Array<{ date: string; lowBackPain: number; energy: number; sleepHours?: number | null }>;
+  weights: Array<{ date: string; weightKg?: number | null }>;
+}) {
+  const [tab, setTab] = useState<TrendTab>("pain");
+
+  return (
+    <section className="card combined-trend-card">
+      <div className="mini-head">
+        <div>
+          <p className="eyebrow">身体趋势</p>
+          <h3 className="section-title">
+            {tab === "pain"
+              ? "腰酸走势"
+              : tab === "energy"
+                ? "精神状态走势"
+                : tab === "sleep"
+                  ? "睡眠时长走势"
+                  : "体重走势"}
+          </h3>
+        </div>
+        <span className="date-pill">最近 7 天</span>
+      </div>
+
+      <div className="chip-row" style={{ marginTop: "8px", marginBottom: "14px" }}>
+        <button
+          type="button"
+          className={tab === "pain" ? "secondary-button active-chip" : "secondary-button"}
+          onClick={() => setTab("pain")}
+        >
+          腰酸
+        </button>
+        <button
+          type="button"
+          className={tab === "energy" ? "secondary-button active-chip" : "secondary-button"}
+          onClick={() => setTab("energy")}
+        >
+          精神
+        </button>
+        <button
+          type="button"
+          className={tab === "sleep" ? "secondary-button active-chip" : "secondary-button"}
+          onClick={() => setTab("sleep")}
+        >
+          睡眠
+        </button>
+        <button
+          type="button"
+          className={tab === "weight" ? "secondary-button active-chip" : "secondary-button"}
+          onClick={() => setTab("weight")}
+        >
+          体重
+        </button>
+      </div>
+
+      {tab === "pain" && (
+        <TrendBars
+          values={checkins.map((c) => ({
+            label: c.date.slice(5),
+            value: c.lowBackPain,
+            max: 10
+          }))}
+        />
+      )}
+      {tab === "energy" && (
+        <TrendBars
+          values={checkins.map((c) => ({
+            label: c.date.slice(5),
+            value: c.energy,
+            max: 5
+          }))}
+        />
+      )}
+      {tab === "sleep" && (
+        <TrendBars
+          values={checkins.map((c) => ({
+            label: c.date.slice(5),
+            value: typeof c.sleepHours === "number" ? Math.round(c.sleepHours * 10) / 10 : null,
+            displayValue: typeof c.sleepHours === "number" ? `${Math.round(c.sleepHours * 10) / 10}h` : "未记",
+            max: 10
+          }))}
+        />
+      )}
+      {tab === "weight" &&
+        (weights.length > 0 ? (
+          <TrendBars
+            isWeight
+            values={weights.map((w) => ({
+              label: w.date.slice(5),
+              value: typeof w.weightKg === "number" ? w.weightKg : null,
+              displayValue: typeof w.weightKg === "number" ? `${w.weightKg}kg` : "未记"
+            }))}
+          />
+        ) : (
+          <p className="muted small" style={{ margin: "16px 0" }}>
+            暂无体重记录数据，每日记录时可选择性填写。
+          </p>
+        ))}
+    </section>
+  );
+}
+
+function TrendBars({
+  values,
+  isWeight = false
+}: {
   values: Array<{ label: string; value: number | null; displayValue?: string; max?: number; min?: number }>;
+  isWeight?: boolean;
 }) {
   const numericValues = values.map((v) => v.value).filter((v): v is number => typeof v === "number");
   const overallMin = numericValues.length > 0 ? Math.min(...numericValues) : 0;
   const overallMax = numericValues.length > 0 ? Math.max(...numericValues) : 1;
 
   return (
-    <section className="card">
-      <h3 className="section-title">{title}</h3>
-      <div className="trend-grid">
-        {values.slice(-7).map((entry) => {
-          let percentage = 0;
-          if (entry.value !== null) {
-            const min = entry.min !== undefined ? entry.min : (title === "体重趋势" && overallMax - overallMin > 0 ? Math.max(0, overallMin - 2) : 0);
-            const max = entry.max !== undefined ? entry.max : overallMax;
-            const span = max - min;
-            percentage = span > 0 ? Math.max(10, Math.min(100, Math.round(((entry.value - min) / span) * 100))) : 50;
-          }
-          return (
-            <div className="trend-item" key={`${title}-${entry.label}`}>
-              <span className="trend-label">{entry.label}</span>
-              <div className="trend-bar-track">
-                <div
-                  className="trend-bar"
-                  style={{ width: entry.value !== null ? `${percentage}%` : "0%" }}
-                />
-              </div>
-              <span className="trend-value">
-                {entry.displayValue ?? (entry.value !== null ? `${entry.value}` : "未记")}
-              </span>
+    <div className="trend-grid">
+      {values.slice(-7).map((entry) => {
+        let percentage = 0;
+        if (entry.value !== null) {
+          const min =
+            entry.min !== undefined
+              ? entry.min
+              : isWeight && overallMax - overallMin > 0
+                ? Math.max(0, overallMin - 2)
+                : 0;
+          const max = entry.max !== undefined ? entry.max : overallMax;
+          const span = max - min;
+          percentage = span > 0 ? Math.max(10, Math.min(100, Math.round(((entry.value - min) / span) * 100))) : 50;
+        }
+        return (
+          <div className="trend-item" key={`trend-${entry.label}`}>
+            <span className="trend-label">{entry.label}</span>
+            <div className="trend-bar-track">
+              <div
+                className="trend-bar"
+                style={{ width: entry.value !== null ? `${percentage}%` : "0%" }}
+              />
             </div>
-          );
-        })}
-      </div>
-    </section>
+            <span className="trend-value">
+              {entry.displayValue ?? (entry.value !== null ? `${entry.value}` : "未记")}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
