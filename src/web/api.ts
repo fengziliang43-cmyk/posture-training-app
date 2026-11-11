@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import type { PlanExplanation } from "../core/plan-explanation";
 import type {
   DailyStatus,
+  ExerciseCompletionStatus,
   ExerciseResult,
   GeneratedPlan,
   PlanDecision,
@@ -73,10 +74,20 @@ export interface CheckinResponse {
   checkin: DailyStatus & { id: number; createdAt: string };
 }
 
+/** What the server recorded when today's workout was saved. */
+export interface PlanWorkout {
+  completedAt: string;
+  completionStatus: ExerciseCompletionStatus;
+  lowBackPainAfter?: number | null;
+  exerciseResults?: ExerciseResult[];
+}
+
 export interface PlanResponsePlan extends GeneratedPlan {
   id: number;
   createdAt: string;
   explanation?: PlanExplanation;
+  /** Set once today's workout has been saved; null or missing before that. */
+  workout?: PlanWorkout | null;
 }
 
 export interface PlanResponse {

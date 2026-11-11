@@ -143,10 +143,16 @@ export function registerPhotoRoutes(app: FastifyInstance, context: PhotosRouteCo
       return reply.code(404).send({ error: "photo not found" });
     }
 
+    // Remove the file first. If it cannot be removed, keep the record so the user can try again
+    // instead of leaving a photo on disk that no longer shows up anywhere.
     const uploadRoot = resolve(context.uploadDir);
     const filePath = resolve(uploadRoot, photo.filePath);
     if (filePath.startsWith(`${uploadRoot}${sep}`)) {
-      await rm(filePath, { force: true }).catch(() => undefined);
+      try {
+        await rm(filePath, { force: true });
+      } catch {
+        return reply.code(500).send({ error: "photo file could not be removed" });
+      }
     }
 
     await context.repositories.forUser(userId).deletePhoto(photoId);

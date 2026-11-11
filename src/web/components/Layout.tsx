@@ -27,7 +27,7 @@ export function Layout({ activeTab, username, hideNav = false, children, onTabCh
           <span className="app-mark ink-logo-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22">
               <circle cx="12.5" cy="5" r="2.7" fill="#c8402f" stroke="none" />
-              <path d="M12.5 9.6c-3.6 2.2-3.8 6.6-.9 9.4 1.2 1.2 2.4 1.8 3.6 2.1" stroke="#1f1e24" stroke-width="3" fill="none" stroke-linecap="round" />
+              <path d="M12.5 9.6c-3.6 2.2-3.8 6.6-.9 9.4 1.2 1.2 2.4 1.8 3.6 2.1" stroke="#1f1e24" strokeWidth="3" fill="none" strokeLinecap="round" />
             </svg>
           </span>
           <div className="brand-copy">

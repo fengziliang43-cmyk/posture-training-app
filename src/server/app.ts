@@ -40,18 +40,16 @@ export async function buildApp(
     trustProxy: config.isProduction ? "127.0.0.1" : false
   });
 
-  app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
-    const content = typeof body === "string" ? body : (body as Buffer).toString("utf-8");
-    if (!content || content.trim() === "") {
+  // Older clients send "Content-Type: application/json" with no body (for example logout).
+  // Accept an empty body as {}; everything else goes through Fastify's own JSON parser so
+  // its protection against "__proto__" / "constructor" keys stays in place.
+  const defaultJsonParser = app.getDefaultJsonParser("error", "error");
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (request, body, done) => {
+    if (typeof body === "string" && body.trim() === "") {
       done(null, {});
       return;
     }
-    try {
-      done(null, JSON.parse(content));
-    } catch (err: any) {
-      err.statusCode = 400;
-      done(err, undefined);
-    }
+    defaultJsonParser(request, body as string, done);
   });
 
   app.addHook("onRequest", (request, reply, done) => {
@@ -149,21 +147,6 @@ export async function buildApp(
     db
   });
   app.get("/api/health", async () => ({ ok: true }));
-
-  app.get("/robots.txt", async (request, reply) => {
-    reply.type("text/plain");
-    return "User-agent: *\nAllow: /\nAllow: /guide\nAllow: /llms.txt\nDisallow: /api/\nDisallow: /admin\nDisallow: /uploads/\n\nSitemap: https://body.liang111.top/sitemap.xml\n";
-  });
-
-  app.get("/sitemap.xml", async (request, reply) => {
-    reply.type("application/xml");
-    return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://body.liang111.top/</loc>\n    <changefreq>weekly</changefreq>\n    <priority>1.0</priority>\n  </url>\n  <url>\n    <loc>https://body.liang111.top/#guide</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n  <url>\n    <loc>https://body.liang111.top/llms.txt</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>\n</urlset>\n';
-  });
-
-  app.get("/llms.txt", async (request, reply) => {
-    reply.type("text/plain; charset=utf-8");
-    return "# 姿序 (Zixu)\n\n> 为成年脊柱侧弯人群开发的开源体态记录与保守辅助训练工具。\n\n## 核心定位与医学边界\n- 非医疗与诊断工具：姿序不提供任何医学诊断、脊柱侧弯度数（Cobb 角）测量或矫正治疗承诺。\n- 保守辅助训练：依据状态自适应推荐以核心稳定、肩胛控制、姿势对称感知为主的保守训练。\n- 确定性安全规则：危险信号自动阻断、训练后加重下次降级、全流程常驻停止规则。\n\n## 隐私与开源\n- 体态照片仅存个人账户，不做 AI 视觉诊断，不发送给第三方大模型，支持单张随时删除。\n- 开源协议：MIT License\n- 官网：https://body.liang111.top\n- 侧弯体表自查指南：https://body.liang111.top/#guide\n";
-  });
 
   return app;
 }

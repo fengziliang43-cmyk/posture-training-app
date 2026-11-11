@@ -3718,3 +3718,185 @@ label,
   border-radius: var(--radius-md, 14px);
 }
 
+
+/* 停止规则与医疗提示：同一种琥珀色提示条 */
+.stop-rule-banner,
+.medical-notice {
+  margin: 12px 0 6px;
+  border-left: 4px solid #e0932c;
+  padding: 10px 14px;
+  background: rgba(253, 240, 217, 0.95);
+}
+
+.stop-rule-banner strong,
+.medical-notice strong {
+  display: block;
+  color: #754700;
+  font-size: 14px;
+}
+
+.stop-rule-banner p,
+.medical-notice p {
+  margin: 3px 0 0;
+  color: #754700;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 练后腰背不适：0–10 直接点选，没有默认值 */
+.pain-scale {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+
+.pain-scale-dot {
+  min-height: 44px;
+  border: 1px solid rgba(37, 36, 42, 0.14);
+  border-radius: 14px;
+  padding: 0;
+  color: #25242a;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: none;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pain-scale-dot.before {
+  box-shadow: inset 0 0 0 2px #6a5ce0;
+}
+
+.pain-scale-dot.selected {
+  border-color: transparent;
+  color: #ffffff;
+  background: linear-gradient(180deg, #34333a, #242329);
+}
+
+.pain-scale-dot:focus-visible {
+  outline: 2px solid #6a5ce0;
+  outline-offset: 2px;
+}
+
+.pain-scale-ends {
+  display: flex;
+  justify-content: space-between;
+  color: #64746f;
+  font-size: 12px;
+}
+
+/* 今天练完了 */
+.completed-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1b8a5a;
+}
+
+.completed-check {
+  display: inline-grid;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #1b8a5a;
+  font-size: 16px;
+}
+
+.completed-note {
+  margin: 4px 0 14px;
+  color: #44544f;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* 月历翻月 */
+.calendar-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.calendar-month-nav .compact-button {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* 体态对比：并排、滑动、参考线 */
+.compare-side-by-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.compare-side-figure {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  aspect-ratio: 3 / 4;
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.compare-side-figure img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.compare-side-date {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+}
+
+.compare-slider-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #2e7d5b;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+
+.guide-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.guide-line-v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1.5px;
+  background: rgba(220, 50, 50, 0.8);
+  box-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+.guide-line-h {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 0;
+  border-top: 1.5px dashed rgba(46, 125, 91, 0.95);
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.9));
+}
+
+.guide-y-field {
+  display: grid;
+  gap: 6px;
+  color: #64726e;
+  font-size: 13px;
+  font-weight: 500;
+}

@@ -65,7 +65,13 @@ export function registerPlanRoutes(app: FastifyInstance, context: PlansRouteCont
 
     const saved = await repositories.savePlan(plan);
     const visiblePlan = applySafetyOverlay(saved, status, plan);
-    return { plan: { ...visiblePlan, explanation: explainPlan(visiblePlan, status) } };
+    return {
+      plan: {
+        ...visiblePlan,
+        explanation: explainPlan(visiblePlan, status),
+        workout: (await repositories.getWorkoutByPlanId(visiblePlan.id)) ?? null
+      }
+    };
   });
 
   app.get("/api/plans/today", async (request, reply) => {
@@ -88,7 +94,13 @@ export function registerPlanRoutes(app: FastifyInstance, context: PlansRouteCont
 
     const status = await repositories.getCheckinByDate(plan.date);
     const visiblePlan = status ? applySafetyOverlay(plan, status) : plan;
-    return { plan: { ...visiblePlan, explanation: explainPlan(visiblePlan, status) } };
+    return {
+      plan: {
+        ...visiblePlan,
+        explanation: explainPlan(visiblePlan, status),
+        workout: (await repositories.getWorkoutByPlanId(visiblePlan.id)) ?? null
+      }
+    };
   });
 
   app.post("/api/plans/:planId/exercises/:exerciseId/replace", async (request, reply) => {

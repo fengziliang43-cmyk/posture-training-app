@@ -5,6 +5,7 @@ import type {
   ExerciseResult
 } from "../../core/types";
 import { exerciseLibrary } from "../../core/exercise-library";
+import { describePainChange } from "../pain-feedback";
 import {
   describeApiError,
   generateDailyExplanation,
@@ -35,15 +36,18 @@ interface TodayPlanProps {
 
 type LocalExerciseResult = ExerciseResult | null;
 
+const DEFAULT_STOP_RULE = "训练中腰酸升高 2 分、动作变形、出现麻木或放射痛时立即停止。";
+
 export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorkout, onPlanChange }: TodayPlanProps) {
-  const preWorkoutPain = latestStatus?.lowBackPain ?? 2;
+  // Before the workout; unknown when today's check-in has not been loaded.
+  const preWorkoutPain = typeof latestStatus?.lowBackPain === "number" ? latestStatus.lowBackPain : null;
   const [exerciseResults, setExerciseResults] = useState<LocalExerciseResult[]>([]);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [planInfo, setPlanInfo] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [actionBusyKey, setActionBusyKey] = useState<string | null>(null);
-  const [lowBackPainAfter, setLowBackPainAfter] = useState<number>(preWorkoutPain);
-  const [painConfirmed, setPainConfirmed] = useState(false);
+  // null until the person picks a number: there is no default that could be saved by accident.
+  const [lowBackPainAfter, setLowBackPainAfter] = useState<number | null>(null);
   const exerciseSignature = plan?.exercises
     .map((exercise) =>
       [exercise.exerciseId, exercise.sets, exercise.reps ?? "", exercise.seconds ?? "", exercise.restSeconds].join(":")
@@ -54,14 +58,18 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
     setAiExplanation(null);
     setPlanInfo(null);
     setPlanError(null);
-    setLowBackPainAfter(preWorkoutPain);
-    setPainConfirmed(false);
     if (!plan) {
+      setLowBackPainAfter(null);
       setExerciseResults([]);
       return;
     }
 
-    const saved = readSavedExerciseResults(plan.id, exerciseSignature);
+    // A saved workout on the server wins over whatever this browser remembers (another device, cleared data).
+    const savedWorkout = plan.workout ?? null;
+    setLowBackPainAfter(typeof savedWorkout?.lowBackPainAfter === "number" ? savedWorkout.lowBackPainAfter : null);
+    const saved = savedWorkout?.exerciseResults?.length
+      ? savedWorkout.exerciseResults
+      : readSavedExerciseResults(plan.id, exerciseSignature);
     setExerciseResults(
       plan.exercises.map((exercise, index) =>
         saved.find(
@@ -96,9 +104,8 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
     (result) => result?.completionStatus === "completed"
   ).length;
   const allResolved = plan.exercises.length > 0 && resolvedCount === plan.exercises.length;
-  const currentActiveIndex = plan.exercises.findIndex(
-    (_, i) => exerciseResults[i]?.completionStatus !== "completed"
-  );
+  // The exercise being worked on is the first one with no result yet (done, partial and skipped all count as recorded).
+  const currentActiveIndex = plan.exercises.findIndex((_, i) => !exerciseResults[i]);
 
   return (
     <section className="plan-card card">
@@ -123,21 +130,13 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
         </div>
       </div>
 
-      <div
-        className="card"
-        style={{
-          background: "rgba(253, 240, 217, 0.95)",
-          borderLeft: "4px solid #e0932c",
-          padding: "10px 14px",
-          margin: "12px 0 6px"
-        }}
-        role="alert"
-      >
-        <strong style={{ color: "#754700", fontSize: "14px", display: "block" }}>停止规则（全过程有效）</strong>
-        <p style={{ margin: "3px 0 0", color: "#754700", fontSize: "13px", lineHeight: "1.5" }}>
-          出现麻木、放射痛，动作严重变形，或腰背不适比练前上升 2 分以上：<b>立即停训</b>。
-        </p>
-      </div>
+      {plan.exercises.length > 0 && (
+        <div className="card stop-rule-banner" role="note">
+          <strong>停止规则（全过程有效）</strong>
+          {/* The rule comes from the plan itself so the screen can never say something looser than the plan. */}
+          <p>{plan.safetyMessage ?? DEFAULT_STOP_RULE}</p>
+        </div>
+      )}
 
       <p className="reason-text">{plan.reason}</p>
 
@@ -337,70 +336,58 @@ export function TodayPlan({ plan, latestStatus, finishing, onBack, onFinishWorko
               <p className="eyebrow">训练后反馈</p>
               <h3>记录现在的腰酸</h3>
             </div>
-            <span className="date-pill">练前 {preWorkoutPain} / 10 → 练后 {lowBackPainAfter} / 10</span>
+            <span className="date-pill">
+              练前 {preWorkoutPain ?? "未记"} → 练后 {lowBackPainAfter ?? "待选"}
+            </span>
           </div>
-          <label className="slider-field">
-            <span className="slider-label"><span>无不适</span><span>明显疼痛</span></span>
-            <input
-              type="range"
-              min="0"
-              max="10"
-              value={lowBackPainAfter}
-              onChange={(event) => {
-                setLowBackPainAfter(Number(event.target.value));
-                setPainConfirmed(true);
-              }}
-            />
-          </label>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", margin: "6px 0 10px" }}>
-            <button
-              type="button"
-              className={painConfirmed && lowBackPainAfter === preWorkoutPain ? "secondary-button active-chip" : "secondary-button"}
-              onClick={() => {
-                setLowBackPainAfter(preWorkoutPain);
-                setPainConfirmed(true);
-              }}
-            >
-              和练前一样（{preWorkoutPain}）
-            </button>
-            <button
-              type="button"
-              className={painConfirmed && lowBackPainAfter < preWorkoutPain ? "secondary-button active-chip" : "secondary-button"}
-              onClick={() => {
-                setLowBackPainAfter(Math.max(0, preWorkoutPain - 1));
-                setPainConfirmed(true);
-              }}
-            >
-              感觉有所减轻（{Math.max(0, preWorkoutPain - 1)}）
-            </button>
-            <button
-              type="button"
-              className={painConfirmed && lowBackPainAfter > preWorkoutPain ? "secondary-button active-chip" : "secondary-button"}
-              onClick={() => {
-                setLowBackPainAfter(Math.min(10, preWorkoutPain + 1));
-                setPainConfirmed(true);
-              }}
-            >
-              略有加重（{Math.min(10, preWorkoutPain + 1)}）
-            </button>
+          <div className="pain-scale" role="radiogroup" aria-label="练后腰背不适，0 到 10">
+            {Array.from({ length: 11 }, (_, score) => (
+              <button
+                key={score}
+                type="button"
+                role="radio"
+                aria-checked={lowBackPainAfter === score}
+                className={[
+                  "pain-scale-dot",
+                  lowBackPainAfter === score ? "selected" : "",
+                  preWorkoutPain === score ? "before" : ""
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => setLowBackPainAfter(score)}
+              >
+                {score}
+              </button>
+            ))}
+          </div>
+          <div className="pain-scale-ends">
+            <span>没有不适</span>
+            <span>很痛</span>
           </div>
           <p className="muted small">
-            {allResolved
-              ? painConfirmed
-                ? "腰背感受已确认，可以保存本次训练。"
-                : "请滑动或点击上方选项确认练后感受，比练前高 2 分以上下次会自动降一档。"
-              : `还剩 ${plan.exercises.length - resolvedCount} 个动作需要记录；完成、部分或跳过都可以。`}
+            {!allResolved
+              ? `还剩 ${plan.exercises.length - resolvedCount} 个动作需要记录；完成、部分或跳过都可以。`
+              : lowBackPainAfter === null
+                ? `选一个数${preWorkoutPain !== null ? `（紫圈是你练前选的 ${preWorkoutPain}）` : ""}。比练前高 2 分以上，会影响下一次的训练安排。`
+                : preWorkoutPain !== null
+                  ? describePainChange(preWorkoutPain, lowBackPainAfter)
+                  : `已选 ${lowBackPainAfter}。`}
           </p>
           <button
             type="button"
-            disabled={finishing || !allResolved || !painConfirmed}
-            onClick={() => void onFinishWorkout(lowBackPainAfter, exerciseResults as ExerciseResult[])}
+            disabled={finishing || !allResolved || lowBackPainAfter === null}
+            onClick={() =>
+              lowBackPainAfter !== null &&
+              void onFinishWorkout(lowBackPainAfter, exerciseResults as ExerciseResult[])
+            }
           >
             {finishing
               ? "保存中"
-              : !painConfirmed
-                ? "请确认练后腰酸再保存"
-                : "保存本次训练反馈"}
+              : !allResolved
+                ? "先记录完所有动作"
+                : lowBackPainAfter === null
+                  ? "请选练后腰背不适再保存"
+                  : "保存本次训练反馈"}
           </button>
         </section>
       )}

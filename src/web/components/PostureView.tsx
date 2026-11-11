@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { deletePhoto, downloadPhotoFile, listPhotos, updatePhotoNote, uploadPhoto, type PhotoRecord } from "../api";
 import { formatLocalDate } from "../../core/date";
+import { formatLocalClock, orderOlderFirst } from "../photo-compare";
 import { ScoliosisRiskGuide } from "./ScoliosisRiskGuide";
 
 const angles = [
@@ -19,6 +20,7 @@ export function PostureView() {
   const [compareBlend, setCompareBlend] = useState(50);
   const [sliderPos, setSliderPos] = useState(50);
   const [showGuideLines, setShowGuideLines] = useState(false);
+  const [guideY, setGuideY] = useState(40);
   const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
   const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export function PostureView() {
     [photos, selectedAngle, compareMode]
   );
   const comparisonReady = anglePhotos.length >= 2 && anglePhotos.every((photo) => photoUrls[photo.id]);
+  const [olderPhoto, newerPhoto] = orderOlderFirst(anglePhotos);
 
   async function refreshPhotos() {
     try {
@@ -212,39 +215,40 @@ export function PostureView() {
           </button>
         </div>
 
-        {comparisonReady ? (
+        {comparisonReady && olderPhoto && newerPhoto ? (
           <div className="compare-wrap">
             {viewType === "side" && (
-              <div className="compare-side-by-side" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                <div style={{ position: "relative" }}>
-                  <img className="compare-image base" src={photoUrls[anglePhotos[0].id]} alt="较早照片" style={{ width: "100%", borderRadius: "8px" }} />
-                  <span className="date-pill" style={{ position: "absolute", top: "8px", left: "8px" }}>{anglePhotos[0].photoDate}</span>
-                  {showGuideLines && <GuideLineOverlay />}
-                </div>
-                <div style={{ position: "relative" }}>
-                  <img className="compare-image base" src={photoUrls[anglePhotos[1].id]} alt="最新照片" style={{ width: "100%", borderRadius: "8px" }} />
-                  <span className="date-pill" style={{ position: "absolute", top: "8px", left: "8px" }}>{anglePhotos[1].photoDate}</span>
-                  {showGuideLines && <GuideLineOverlay />}
-                </div>
+              <div className="compare-side-by-side">
+                <figure className="compare-side-figure">
+                  <img src={photoUrls[olderPhoto.id]} alt={`较早的照片，${olderPhoto.photoDate}`} />
+                  <span className="date-pill compare-side-date">{olderPhoto.photoDate}</span>
+                  {showGuideLines && <GuideLineOverlay y={guideY} />}
+                </figure>
+                <figure className="compare-side-figure">
+                  <img src={photoUrls[newerPhoto.id]} alt={`较新的照片，${newerPhoto.photoDate}`} />
+                  <span className="date-pill compare-side-date">{newerPhoto.photoDate}</span>
+                  {showGuideLines && <GuideLineOverlay y={guideY} />}
+                </figure>
               </div>
             )}
 
             {viewType === "blend" && (
               <>
-                <div className="compare-stage" style={{ position: "relative" }}>
-                  <img className="compare-image base" src={photoUrls[anglePhotos[0].id]} alt="" />
+                <div className="compare-stage">
+                  <img className="compare-image base" src={photoUrls[olderPhoto.id]} alt="较早的照片" />
                   <img
                     className="compare-image overlay"
-                    src={photoUrls[anglePhotos[1].id]}
-                    alt=""
+                    src={photoUrls[newerPhoto.id]}
+                    alt="较新的照片"
                     style={{ opacity: compareBlend / 100 }}
                   />
-                  {showGuideLines && <GuideLineOverlay />}
+                  {showGuideLines && <GuideLineOverlay y={guideY} />}
                 </div>
                 <input
                   type="range"
                   min="0"
                   max="100"
+                  aria-label="较早与较新照片的叠加比例"
                   value={compareBlend}
                   onChange={(event) => setCompareBlend(Number(event.target.value))}
                 />
@@ -253,48 +257,49 @@ export function PostureView() {
 
             {viewType === "slider" && (
               <>
-                <div className="compare-stage" style={{ position: "relative", overflow: "hidden" }}>
-                  <img className="compare-image base" src={photoUrls[anglePhotos[0].id]} alt="底图" />
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      bottom: 0,
-                      width: `${sliderPos}%`,
-                      overflow: "hidden",
-                      borderRight: "2px solid #2e7d5b"
-                    }}
-                  >
-                    <img
-                      className="compare-image"
-                      src={photoUrls[anglePhotos[1].id]}
-                      alt="切片图"
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover"
-                      }}
-                    />
-                  </div>
-                  {showGuideLines && <GuideLineOverlay />}
+                <div className="compare-stage">
+                  <img className="compare-image base" src={photoUrls[newerPhoto.id]} alt="较新的照片" />
+                  {/* Same size as the base photo, cut off from the right: both photos stay lined up. */}
+                  <img
+                    className="compare-image"
+                    src={photoUrls[olderPhoto.id]}
+                    alt="较早的照片"
+                    style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
+                  />
+                  <span className="compare-slider-line" style={{ left: `${sliderPos}%` }} aria-hidden="true" />
+                  {showGuideLines && <GuideLineOverlay y={guideY} />}
                 </div>
                 <input
                   type="range"
                   min="0"
                   max="100"
+                  aria-label="拖动查看较早与较新的照片"
                   value={sliderPos}
                   onChange={(event) => setSliderPos(Number(event.target.value))}
                 />
               </>
             )}
 
-            <p className="muted small" style={{ marginTop: "8px" }}>
-              正在对比 {angles.find((angle) => angle.value === selectedAngle)?.label} 的{" "}
-              {compareMode === "latest" ? "两张最新照片" : "本月第一张和最新照片"}（左/底：{anglePhotos[0].photoDate}，右/顶：{anglePhotos[1].photoDate}）。
+            {showGuideLines && (
+              <label className="guide-y-field">
+                <span>水平参考线位置：拖到肩线或骨盆处，对比两张是否一样高。只帮你对齐，不测量角度。</span>
+                <input
+                  type="range"
+                  min="10"
+                  max="90"
+                  value={guideY}
+                  onChange={(event) => setGuideY(Number(event.target.value))}
+                />
+              </label>
+            )}
+
+            <p className="muted small">
+              {viewType === "side" && `左：${olderPhoto.photoDate}（较早） · 右：${newerPhoto.photoDate}（较新）`}
+              {viewType === "blend" && `底：${olderPhoto.photoDate}（较早） · 上层半透明：${newerPhoto.photoDate}（较新）`}
+              {viewType === "slider" && `滑块左侧：${olderPhoto.photoDate}（较早） · 右侧：${newerPhoto.photoDate}（较新）`}
+              {" · "}
+              {angles.find((angle) => angle.value === selectedAngle)?.label}
+              {compareMode === "latest" ? "，最近两张" : "，本月第一张与最新一张"}
             </p>
           </div>
         ) : anglePhotos.length >= 2 ? (
@@ -382,7 +387,7 @@ export function PostureView() {
                       <div className="photo-loading muted">加载中</div>
                     )}
                     <figcaption>
-                      {formatAngleLabel(photo.angle)} · {formatLocalTime(photo.createdAt)}
+                      {formatAngleLabel(photo.angle)} · {formatLocalClock(photo.createdAt)}
                     </figcaption>
                     {photo.note && <p className="muted small">{photo.note}</p>}
                     <div className="photo-note-row">
@@ -439,53 +444,11 @@ function selectComparisonPhotos(photos: PhotoRecord[], mode: "latest" | "month")
   return oldestThisMonth && oldestThisMonth.id !== latest.id ? [latest, oldestThisMonth] : photos.slice(0, 2);
 }
 
-function GuideLineOverlay() {
+function GuideLineOverlay({ y }: { y: number }) {
   return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        pointerEvents: "none",
-        zIndex: 10
-      }}
-      aria-hidden="true"
-    >
-      {/* 垂直中轴线 */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: "50%",
-          width: "1.5px",
-          background: "rgba(220, 50, 50, 0.75)",
-          boxShadow: "0 0 2px rgba(255, 255, 255, 0.8)"
-        }}
-      />
-      {/* 水平双肩参考线 (约 35%) */}
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: "35%",
-          height: "1px",
-          background: "rgba(46, 125, 91, 0.8)",
-          borderTop: "1px dashed rgba(46, 125, 91, 0.9)"
-        }}
-      />
-      {/* 水平骨盆参考线 (约 65%) */}
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: "65%",
-          height: "1px",
-          background: "rgba(46, 125, 91, 0.8)",
-          borderTop: "1px dashed rgba(46, 125, 91, 0.9)"
-        }}
-      />
+    <div className="guide-lines" aria-hidden="true">
+      <span className="guide-line-v" />
+      <span className="guide-line-h" style={{ top: `${y}%` }} />
     </div>
   );
 }
@@ -506,16 +469,6 @@ function formatAngleLabel(angle: string): string {
   if (angle === "side") return "侧面";
   if (angle === "back") return "背面";
   return angle;
-}
-
-function formatLocalTime(isoDateString: string): string {
-  try {
-    const d = new Date(isoDateString);
-    if (isNaN(d.getTime())) return isoDateString.slice(11, 16);
-    return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
-  } catch {
-    return isoDateString.slice(11, 16);
-  }
 }
 
 async function preparePhotoUpload(file: File): Promise<Blob | File> {

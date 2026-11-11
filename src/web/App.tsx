@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   completeWorkout,
   createTodayPlan,
@@ -16,7 +16,8 @@ import {
   submitCheckin,
   type AuthUser,
   type DailyCheckinInput,
-  type PlanResponsePlan
+  type PlanResponsePlan,
+  type PlanWorkout
 } from "./api";
 import { RecordsView } from "./components/RecordsView";
 import { PostureView } from "./components/PostureView";
@@ -30,6 +31,7 @@ import { SiteFooter } from "./components/SiteFooter";
 import { InstallOptions } from "./components/InstallOptions";
 import { formatLocalDate } from "../core/date";
 import type { ExerciseResult } from "../core/types";
+import { deriveCompletionStatus } from "../core/workout";
 
 export const ACCOUNT_IDENTIFIER_INPUT_PATTERN =
   "(?:[a-zA-Z0-9_.\\-]{3,32}|[^\\s@]+@[^\\s@]+\\.[^\\s@]+)";
@@ -37,6 +39,12 @@ export const ACCOUNT_IDENTIFIER_INPUT_PATTERN =
 export function isAdminConsolePath(pathname: string): boolean {
   return pathname === "/admin" || pathname === "/admin/";
 }
+
+export function isGuidePath(pathname: string): boolean {
+  return pathname === "/guide" || pathname === "/guide/";
+}
+
+const TAB_HASHES = ["#today", "#records", "#posture", "#me"];
 
 export function App() {
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -54,14 +62,29 @@ export function App() {
   const [finishLoading, setFinishLoading] = useState(false);
   const [todayError, setTodayError] = useState<string | null>(null);
   const [todayInfo, setTodayInfo] = useState<string | null>(null);
-  const [completedWorkout, setCompletedWorkout] = useState<{ lowBackPainAfter?: number; completedCount?: number } | null>(() => {
-    try {
-      const raw = localStorage.getItem(`posture-training.completed-workout.${formatLocalDate()}`);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
+
+  // Whoever signs in next must not see the previous account's plan or check-in that are still in memory,
+  // and starts on Today instead of the page the last person left from.
+  const signedInUserId = useRef<number | null>(null);
+  useEffect(() => {
+    const signedOut = signedInUserId.current !== null && authUser === null;
+    signedInUserId.current = authUser?.id ?? null;
+
+    setTodayPlan(null);
+    setLatestStatus(null);
+    setTodayMode("overview");
+    setTodayError(null);
+    setTodayInfo(null);
+
+    if (signedOut && typeof window !== "undefined") {
+      setActiveTab("today");
+      setMeRoute("home");
+      if (TAB_HASHES.includes(window.location.hash)) {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+        setCurrentHash("");
+      }
     }
-  });
+  }, [authUser?.id]);
 
   useEffect(() => {
     function handleHashChange() {
@@ -94,6 +117,7 @@ export function App() {
           ? "风险信号已记录，今天停止训练。"
           : "今天任务已生成。"
       );
+      window.scrollTo({ top: 0, behavior: "auto" });
     } catch {
       setTodayError("今天任务生成失败，请检查服务器连接。");
     } finally {
@@ -118,21 +142,19 @@ export function App() {
         lowBackPainAfter,
         exerciseResults
       });
-      const completedInfo = {
+      // The server keeps the record; the plan carries it back so the page never has to guess.
+      const workout: PlanWorkout = {
+        completedAt: result.workoutLog.completedAt,
+        completionStatus: result.queued
+          ? deriveCompletionStatus(exerciseResults)
+          : (result.workoutLog.completionStatus as PlanWorkout["completionStatus"]),
         lowBackPainAfter,
-        completedCount: exerciseResults.filter((r) => r.completionStatus === "completed").length
+        exerciseResults: result.workoutLog.exerciseResults ?? exerciseResults
       };
-      setCompletedWorkout(completedInfo);
-      try {
-        localStorage.setItem(
-          `posture-training.completed-workout.${formatLocalDate()}`,
-          JSON.stringify(completedInfo)
-        );
-      } catch {
-        // ignore
-      }
+      setTodayPlan({ ...todayPlan, workout });
       setTodayInfo(result.queued ? "网络暂不可用，已离线保存，联网后自动同步。" : "训练完成已记录。");
       setTodayMode("overview");
+      window.scrollTo({ top: 0, behavior: "auto" });
     } catch {
       setTodayError("训练完成记录提交失败。");
     } finally {
@@ -209,11 +231,15 @@ export function App() {
     );
   }
 
-  if (currentHash === "#guide") {
+  const guideViaPath = typeof window !== "undefined" && isGuidePath(window.location.pathname);
+  if (guideViaPath || currentHash === "#guide") {
     return (
       <PublicGuideScreen
         onBack={() => {
-          if (typeof window !== "undefined") {
+          if (typeof window === "undefined") return;
+          if (guideViaPath) {
+            window.location.assign("/");
+          } else {
             window.location.hash = authUser ? "#posture" : "";
           }
         }}
@@ -276,7 +302,6 @@ export function App() {
           info={todayInfo}
           mode={todayMode}
           latestStatus={latestStatus}
-          completedWorkout={completedWorkout}
           onModeChange={setTodayMode}
           onSubmitStatus={handleStatusSubmit}
           onFinishWorkout={handleFinishTodayWorkout}
@@ -450,7 +475,7 @@ function AuthScreen({
               <span className="auth-prop-dot" />
               <div>
                 <strong>不盲目练</strong>
-                <p>先做三步安全筛查，排除不适合动作，设定活动边界。</p>
+                <p>建档时按体能、目标、器械和需要保守的部位，筛掉不适合你的动作。</p>
               </div>
             </div>
             <div className="auth-prop-item">
@@ -464,7 +489,7 @@ function AuthScreen({
               <span className="auth-prop-dot" />
               <div>
                 <strong>保守降阶</strong>
-                <p>红旗症状严格停训，练后不适主动降阶，把安全放在第一位。</p>
+                <p>出现危险信号当天停训；练后不适加重，下一次会调低训练量。</p>
               </div>
             </div>
           </div>

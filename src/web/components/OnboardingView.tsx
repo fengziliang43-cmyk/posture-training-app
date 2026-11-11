@@ -47,9 +47,6 @@ interface OnboardingFormState {
   canWalk20Minutes: boolean;
   canChairStand: boolean;
   canHoldSupport20Seconds: boolean;
-  hasSpineSurgeryHistory: boolean;
-  hasBraceHistory: boolean;
-  hasDoctorRestriction: boolean;
   limitations: FunctionalLimitation[];
   baselineLowBackPain: string;
   baselineNeckShoulderPain: string;
@@ -68,9 +65,6 @@ const initialForm: OnboardingFormState = {
   canWalk20Minutes: true,
   canChairStand: true,
   canHoldSupport20Seconds: true,
-  hasSpineSurgeryHistory: false,
-  hasBraceHistory: false,
-  hasDoctorRestriction: false,
   limitations: [],
   baselineLowBackPain: "",
   baselineNeckShoulderPain: "",
@@ -307,45 +301,10 @@ export function OnboardingView({
                 />
               </div>
 
-              <fieldset className="choice-group">
-                <legend>病史与医疗限制筛查（保守判定）</legend>
-                <div className="field-grid">
-                  <BooleanQuestion
-                    label="是否有脊柱手术史或严重外伤史？"
-                    value={form.hasSpineSurgeryHistory}
-                    onChange={(has) => setForm({ ...form, hasSpineSurgeryHistory: has })}
-                  />
-                  <BooleanQuestion
-                    label="是否正处于脊柱支具矫形治疗期？"
-                    value={form.hasBraceHistory}
-                    onChange={(has) => setForm({ ...form, hasBraceHistory: has })}
-                  />
-                  <BooleanQuestion
-                    label="医生是否明确限制进行负重或屈伸运动？"
-                    value={form.hasDoctorRestriction}
-                    onChange={(has) => setForm({ ...form, hasDoctorRestriction: has })}
-                  />
-                </div>
-                {(form.hasSpineSurgeryHistory || form.hasBraceHistory || form.hasDoctorRestriction) && (
-                  <div
-                    className="card"
-                    style={{
-                      background: "rgba(253, 240, 217, 0.95)",
-                      borderLeft: "4px solid #e0932c",
-                      padding: "10px 14px",
-                      margin: "10px 0 0"
-                    }}
-                    role="alert"
-                  >
-                    <strong style={{ color: "#754700", fontSize: "14px", display: "block" }}>
-                      专科康复提示
-                    </strong>
-                    <p style={{ margin: "4px 0 0", color: "#754700", fontSize: "13px", lineHeight: "1.5" }}>
-                      存在脊柱手术、支具矫形或医嘱运动限制时，姿序动作库仅供体态认知参考。<b>请严格遵循专科医师或康复治疗师制定的方案</b>，切勿盲目自行加练。
-                    </p>
-                  </div>
-                )}
-              </fieldset>
+              <div className="medical-notice" role="note">
+                <strong>做过脊柱手术、正在戴支具，或医生限制过你的运动？</strong>
+                <p>请先按医生或康复治疗师的方案来。姿序不会根据这些情况调整动作，它的动作只供参考，也不能替代专业评估。</p>
+              </div>
               <fieldset className="choice-group">
                 <legend>平时容易不适或需要更保守的部位（可不选）</legend>
                 <div className="choice-grid">
@@ -456,26 +415,6 @@ function Choice({
   );
 }
 
-function BooleanQuestion({
-  label,
-  value,
-  onChange
-}: {
-  label: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <label>
-      {label}
-      <select value={String(value)} onChange={(event) => onChange(event.target.value === "true")}>
-        <option value="false">否</option>
-        <option value="true">是</option>
-      </select>
-    </label>
-  );
-}
-
 function BooleanSelect({
   label,
   value,
@@ -541,9 +480,6 @@ function profileToForm(profile: TrainingProfile): OnboardingFormState {
     canWalk20Minutes: profile.canWalk20Minutes,
     canChairStand: profile.canChairStand,
     canHoldSupport20Seconds: profile.canHoldSupport20Seconds,
-    hasSpineSurgeryHistory: false,
-    hasBraceHistory: false,
-    hasDoctorRestriction: false,
     limitations: [...profile.limitations],
     baselineLowBackPain: profile.baselineLowBackPain?.toString() ?? "",
     baselineNeckShoulderPain: profile.baselineNeckShoulderPain?.toString() ?? "",

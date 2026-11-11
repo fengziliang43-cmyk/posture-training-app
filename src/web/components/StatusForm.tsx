@@ -37,6 +37,8 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
   }, [initialStatus]);
 
   const redFlagCount = useMemo(() => Object.values(redFlags).filter(Boolean).length, [redFlags]);
+  // "有" was chosen but no specific signal ticked: do not generate a normal workout from an unfinished answer.
+  const redFlagsNeedChoice = showRedFlagsDetail && redFlagCount === 0;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -155,8 +157,10 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
                 </label>
               ))}
             </div>
-            <p className="error-text small" style={{ margin: "6px 0 0" }}>
-              已勾选 {redFlagCount} 项。选择后今天会自动停训并给出安全就医建议。
+            <p className="error-text small" style={{ margin: "6px 0 0" }} role={redFlagsNeedChoice ? "alert" : undefined}>
+              {redFlagsNeedChoice
+                ? "请勾选具体是哪一项；如果其实没有，请点上面的“无”。"
+                : `已勾选 ${redFlagCount} 项。选择后今天会自动停训并给出安全就医建议。`}
             </p>
           </fieldset>
         )}
@@ -247,8 +251,8 @@ export function StatusForm({ date, loading, initialStatus, submitLabel = "生成
         </div>
       </details>
 
-      <button type="submit" disabled={loading}>
-        {loading ? "生成中" : submitLabel}
+      <button type="submit" disabled={loading || redFlagsNeedChoice}>
+        {loading ? "生成中" : redFlagsNeedChoice ? "请先勾选危险信号，或选“无”" : submitLabel}
       </button>
     </form>
   );

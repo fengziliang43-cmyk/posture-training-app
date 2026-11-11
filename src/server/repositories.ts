@@ -40,6 +40,7 @@ export interface UserRepositories {
     lowBackPainAfter?: number;
     exerciseResults?: ExerciseResult[];
   }) => Promise<WorkoutLogRecord>;
+  getWorkoutByPlanId: (planId: number) => Promise<WorkoutLogRecord | undefined>;
   countCompletedMainSessionsThisWeek: (date: string) => Promise<number>;
   getLastMainTemplateId: (date: string) => Promise<PlanTemplateId | undefined>;
   getRecordsSummary: (date: string) => Promise<RecordsSummary>;
@@ -137,6 +138,7 @@ export function createRepositories(db: AppDatabase, secretRoot: string): AppRepo
       replacePlanExercise: (planId, exerciseId) => replacePlanExercise(db, userId, planId, exerciseId),
       revertPlanExercise: (planId, exerciseId) => revertPlanExercise(db, userId, planId, exerciseId),
       completeWorkout: (input) => completeWorkout(db, userId, input),
+      getWorkoutByPlanId: (planId) => getWorkoutByPlanId(db, userId, planId),
       countCompletedMainSessionsThisWeek: (date) => countCompletedMainSessionsThisWeek(db, userId, date),
       getLastMainTemplateId: (date) => getLastMainTemplateId(db, userId, date),
       getRecordsSummary: (date) => getRecordsSummary(db, userId, date),
@@ -794,13 +796,25 @@ async function completeWorkout(
     throw error;
   }
 
+  const saved = await getWorkoutByPlanId(db, userId, input.planId);
+  if (!saved) {
+    throw new Error("Failed to load workout log.");
+  }
+  return saved;
+}
+
+async function getWorkoutByPlanId(
+  db: AppDatabase,
+  userId: number,
+  planId: number
+): Promise<WorkoutLogRecord | undefined> {
   const row = await db.get<WorkoutLogRow>(
     "SELECT * FROM workout_logs WHERE user_id = ? AND plan_id = ? ORDER BY id DESC LIMIT 1",
     userId,
-    input.planId
+    planId
   );
   if (!row) {
-    throw new Error("Failed to load workout log.");
+    return undefined;
   }
 
   const exerciseRows = await db.all<WorkoutExerciseLogRow[]>(

@@ -18,9 +18,15 @@ const templateNameById: Map<string, string> = new Map(
   ]
 );
 
+type CalendarCheckins = RecordsSummaryResponse["summary"]["calendarCheckins"];
+
 export function RecordsView() {
   const [summary, setSummary] = useState<RecordsSummaryResponse["summary"] | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // The calendar month on screen ("2026-11") and the records already fetched for each month.
+  const [activeMonth, setActiveMonth] = useState<string | null>(null);
+  const [monthCheckins, setMonthCheckins] = useState<Record<string, CalendarCheckins>>({});
+  const [monthLoading, setMonthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [weeklyAiResult, setWeeklyAiResult] = useState<AiTextResponse | null>(null);
   const [weeklyAiLoading, setWeeklyAiLoading] = useState(false);
@@ -40,15 +46,62 @@ export function RecordsView() {
     () => chronologicalCheckins.filter((checkin) => typeof checkin.weightKg === "number"),
     [chronologicalCheckins]
   );
-  const checkinByDate = useMemo(
-    () => new Map((summary?.calendarCheckins ?? []).map((checkin) => [checkin.date, checkin])),
-    [summary]
-  );
+  // Every day we have a record for, from whichever month it was fetched.
+  const checkinByDate = useMemo(() => {
+    const byDate = new Map<string, CalendarCheckins[number]>();
+    for (const list of Object.values(monthCheckins)) {
+      for (const checkin of list) byDate.set(checkin.date, checkin);
+    }
+    for (const checkin of summary?.checkins ?? []) {
+      if (!byDate.has(checkin.date)) byDate.set(checkin.date, checkin);
+    }
+    return byDate;
+  }, [monthCheckins, summary]);
 
+  // The first response holds the month of the latest record: start there.
   useEffect(() => {
-    if (!summary || selectedDate) return;
-    setSelectedDate(summary.calendarCheckins[0]?.date ?? formatLocalDate());
-  }, [selectedDate, summary]);
+    if (!summary || activeMonth) return;
+    const firstMonth = summary.calendarCheckins[0]?.date.slice(0, 7) ?? formatLocalDate().slice(0, 7);
+    setMonthCheckins((current) => ({ ...current, [firstMonth]: summary.calendarCheckins }));
+    setActiveMonth(firstMonth);
+  }, [summary, activeMonth]);
+
+  // Open on today when it has a record, otherwise on the latest recorded day of the month.
+  useEffect(() => {
+    if (!summary || selectedDate || !activeMonth) return;
+    const days = monthCheckins[activeMonth] ?? [];
+    const today = formatLocalDate();
+    setSelectedDate(days.some((day) => day.date === today) ? today : (days[days.length - 1]?.date ?? today));
+  }, [selectedDate, summary, activeMonth, monthCheckins]);
+
+  const newestMonth = [...Object.keys(monthCheckins), formatLocalDate().slice(0, 7)].sort().pop() ?? "";
+
+  async function shiftMonth(delta: number) {
+    if (!activeMonth || monthLoading) return;
+    const target = shiftYearMonth(activeMonth, delta);
+    const selectDayIn = (month: string, days: CalendarCheckins) =>
+      setSelectedDate(days[days.length - 1]?.date ?? `${month}-01`);
+
+    setActiveMonth(target);
+    if (monthCheckins[target]) {
+      selectDayIn(target, monthCheckins[target]);
+      return;
+    }
+
+    setMonthLoading(true);
+    try {
+      // The summary of any day in a month carries that month's calendar records.
+      const response = await getRecordsSummary(`${target}-01`);
+      setMonthCheckins((current) => ({ ...current, [target]: response.summary.calendarCheckins }));
+      selectDayIn(target, response.summary.calendarCheckins);
+      setError(null);
+    } catch {
+      setActiveMonth(activeMonth);
+      setError("这个月的记录加载失败，请再试一次。");
+    } finally {
+      setMonthLoading(false);
+    }
+  }
 
   if (!summary && !error) {
     return (
@@ -69,7 +122,11 @@ export function RecordsView() {
             <p className="eyebrow">记录</p>
             <h2>本周稳住</h2>
           </div>
-          {summary && <span className="date-pill">已记录 {summary.calendarCheckins.length} 天</span>}
+          {summary && activeMonth && (
+            <span className="date-pill">
+              {formatMonthTitle(`${activeMonth}-01`)}已记录 {(monthCheckins[activeMonth] ?? []).length} 天
+            </span>
+          )}
         </div>
         <p>腰酸、睡眠、精神和训练量放在一起看，避免被某一天带偏。</p>
       </div>
@@ -77,11 +134,17 @@ export function RecordsView() {
       {error && <p className="error-text">{error}</p>}
       {summary && (
         <>
-          <MonthlyStatusCalendar
-            checkins={summary.calendarCheckins}
-            selectedDate={selectedDate ?? formatLocalDate()}
-            onSelectDate={setSelectedDate}
-          />
+          {activeMonth && (
+            <MonthlyStatusCalendar
+              month={activeMonth}
+              checkins={monthCheckins[activeMonth] ?? []}
+              selectedDate={selectedDate ?? formatLocalDate()}
+              onSelectDate={setSelectedDate}
+              onShiftMonth={(delta) => void shiftMonth(delta)}
+              canGoNext={activeMonth < newestMonth}
+              loading={monthLoading}
+            />
+          )}
 
           <SelectedDayCard
             date={selectedDate ?? formatLocalDate()}
@@ -228,42 +291,40 @@ function formatAiTime(value: string): string {
 }
 
 function MonthlyStatusCalendar({
+  month,
   checkins,
   selectedDate,
-  onSelectDate
+  onSelectDate,
+  onShiftMonth,
+  canGoNext,
+  loading
 }: {
-  checkins: RecordsSummaryResponse["summary"]["calendarCheckins"];
+  month: string;
+  checkins: CalendarCheckins;
   selectedDate: string;
   onSelectDate: (date: string) => void;
+  onShiftMonth: (delta: number) => void;
+  canGoNext: boolean;
+  loading: boolean;
 }) {
-  const initialAnchor = checkins[0]?.date ? checkins[0].date.slice(0, 7) : formatLocalDate().slice(0, 7);
-  const [activeMonth, setActiveMonth] = useState(initialAnchor);
-
-  function shiftMonth(delta: number) {
-    const [y, m] = activeMonth.split("-").map(Number);
-    const nextDate = new Date(y, m - 1 + delta, 1);
-    const nextMonthStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
-    setActiveMonth(nextMonthStr);
-  }
-
-  const anchorDate = `${activeMonth}-01`;
+  const anchorDate = `${month}-01`;
   const days = buildCalendarDays(anchorDate);
   const checkinByDate = new Map(checkins.map((checkin) => [checkin.date, checkin]));
 
   return (
-    <section className="card calendar-card">
-      <div className="calendar-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <section className="card calendar-card" aria-busy={loading}>
+      <div className="calendar-head">
         <div>
           <p className="eyebrow">月历</p>
           <h2>状态分布</h2>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="calendar-month-nav">
           <button
             type="button"
             className="secondary-button compact-button"
-            style={{ minHeight: "32px", padding: "0 10px", fontSize: "14px" }}
             aria-label="上一月"
-            onClick={() => shiftMonth(-1)}
+            disabled={loading}
+            onClick={() => onShiftMonth(-1)}
           >
             ‹
           </button>
@@ -271,9 +332,9 @@ function MonthlyStatusCalendar({
           <button
             type="button"
             className="secondary-button compact-button"
-            style={{ minHeight: "32px", padding: "0 10px", fontSize: "14px" }}
             aria-label="下一月"
-            onClick={() => shiftMonth(1)}
+            disabled={loading || !canGoNext}
+            onClick={() => onShiftMonth(1)}
           >
             ›
           </button>
@@ -520,7 +581,8 @@ function TrendBars({
                 : 0;
           const max = entry.max !== undefined ? entry.max : overallMax;
           const span = max - min;
-          percentage = span > 0 ? Math.max(10, Math.min(100, Math.round(((entry.value - min) / span) * 100))) : 50;
+          percentage = span > 0 ? Math.min(100, Math.max(0, Math.round(((entry.value - min) / span) * 100))) : 0;
+          if (entry.value > min && percentage < 4) percentage = 4;
         }
         return (
           <div className="trend-item" key={`trend-${entry.label}`}>
@@ -561,8 +623,15 @@ function buildCalendarDays(anchorDate: string): Array<{ date: string; dayNumber:
 }
 
 function formatMonthTitle(anchorDate: string): string {
-  const [, month] = anchorDate.slice(0, 7).split("-").map(Number);
-  return `${month} 月`;
+  const [year, month] = anchorDate.slice(0, 7).split("-").map(Number);
+  // Say the year only once it is not this year, so paging far back stays unambiguous.
+  return year === new Date().getFullYear() ? `${month} 月` : `${year} 年 ${month} 月`;
+}
+
+function shiftYearMonth(month: string, delta: number): string {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const next = new Date(year, monthNumber - 1 + delta, 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function formatDisplayDate(date: string): string {

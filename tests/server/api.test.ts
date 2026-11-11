@@ -1,7 +1,120 @@
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/server/app";
 
 describe("server app", () => {
+  it("accepts an empty JSON body but still rejects poisoned or broken JSON", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const headers = { "content-type": "application/json" };
+
+    const empty = await app.inject({ method: "POST", url: "/api/auth/logout", headers });
+    expect(empty.statusCode).toBe(200);
+
+    const poisoned = await app.inject({
+      method: "POST",
+      url: "/api/auth/logout",
+      headers,
+      payload: '{"__proto__":{"admin":true}}'
+    });
+    expect(poisoned.statusCode).toBe(400);
+
+    const constructorKey = await app.inject({
+      method: "POST",
+      url: "/api/auth/logout",
+      headers,
+      payload: '{"constructor":{"prototype":{"admin":true}}}'
+    });
+    expect(constructorKey.statusCode).toBe(400);
+
+    const broken = await app.inject({
+      method: "POST",
+      url: "/api/auth/logout",
+      headers,
+      payload: "{not json"
+    });
+    expect(broken.statusCode).toBe(400);
+
+    await app.close();
+  });
+
+  it("deletes only the owner's photo and removes its file from disk", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const cookie = await createAuthenticatedCookie(app);
+
+    const upload = await app.inject({
+      method: "POST",
+      url: "/api/photos",
+      headers: { cookie, "content-type": `multipart/form-data; boundary=${multipartBoundary}` },
+      payload: createMultipartPhotoPayload()
+    });
+    expect(upload.statusCode).toBe(200);
+    const photo = upload.json().photo;
+    const fileOnDisk = resolve("uploads-test", photo.filePath);
+    expect(existsSync(fileOnDisk)).toBe(true);
+
+    const otherUser = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        username: "other-user",
+        password: "test-password-123",
+        adultConfirmed: true,
+        termsAccepted: true
+      }
+    });
+    expect(otherUser.statusCode).toBe(200);
+    const otherSetCookie = otherUser.headers["set-cookie"];
+    const otherCookie = (Array.isArray(otherSetCookie) ? otherSetCookie[0] : otherSetCookie)?.split(";")[0] ?? "";
+
+    const crossUserDelete = await app.inject({
+      method: "DELETE",
+      url: `/api/photos/${photo.id}`,
+      headers: { cookie: otherCookie }
+    });
+    expect(crossUserDelete.statusCode).toBe(404);
+    expect(existsSync(fileOnDisk)).toBe(true);
+
+    const ownerDelete = await app.inject({
+      method: "DELETE",
+      url: `/api/photos/${photo.id}`,
+      headers: { cookie }
+    });
+    expect(ownerDelete.statusCode).toBe(200);
+    expect(existsSync(fileOnDisk)).toBe(false);
+
+    await app.close();
+  });
+
+  it("keeps the photo record when its file cannot be removed, so the delete can be retried", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const cookie = await createAuthenticatedCookie(app);
+    const upload = await app.inject({
+      method: "POST",
+      url: "/api/photos",
+      headers: { cookie, "content-type": `multipart/form-data; boundary=${multipartBoundary}` },
+      payload: createMultipartPhotoPayload()
+    });
+    const photo = upload.json().photo;
+    const fileOnDisk = resolve("uploads-test", photo.filePath);
+
+    // Make the path a non-empty folder: a plain file removal fails on it.
+    rmSync(fileOnDisk);
+    mkdirSync(fileOnDisk);
+    writeFileSync(join(fileOnDisk, "blocker"), "x");
+
+    const failed = await app.inject({ method: "DELETE", url: `/api/photos/${photo.id}`, headers: { cookie } });
+    expect(failed.statusCode).toBe(500);
+    const stillListed = await app.inject({ method: "GET", url: "/api/photos", headers: { cookie } });
+    expect(stillListed.json().photos.length).toBe(1);
+
+    rmSync(fileOnDisk, { recursive: true });
+    const retried = await app.inject({ method: "DELETE", url: `/api/photos/${photo.id}`, headers: { cookie } });
+    expect(retried.statusCode).toBe(200);
+
+    await app.close();
+  });
+
   it("responds to health check", async () => {
     const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
     const response = await app.inject({ method: "GET", url: "/api/health" });
@@ -91,6 +204,7 @@ describe("server app", () => {
     });
     expect(today.statusCode).toBe(200);
     expect(today.json().plan.id).toBe(planId);
+    expect(today.json().plan.workout).toBeNull();
 
     const workout = await app.inject({
       method: "POST",
@@ -108,6 +222,17 @@ describe("server app", () => {
     });
     expect(repeatedWorkout.statusCode).toBe(200);
     expect(repeatedWorkout.json().workoutLog.id).toBe(workout.json().workoutLog.id);
+
+    // The plan itself now says the workout is done, so the app does not have to guess from the browser.
+    const todayAfterWorkout = await app.inject({
+      method: "GET",
+      url: "/api/plans/today?date=2026-06-11",
+      headers: { cookie }
+    });
+    expect(todayAfterWorkout.json().plan.workout).toMatchObject({
+      completionStatus: "completed",
+      lowBackPainAfter: 2
+    });
 
     const records = await app.inject({
       method: "GET",

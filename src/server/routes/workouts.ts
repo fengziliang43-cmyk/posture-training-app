@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { ExerciseCompletionStatus, ExerciseResult } from "../../core/types";
+import type { ExerciseResult } from "../../core/types";
+import { deriveCompletionStatus } from "../../core/workout";
 import type { AppRepositories } from "../repositories";
 import { requireAuthenticatedUserId, type SessionStore } from "../auth";
 
@@ -65,14 +66,4 @@ export function registerWorkoutRoutes(app: FastifyInstance, context: WorkoutsRou
       throw error;
     }
   });
-}
-
-function deriveCompletionStatus(results: ExerciseResult[]): ExerciseCompletionStatus {
-  if (results.length > 0 && results.every((result) => result.completionStatus === "completed")) {
-    return "completed";
-  }
-  if (results.length > 0 && results.every((result) => result.completionStatus === "skipped")) {
-    return "skipped";
-  }
-  return "partial";
 }

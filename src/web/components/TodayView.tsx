@@ -4,6 +4,7 @@ import type { DailyCheckinInput, PlanResponsePlan } from "../api";
 import { StatusForm } from "./StatusForm";
 import { TodayPlan } from "./TodayPlan";
 import { AiCoachCard } from "./AiCoachCard";
+import { describePainChange } from "../pain-feedback";
 
 interface TodayViewProps {
   date: string;
@@ -14,7 +15,6 @@ interface TodayViewProps {
   info: string | null;
   mode: "overview" | "task";
   latestStatus: DailyCheckinInput | null;
-  completedWorkout?: { lowBackPainAfter?: number; completedCount?: number } | null;
   onModeChange: (mode: "overview" | "task") => void;
   onSubmitStatus: (status: DailyCheckinInput) => Promise<void> | void;
   onFinishWorkout: (lowBackPainAfter: number, exerciseResults: ExerciseResult[]) => Promise<void> | void;
@@ -32,7 +32,6 @@ export function TodayView({
   info,
   mode,
   latestStatus,
-  completedWorkout,
   onModeChange,
   onSubmitStatus,
   onFinishWorkout,
@@ -81,7 +80,6 @@ export function TodayView({
         date={date}
         latestStatus={latestStatus}
         plan={plan}
-        completedWorkout={completedWorkout}
         onViewTask={() => onModeChange("task")}
         onOpenRecords={onOpenRecords}
       />
@@ -178,89 +176,68 @@ function TodayOverviewCard({
   date,
   latestStatus,
   plan,
-  completedWorkout,
   onViewTask,
   onOpenRecords
 }: {
   date: string;
   latestStatus: DailyCheckinInput | null;
   plan: PlanResponsePlan | null;
-  completedWorkout?: { lowBackPainAfter?: number; completedCount?: number } | null;
   onViewTask: () => void;
   onOpenRecords?: () => void;
 }) {
-  if (completedWorkout) {
+  const workout = plan?.workout ?? null;
+  if (plan && workout) {
     const painBefore = latestStatus?.lowBackPain;
-    const painAfter = completedWorkout.lowBackPainAfter;
-    const completedExerciseCount = completedWorkout.completedCount ?? plan?.exercises.length ?? 0;
+    const painAfter = workout.lowBackPainAfter;
+    const knowsBoth = typeof painBefore === "number" && typeof painAfter === "number";
+    const completedExerciseCount = (workout.exerciseResults ?? []).filter(
+      (result) => result.completionStatus === "completed"
+    ).length;
+    const headline =
+      workout.completionStatus === "completed"
+        ? "今天练完了"
+        : workout.completionStatus === "partial"
+          ? "今天练了一部分"
+          : "今天先跳过了训练";
 
     return (
       <section className="today-overview-card card today-completed-hero">
         <div className="today-hero-head">
           <div>
-            <p className="eyebrow">今日 · 稳步前行</p>
-            <h2 style={{ display: "flex", alignItems: "center", gap: "10px", color: "#1b8a5a" }}>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "50%",
-                  background: "#1b8a5a",
-                  color: "#fff",
-                  fontSize: "16px"
-                }}
-                aria-hidden="true"
-              >
-                ✓
+            <p className="eyebrow">今日</p>
+            <h2 className="completed-title">
+              <span className="completed-check" aria-hidden="true">
+                {workout.completionStatus === "completed" ? "✓" : "–"}
               </span>
-              今天练完了
+              {headline}
             </h2>
           </div>
           <span className="date-pill">{formatDisplayDate(date)}</span>
         </div>
 
-        <div className="completed-summary-panel">
-          <div className="signal-grid" style={{ marginTop: "14px", marginBottom: "14px" }}>
-            <SignalTile label="完成动作" value={`${completedExerciseCount} 个`} tone="good" />
-            <SignalTile
-              label="练前腰酸"
-              value={typeof painBefore === "number" ? `${painBefore}/10` : "未记"}
-            />
-            <SignalTile
-              label="练后腰酸"
-              value={typeof painAfter === "number" ? `${painAfter}/10` : "未记"}
-              tone={typeof painAfter === "number" && typeof painBefore === "number" && painAfter > painBefore ? "warn" : "good"}
-            />
-          </div>
+        <div className="signal-grid">
+          <SignalTile label="完成动作" value={`${completedExerciseCount}/${plan.exercises.length}`} tone="good" />
+          <SignalTile label="练前腰酸" value={typeof painBefore === "number" ? `${painBefore}/10` : "未记"} />
+          <SignalTile
+            label="练后腰酸"
+            value={typeof painAfter === "number" ? `${painAfter}/10` : "未记"}
+            tone={knowsBoth && painAfter - painBefore >= 2 ? "warn" : "good"}
+          />
+        </div>
 
-          <div
-            className="card"
-            style={{
-              background: "rgba(235, 245, 240, 0.8)",
-              borderLeft: "4px solid #1b8a5a",
-              padding: "10px 14px",
-              marginBottom: "14px"
-            }}
-          >
-            <strong style={{ color: "#14593b", fontSize: "14px", display: "block" }}>明日指引</strong>
-            <p style={{ margin: "4px 0 0", color: "#214a38", fontSize: "13px", lineHeight: "1.5" }}>
-              今日主动作已完成。明天优先安排主动恢复、散步或轻度拉伸，避免连续大负荷；今晚请注意睡眠质量，明早观察腰背体感。
-            </p>
-          </div>
+        <p className="completed-note">
+          {knowsBoth ? describePainChange(painBefore, painAfter) : "明天会按明天的状态重新判断训练安排。"}
+        </p>
 
-          <div className="button-row">
-            <button type="button" className="secondary-button" onClick={onViewTask}>
-              回顾今日动作
+        <div className="button-row">
+          <button type="button" className="secondary-button" onClick={onViewTask}>
+            回顾今日动作
+          </button>
+          {onOpenRecords && (
+            <button type="button" className="primary-button" onClick={onOpenRecords}>
+              查看打卡与历史
             </button>
-            {onOpenRecords && (
-              <button type="button" className="primary-button" onClick={onOpenRecords}>
-                查看打卡与历史
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </section>
     );
@@ -333,7 +310,7 @@ function TodayOverviewCard({
         </div>
         <SignalBar label="睡眠与精神" value={typeof energy === "number" ? Math.min(100, energy * 20) : null} />
         <SignalBar label="腰酸风险" value={painRisk} />
-        <SignalBar label="本周累计量" value={load} />
+        <SignalBar label="今日用时占比" value={load} />
       </div>
     </section>
   );
