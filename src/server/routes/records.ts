@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { formatLocalDate } from "../../core/date";
 import { requireAuthenticatedUserId, type SessionStore } from "../auth";
 import type { AppRepositories } from "../repositories";
 import { isoDateSchema } from "../validation";
@@ -25,10 +26,9 @@ export function registerRecordsRoutes(app: FastifyInstance, context: RecordsRout
 
     const queryDate = query.data.date;
     const repositories = context.repositories.forUser(userId);
-    const date = queryDate ?? (await repositories.getLatestCheckin())?.date;
-    if (!date) {
-      return reply.code(404).send({ error: "no records" });
-    }
+    // No date asked: open on the month of the latest record. Someone with no record yet gets an
+    // empty summary for today, not an error: their first visit to the page must not look broken.
+    const date = queryDate ?? (await repositories.getLatestCheckin())?.date ?? formatLocalDate();
 
     const summary = await repositories.getRecordsSummary(date);
     return { summary };

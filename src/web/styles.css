@@ -4882,3 +4882,435 @@ button.wide {
 .app-shell.no-nav {
   padding-bottom: max(32px, calc(16px + env(safe-area-inset-bottom, 0px)));
 }
+
+/* ================================================================
+   第 3 页「记录」：本周一张卡，月历只放日期和颜色，细节都在“当天”卡里
+   ================================================================ */
+.status-pill.neutral {
+  color: var(--ink);
+  background: #f1eff7;
+}
+
+.icon-button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  padding: 0;
+  color: var(--ink);
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+}
+
+.records-loading {
+  padding: 24px 4px;
+  text-align: center;
+}
+
+.empty-card {
+  justify-items: start;
+}
+
+.empty-card h2 {
+  font-size: 22px;
+}
+
+.empty-card p {
+  margin: 0;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stat-row div {
+  display: grid;
+  gap: 2px;
+}
+
+.stat-row b {
+  color: var(--ink);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.stat-row span {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.week-text {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.cal-title {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.calendar-card .muted-text {
+  margin: 2px 0 0;
+}
+
+.cal-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.cal-weekdays,
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.cal-weekdays {
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.cal-grid {
+  gap: 6px;
+}
+
+.cal-day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-height: 0;
+  border-radius: 14px;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  box-shadow: none;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.cal-day.outside {
+  color: var(--text-2);
+  opacity: 0.55;
+}
+
+.cal-day.status-good {
+  color: var(--good);
+  background: var(--good-soft);
+}
+
+.cal-day.status-medium {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.cal-day.status-hard {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.cal-day.today {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.cal-day.selected {
+  color: #ffffff;
+  background: var(--ink);
+  opacity: 1;
+}
+
+.cal-day:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cal-trained {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.cal-legend i.good {
+  background: var(--good-soft);
+  box-shadow: inset 0 0 0 1px var(--good);
+}
+
+.cal-legend i.medium {
+  background: var(--warn-soft);
+  box-shadow: inset 0 0 0 1px var(--warn);
+}
+
+.cal-legend i.hard {
+  background: var(--bad-soft);
+  box-shadow: inset 0 0 0 1px var(--bad);
+}
+
+.cal-legend i.dot {
+  width: 6px;
+  height: 6px;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.cal-legend i.ring {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.calendar-card > .small {
+  margin: -6px 0 0;
+}
+
+.selected-day h3,
+.combined-trend-card h3,
+.card-solid > h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.day-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.mini-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mini-stats div {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  border-radius: 16px;
+  padding: 10px 4px;
+  background: var(--surface-soft);
+}
+
+.mini-stats span {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.mini-stats b {
+  color: var(--ink);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-rows {
+  display: grid;
+  gap: 10px;
+}
+
+.trend-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.trend-date {
+  color: var(--text-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ebe8f2;
+}
+
+.trend-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8f86e8, #6a5ce0);
+}
+
+.trend-num {
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
+
+.records-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.records-table th,
+.records-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 6px;
+  text-align: right;
+}
+
+.records-table thead th {
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.records-table tbody th {
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.records-table th:first-child {
+  text-align: left;
+}
+
+.records-table td {
+  color: var(--ink);
+}
+
+.records-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.fold-card {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.fold-card summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.fold-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold-card summary small {
+  flex: 1;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.fold-card summary > .ui-icon {
+  color: var(--text-2);
+  transition: transform 0.2s ease;
+}
+
+.fold-card[open] summary > .ui-icon {
+  transform: rotate(90deg);
+}
+
+.plan-records {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0 0 16px;
+  list-style: none;
+}
+
+.plan-records li {
+  display: grid;
+  gap: 2px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.plan-records li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.plan-records li > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.plan-records b {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.plan-records span {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.plan-records p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold-card summary > .ui-icon {
+    transition: none;
+  }
+}

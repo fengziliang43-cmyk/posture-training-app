@@ -345,7 +345,7 @@ export function App() {
           onOpenRecords={() => handleTabChange("records")}
         />
       )}
-      {activeTab === "records" && <RecordsView />}
+      {activeTab === "records" && <RecordsView onOpenToday={() => handleTabChange("today")} />}
       {activeTab === "posture" && <PostureView />}
       {activeTab === "me" && (
         <MeView

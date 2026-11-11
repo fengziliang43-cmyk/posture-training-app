@@ -293,6 +293,23 @@ describe("server app", () => {
     await app.close();
   });
 
+  it("gives a person with no records an empty summary instead of an error", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const cookie = await createAuthenticatedCookie(app);
+
+    const response = await app.inject({ method: "GET", url: "/api/records/summary", headers: { cookie } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().summary).toMatchObject({
+      checkins: [],
+      calendarCheckins: [],
+      trainedDates: [],
+      progressionRecords: [],
+      weeklyTrainingCount: 0
+    });
+
+    await app.close();
+  });
+
   it("validates dates, settings keys, and workout plan ids", async () => {
     const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
     const cookie = await createAuthenticatedCookie(app);
