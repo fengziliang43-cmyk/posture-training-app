@@ -31,6 +31,7 @@ import { OnboardingView } from "./components/OnboardingView";
 import { ScoliosisRiskGuide } from "./components/ScoliosisRiskGuide";
 import { SiteFooter } from "./components/SiteFooter";
 import { InstallOptions } from "./components/InstallOptions";
+import { Segmented } from "./components/ui";
 import { formatLocalDate } from "../core/date";
 import { formatDayLabel } from "./format";
 import { buildWeekSummary, type WeekSummary } from "./week";
@@ -49,6 +50,10 @@ export function isGuidePath(pathname: string): boolean {
 }
 
 const TAB_HASHES = ["#today", "#records", "#posture", "#me"];
+const AUTH_MODES = [
+  { value: "login", label: "登录" },
+  { value: "register", label: "注册" }
+] as const;
 
 export function App() {
   const [activeTab, setActiveTab] = useState<AppTab>("today");
@@ -483,104 +488,43 @@ function AuthScreen({
     }
   }
 
+  function switchMode(next: "login" | "register") {
+    if (next === mode) return;
+    setMode(next);
+    setPasswordVisible(false);
+    setPasswordConfirmationVisible(false);
+    setError(null);
+    setInfo(null);
+    if (captchaEnabled) void refreshCaptcha();
+  }
+
   return (
-    <div className="center-screen auth-page">
-      <div className="auth-shell auth-shell-responsive">
-        <div className="auth-intro-card">
-          <div className="auth-intro-brand">
-            <span className="app-mark ink-logo-mark" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="34" height="34">
-                <circle cx="12.5" cy="5" r="2.7" fill="#c8402f" stroke="none" />
-                <path d="M12.5 9.6c-3.6 2.2-3.8 6.6-.9 9.4 1.2 1.2 2.4 1.8 3.6 2.1" stroke="#1f1e24" strokeWidth="3" fill="none" strokeLinecap="round" />
-              </svg>
-            </span>
-            <div>
-              <h1 className="auth-brand-title">姿序</h1>
-              <p className="auth-brand-subtitle">脊柱侧弯保守辅助训练</p>
-            </div>
+    <div className="auth-page">
+      <div className="auth-layout">
+        <header className="auth-brand">
+          <span className="app-mark ink-logo-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="30" height="30">
+              <circle cx="12.5" cy="5" r="2.7" fill="#c8402f" stroke="none" />
+              <path d="M12.5 9.6c-3.6 2.2-3.8 6.6-.9 9.4 1.2 1.2 2.4 1.8 3.6 2.1" stroke="#1f1e24" strokeWidth="3" fill="none" strokeLinecap="round" />
+            </svg>
+          </span>
+          <div>
+            <h1 className="auth-brand-title">姿序</h1>
+            <p className="auth-brand-subtitle">脊柱侧弯保守辅助训练</p>
           </div>
-          <p className="auth-intro-lead">
-            不盲目上量，不承诺矫正。先按体能、目标与器械建立安全运动库，每天按身体状态动态决定训练量。
-          </p>
-
-          <div className="auth-value-props">
-            <div className="auth-prop-item">
-              <span className="auth-prop-dot" />
-              <div>
-                <strong>不盲目练</strong>
-                <p>建档时按体能、目标、器械和需要保守的部位，筛掉不适合你的动作。</p>
-              </div>
-            </div>
-            <div className="auth-prop-item">
-              <span className="auth-prop-dot" />
-              <div>
-                <strong>动态匹配</strong>
-                <p>每天根据腰酸、精神与可用时间匹配低门槛动作，杜绝硬撑。</p>
-              </div>
-            </div>
-            <div className="auth-prop-item">
-              <span className="auth-prop-dot" />
-              <div>
-                <strong>保守降阶</strong>
-                <p>出现危险信号当天停训；练后不适加重，下一次会调低训练量。</p>
-              </div>
-            </div>
-          </div>
-
-          {onOpenGuide && (
-            <button
-              type="button"
-              className="text-button auth-guide-link"
-              onClick={onOpenGuide}
-            >
-              了解脊柱侧弯与运动安全指南 →
-            </button>
-          )}
-        </div>
+        </header>
 
         <form
-          className="auth-card"
+          className="card-solid auth-form"
           onSubmit={(event) => {
             event.preventDefault();
             void runAuth();
           }}
         >
-        <p className="eyebrow">个人化运动与状态匹配</p>
-        <h2>{mode === "login" ? "账号登录" : "新用户建档"}</h2>
-        <p className="muted">先按你的体能、目标与器械建立运动库，再按当天精力、疼痛和可用时间生成任务。</p>
-
-        {registrationEnabled && (
-          <div className="auth-mode-switch" aria-label="登录或注册">
-            <button
-              className={mode === "login" ? "selected" : ""}
-              type="button"
-              onClick={() => {
-                setMode("login");
-                setPasswordVisible(false);
-                setPasswordConfirmationVisible(false);
-                setError(null);
-                setInfo(null);
-                if (captchaEnabled) void refreshCaptcha();
-              }}
-            >
-              登录
-            </button>
-            <button
-              className={mode === "register" ? "selected" : ""}
-              type="button"
-              onClick={() => {
-                setMode("register");
-                setPasswordVisible(false);
-                setPasswordConfirmationVisible(false);
-                setError(null);
-                setInfo(null);
-                if (captchaEnabled) void refreshCaptcha();
-              }}
-            >
-              注册
-            </button>
-          </div>
-        )}
+          <h2>{mode === "login" ? "账号登录" : "新用户建档"}</h2>
+          {registrationEnabled && (
+            <Segmented label="登录或注册" options={AUTH_MODES} value={mode} onChange={switchMode} />
+          )}
 
         <label>
           账号或邮箱
@@ -710,18 +654,57 @@ function AuthScreen({
           </div>
         )}
 
-        {error && <p className="error-text">{error}</p>}
-        {info && <p className="success-text">{info}</p>}
+          {error && <p className="error-text" role="alert">{error}</p>}
+          {info && <p className="success-text" role="status">{info}</p>}
 
-        <div className="button-row">
           <button
             type="submit"
+            className="wide"
             disabled={!authCapabilitiesReady || pendingAction !== null || (captchaEnabled && (!captcha || captchaAnswer.length !== 4))}
           >
             {pendingAction === mode ? (mode === "login" ? "登录中" : "注册中") : (mode === "login" ? "登录" : "注册并开始建档")}
           </button>
-        </div>
         </form>
+
+        <section className="card-solid auth-intro" aria-label="姿序怎么帮你">
+          <p className="auth-intro-lead">
+            不盲目上量，不承诺矫正。先按体能、目标与器械建立安全运动库，每天按身体状态动态决定训练量。
+          </p>
+          <div className="auth-value-props">
+            <div className="auth-prop-item">
+              <span className="auth-prop-dot" />
+              <div>
+                <strong>不盲目练</strong>
+                <p>建档时按体能、目标、器械和需要保守的部位，筛掉不适合你的动作。</p>
+              </div>
+            </div>
+            <div className="auth-prop-item">
+              <span className="auth-prop-dot" />
+              <div>
+                <strong>动态匹配</strong>
+                <p>每天根据腰酸、精神与可用时间匹配低门槛动作，杜绝硬撑。</p>
+              </div>
+            </div>
+            <div className="auth-prop-item">
+              <span className="auth-prop-dot" />
+              <div>
+                <strong>保守降阶</strong>
+                <p>出现危险信号当天停训；练后不适加重，下一次会调低训练量。</p>
+              </div>
+            </div>
+          </div>
+
+          {onOpenGuide && (
+            <button
+              type="button"
+              className="text-button auth-guide-link"
+              onClick={onOpenGuide}
+            >
+              了解脊柱侧弯与运动安全指南 →
+            </button>
+          )}
+        </section>
+
         <InstallOptions />
         <SiteFooter />
       </div>

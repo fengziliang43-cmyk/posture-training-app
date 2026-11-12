@@ -5756,3 +5756,150 @@ button.wide {
   outline: 2px solid rgba(106, 92, 224, 0.25);
   outline-offset: 1px;
 }
+
+/* ================================================================
+   第 6 页「登录」：手机上先给登录框；介绍和安装往后放。电脑上左介绍、右登录
+   ================================================================ */
+.auth-page {
+  min-height: 100vh;
+  padding: max(24px, env(safe-area-inset-top, 0px)) 16px max(32px, env(safe-area-inset-bottom, 0px));
+}
+
+.auth-layout {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 440px);
+  margin: 0 auto;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px;
+}
+
+.auth-brand .app-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+}
+
+.auth-brand .auth-brand-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.auth-brand .auth-brand-subtitle {
+  margin: 3px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.auth-form {
+  gap: 16px;
+}
+
+.auth-form h2 {
+  font-size: 24px;
+}
+
+.auth-intro {
+  gap: 14px;
+}
+
+.auth-intro .auth-intro-lead {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.auth-intro .auth-value-props {
+  margin: 0;
+}
+
+.auth-intro .auth-prop-dot {
+  background: var(--good);
+}
+
+.auth-intro .auth-guide-link {
+  justify-self: start;
+  color: var(--accent);
+}
+
+.install-fold summary > .ui-icon:first-child {
+  color: var(--accent);
+}
+
+.install-body {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+.install-body > p {
+  margin: 0;
+}
+
+.install-option {
+  display: grid;
+  gap: 6px;
+  border-radius: 18px;
+  padding: 14px;
+  background: var(--surface-soft);
+}
+
+.install-option p {
+  margin: 0;
+}
+
+.install-option strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.auth-layout > .site-footer {
+  justify-content: center;
+}
+
+@media (min-width: 768px) {
+  .auth-page {
+    display: grid;
+    align-content: center;
+  }
+
+  .auth-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "brand brand"
+      "intro form"
+      "install form"
+      "footer footer";
+    align-items: start;
+    column-gap: 24px;
+    width: min(100%, 920px);
+  }
+
+  .auth-brand {
+    grid-area: brand;
+  }
+
+  .auth-form {
+    grid-area: form;
+  }
+
+  .auth-intro {
+    grid-area: intro;
+  }
+
+  .auth-layout > .install-fold {
+    grid-area: install;
+  }
+
+  .auth-layout > .site-footer {
+    grid-area: footer;
+  }
+}
