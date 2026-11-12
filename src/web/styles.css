@@ -16,7 +16,7 @@
   --border-focus: #2e7d5b;
 
   /* 字号 */
-  --font-xs: 11px;
+  --font-xs: 12px;
   --font-sm: 13px;
   --font-base: 15px;
   --font-lg: 18px;
@@ -178,7 +178,7 @@ label {
 .brand-copy span {
   overflow: hidden;
   color: #76837f;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 760;
   line-height: 1.15;
   text-overflow: ellipsis;
@@ -349,7 +349,7 @@ label {
   position: absolute;
   bottom: 24px;
   color: #6e7d78;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -399,7 +399,7 @@ label {
 .metric span {
   display: block;
   color: #72817c;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -825,7 +825,7 @@ input[type="range"] {
 
 .settings-status-card span {
   color: #72817c;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -844,7 +844,7 @@ input[type="range"] {
   overflow: hidden;
   margin: 4px 0 0;
   color: #64726e;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -972,7 +972,7 @@ input[type="range"] {
 
 .calendar-weekdays span {
   color: #52746a;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   text-align: center;
 }
@@ -1059,7 +1059,7 @@ input[type="range"] {
   padding: 1px 4px;
   color: #17201d;
   background: rgba(255, 255, 255, 0.78);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -1075,7 +1075,7 @@ input[type="range"] {
   min-width: 0;
   overflow: hidden;
   color: #44544f;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -1130,7 +1130,7 @@ input[type="range"] {
 
 .selected-day-metric span {
   color: #72817c;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -1418,7 +1418,7 @@ input[type="range"] {
   padding: 8px 10px;
   color: #625e70;
   background: rgba(239, 237, 255, 0.42);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -1432,7 +1432,7 @@ input[type="range"] {
   display: inline-flex;
   margin-top: 4px;
   color: #756f84;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -1485,7 +1485,7 @@ input[type="range"] {
   color: #6d7b77;
   background: transparent;
   box-shadow: none;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -1571,7 +1571,7 @@ input[type="range"] {
 .auth-install-platform {
   display: block;
   color: #706a82;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1606,7 +1606,7 @@ input[type="range"] {
 .auth-install-checksum {
   justify-self: center;
   color: #5c5574;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
   text-decoration: none;
 }
@@ -1617,7 +1617,7 @@ input[type="range"] {
 
 .auth-install-note {
   color: #777181;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -1641,7 +1641,7 @@ input[type="range"] {
 
 .ios-install-option summary > span:last-child {
   color: #6f6880;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -1666,7 +1666,7 @@ input[type="range"] {
   gap: 6px 12px;
   padding: 2px 8px;
   color: #76837f;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   text-align: center;
 }
@@ -2004,7 +2004,7 @@ label,
   box-shadow:
     inset 0 1px 0 #fff,
     0 11px 24px rgba(116, 105, 167, 0.18);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 950;
 }
 
@@ -2018,7 +2018,7 @@ label,
   padding: 0 9px;
   color: #615b75;
   background: rgba(255, 255, 255, 0.56);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
 }
@@ -2087,12 +2087,12 @@ label,
 
 .ai-card-footer strong {
   color: #504c5a;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .ai-card-footer span {
   color: #817d89;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .ai-skeleton {
@@ -2269,7 +2269,7 @@ label,
   flex-direction: column;
   gap: 2px;
   color: #777381;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .nav-icon {
@@ -2348,7 +2348,7 @@ label,
   padding: 7px 9px;
   color: #615b75;
   background: rgba(255, 255, 255, 0.68);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -2410,7 +2410,7 @@ label,
   border-radius: 12px;
   color: #4c476a;
   background: rgba(222, 219, 255, 0.76);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 950;
 }
 
@@ -2464,7 +2464,7 @@ label,
 
 .standing-comparison figcaption span {
   color: var(--muted-ink);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -2495,7 +2495,7 @@ label,
 
 .bend-illustration span {
   color: var(--muted-ink);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -2555,7 +2555,7 @@ label,
   align-items: center;
   gap: 7px;
   color: var(--muted-ink);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .guide-sources a {
@@ -2913,7 +2913,7 @@ label,
   padding: 5px 8px;
   color: #615a87;
   background: rgba(255, 255, 255, 0.7);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .sr-only {
@@ -3018,7 +3018,7 @@ label,
 
 .me-metric span {
   color: #777281;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -3044,7 +3044,7 @@ label,
   padding: 6px 9px;
   color: #615a87;
   background: rgba(229, 225, 255, 0.62);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -3073,7 +3073,7 @@ label,
 
 .me-shortcut-card small {
   color: var(--muted-ink, #64726e);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
   line-height: 1.4;
 }
@@ -3140,7 +3140,7 @@ label,
 .me-entry-copy small {
   overflow: hidden;
   color: var(--muted-ink, #64726e);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 730;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -3174,7 +3174,7 @@ label,
 .profile-value span,
 .profile-list-block > span {
   color: #777281;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -3233,7 +3233,7 @@ label,
   border-radius: 50%;
   color: #ffffff;
   background: linear-gradient(145deg, #8e86d4, #72bfd7);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .deepseek-settings-page {
@@ -3251,7 +3251,7 @@ label,
 .deepseek-action-row button {
   min-width: 0;
   padding-inline: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .privacy-summary-card .secondary-button {
@@ -3433,7 +3433,7 @@ label,
 
 .admin-metric span {
   color: #777281;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -5498,7 +5498,7 @@ button.wide {
   border-radius: 999px;
   padding: 2px 9px;
   color: #ffffff;
-  background: rgba(31, 30, 36, 0.72);
+  background: rgba(31, 30, 36, 0.82);
   font-size: 12px;
   font-weight: 700;
 }
@@ -5902,4 +5902,11 @@ button.wide {
   .auth-layout > .site-footer {
     grid-area: footer;
   }
+}
+
+/* 总检：说明文字和页脚不低于 12px，对比度不低于 4.5 */
+.auth-install-note,
+.site-footer,
+.site-footer a {
+  color: var(--text-2);
 }
