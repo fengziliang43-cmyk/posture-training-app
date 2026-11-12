@@ -10,7 +10,7 @@
 ![Safety](https://img.shields.io/badge/training-safety%20first-d97706)
 ![License](https://img.shields.io/badge/license-MIT-0f766e)
 
-[立即使用网页版](https://body.liang111.top/) · [下载 Android 1.0.5](https://body.liang111.top/releases/zixu-android-1.0.5.apk) · [参与共建](CONTRIBUTING.md) · [安全报告](SECURITY.md) · [MIT License](LICENSE)
+[立即使用网页版](https://body.liang111.top/) · [下载 Android 1.0.6](https://body.liang111.top/releases/zixu-android-1.0.6.apk) · [参与共建](CONTRIBUTING.md) · [安全报告](SECURITY.md) · [MIT License](LICENSE)
 
 ## 项目定位
 
@@ -27,7 +27,7 @@
 
 ## 当前版本
 
-`1.0.5` 同步维护 Web/PWA 和 Android 正式包；iOS Capacitor 工程保持同步，但目前没有公开的 App Store、TestFlight 或 IPA 下载。公开服务使用 HTTPS，注册、登录、训练记录和体态照片均由同一账号体系隔离。
+网页版与 Android 1.0.6 均包含六页改版。iPhone 和 iPad 可通过 Safari 添加到主屏幕，目前没有公开的 App Store、TestFlight 或 IPA 下载。公开服务使用 HTTPS，注册、登录、训练记录和体态照片使用同一账号体系。
 
 本版新增：
 
@@ -117,10 +117,10 @@ Web app:    http://localhost:5173
 
 ## Android 安装与更新
 
-1. 在安卓手机打开 [官方下载地址](https://body.liang111.top/releases/zixu-android-1.0.5.apk)。
+1. 在安卓手机打开 [官方下载地址](https://body.liang111.top/releases/zixu-android-1.0.6.apk)。
 2. 下载后由 Android 系统继续安装；首次使用时可能需要为浏览器或文件管理器开启“允许安装未知应用”。
 3. 安装必须由用户人工确认，姿序不会绕过系统执行静默安装。
-4. 可下载同目录的 [SHA-256 校验文件](https://body.liang111.top/releases/zixu-android-1.0.5.apk.sha256)核对文件完整性。
+4. 可下载同目录的 [SHA-256 校验文件](https://body.liang111.top/releases/zixu-android-1.0.6.apk.sha256)核对文件完整性。
 5. App 内“我的 → 设置 → 检查更新”会读取官网版本清单；有新版时由用户选择下载并安装。
 
 ## 运营后台

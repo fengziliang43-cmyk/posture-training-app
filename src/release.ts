@@ -14,12 +14,17 @@ export interface LatestReleaseManifest {
 }
 
 export const CURRENT_APP_VERSION = "1.0.5";
+export const CURRENT_ANDROID_VERSION = "1.0.6";
 
 export const CURRENT_APP_BUILDS: Record<AppPlatform, number> = {
-  android: 6,
+  android: 7,
   ios: 5,
   web: 4
 };
+
+export function getCurrentAppVersion(platform: AppPlatform): string {
+  return platform === "android" ? CURRENT_ANDROID_VERSION : CURRENT_APP_VERSION;
+}
 
 const PREVIOUS_NATIVE_RELEASE_NOTES = [
   "重新整理“我的”与设置入口",
@@ -40,11 +45,16 @@ export const LATEST_RELEASE_MANIFEST: LatestReleaseManifest = {
   schemaVersion: 1,
   platforms: {
     android: {
-      version: CURRENT_APP_VERSION,
+      version: CURRENT_ANDROID_VERSION,
       build: CURRENT_APP_BUILDS.android,
-      publishedAt: "2026-08-23",
-      releaseNotes: CURRENT_APP_RELEASE_NOTES,
-      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.5.apk"
+      publishedAt: "2026-11-11",
+      releaseNotes: [
+        "重新整理登录、今日、训练、记录、体态和我的六个页面",
+        "训练页显示停训条件，练后不适由用户主动填写",
+        "记录支持翻月，体态照片支持对比与单张删除",
+        "修复退出登录和首次打开记录页的异常"
+      ],
+      installUrl: `https://body.liang111.top/releases/zixu-android-${CURRENT_ANDROID_VERSION}.apk`
     },
     ios: {
       version: "1.0.2",

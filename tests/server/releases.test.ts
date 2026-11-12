@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/server/app";
-import { CURRENT_APP_VERSION } from "../../src/release";
+import { CURRENT_ANDROID_VERSION, CURRENT_APP_VERSION } from "../../src/release";
 
 let app: FastifyInstance | undefined;
 
@@ -18,6 +18,6 @@ describe("release manifest", () => {
     expect(response.statusCode).toBe(200);
     expect(response.headers["cache-control"]).toBe("no-store");
     expect(response.json().platforms.web.version).toBe(CURRENT_APP_VERSION);
-    expect(response.json().platforms.android.version).toBe(CURRENT_APP_VERSION);
+    expect(response.json().platforms.android.version).toBe(CURRENT_ANDROID_VERSION);
   });
 });

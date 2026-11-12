@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { CURRENT_APP_BUILDS, CURRENT_APP_VERSION, LATEST_RELEASE_MANIFEST } from "../src/release";
+import {
+  CURRENT_ANDROID_VERSION,
+  CURRENT_APP_BUILDS,
+  CURRENT_APP_VERSION,
+  LATEST_RELEASE_MANIFEST
+} from "../src/release";
 
 describe("release version consistency", () => {
   it("keeps package, Android, iOS and release manifest versions aligned", () => {
@@ -17,7 +22,7 @@ describe("release version consistency", () => {
     );
 
     expect(packageJson.version).toBe(CURRENT_APP_VERSION);
-    expect(androidGradle).toContain(`versionName "${CURRENT_APP_VERSION}"`);
+    expect(androidGradle).toContain(`versionName "${CURRENT_ANDROID_VERSION}"`);
     expect(androidGradle).toContain(`versionCode ${CURRENT_APP_BUILDS.android}`);
     expect(androidGradle).toContain("ZIXU_ANDROID_KEYSTORE_PATH");
     expect(androidGradle).not.toMatch(/storePassword\s+["'][^$]/);
@@ -26,9 +31,9 @@ describe("release version consistency", () => {
     expect(LATEST_RELEASE_MANIFEST.platforms.web.version).toBe(CURRENT_APP_VERSION);
     expect(LATEST_RELEASE_MANIFEST.platforms.web.build).toBe(CURRENT_APP_BUILDS.web);
     expect(LATEST_RELEASE_MANIFEST.platforms.android).toMatchObject({
-      version: CURRENT_APP_VERSION,
+      version: CURRENT_ANDROID_VERSION,
       build: CURRENT_APP_BUILDS.android,
-      installUrl: "https://body.liang111.top/releases/zixu-android-1.0.5.apk"
+      installUrl: `https://body.liang111.top/releases/zixu-android-${CURRENT_ANDROID_VERSION}.apk`
     });
     expect(LATEST_RELEASE_MANIFEST.platforms.ios).toMatchObject({
       version: "1.0.2",

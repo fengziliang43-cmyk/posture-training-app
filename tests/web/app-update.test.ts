@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { LATEST_RELEASE_MANIFEST } from "../../src/release";
+import { CURRENT_ANDROID_VERSION, LATEST_RELEASE_MANIFEST } from "../../src/release";
 import {
   checkForAppUpdate,
   compareVersions,
@@ -29,14 +29,17 @@ describe("应用更新", () => {
 
     const result = await checkForAppUpdate({
       platform: "android",
-      currentVersion: "1.0.1",
+      currentVersion: "1.0.5",
       endpoint: "https://body.liang111.top/api/releases/latest",
       fetchImpl: fetchImpl as typeof fetch
     });
 
     expect(result.updateAvailable).toBe(true);
     expect(result.installAvailable).toBe(true);
-    expect(result.latest.version).toBe("1.0.5");
+    expect(result.latest.version).toBe(CURRENT_ANDROID_VERSION);
+    const current = await checkForAppUpdate({ platform: "android", fetchImpl });
+    expect(current.currentVersion).toBe(CURRENT_ANDROID_VERSION);
+    expect(current.updateAvailable).toBe(false);
   });
 
   it("only accepts official HTTPS install destinations", () => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getEquipmentCompatibleExercises } from "../../core/exercise-library";
 import type { TrainingProfile } from "../../core/types";
-import { CURRENT_APP_VERSION } from "../../release";
+import { getCurrentAppVersion } from "../../release";
 import {
   changePassword,
   clearDeepSeekApiKey,
@@ -307,7 +307,7 @@ export function MeView({
         />
         <nav className="card-solid me-list" aria-label="设置项目">
           <EntryButton icon="spark" label={settingsMenuEntries[0].label} description={deepseekDescription} onClick={() => onRouteChange("deepseek")} />
-          <EntryButton icon="refresh" label={settingsMenuEntries[1].label} description={`当前版本 ${CURRENT_APP_VERSION}`} onClick={() => onRouteChange("updates")} />
+          <EntryButton icon="refresh" label={settingsMenuEntries[1].label} description={`当前版本 ${getCurrentAppVersion(getAppPlatform())}`} onClick={() => onRouteChange("updates")} />
           <EntryButton icon="lock" label={settingsMenuEntries[2].label} description="修改密码、备份、退出与账号注销" onClick={() => onRouteChange("privacy")} />
           <EntryButton icon="book" label={settingsMenuEntries[3].label} description="本地规则、AI 与数据边界" onClick={() => onRouteChange("rules")} />
         </nav>
@@ -687,7 +687,7 @@ function AppUpdateSettings() {
       <div className="mini-head">
         <div>
           <p className="eyebrow">{platformLabel}</p>
-          <h3 className="section-title">姿序 {CURRENT_APP_VERSION}</h3>
+          <h3 className="section-title">姿序 {result?.currentVersion ?? getCurrentAppVersion(platform)}</h3>
         </div>
         <span className="date-pill">
           {checking ? "检查中" : result?.updateAvailable ? "有新版" : result ? "已是最新" : "未检查"}

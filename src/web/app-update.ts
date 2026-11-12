@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import {
-  CURRENT_APP_VERSION,
+  getCurrentAppVersion,
   type AppPlatform,
   type LatestReleaseManifest,
   type PlatformRelease
@@ -47,7 +47,7 @@ export async function checkForAppUpdate(options: {
   fetchImpl?: typeof fetch;
 } = {}): Promise<AppUpdateResult> {
   const platform = options.platform ?? getAppPlatform();
-  const currentVersion = options.currentVersion ?? CURRENT_APP_VERSION;
+  const currentVersion = options.currentVersion ?? getCurrentAppVersion(platform);
   const fetchImpl = options.fetchImpl ?? fetch;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), UPDATE_TIMEOUT_MS);

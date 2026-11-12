@@ -10,7 +10,7 @@
 ![Safety](https://img.shields.io/badge/training-safety%20first-d97706)
 ![License](https://img.shields.io/badge/license-MIT-0f766e)
 
-[Open the Web App](https://body.liang111.top/) · [Download Android 1.0.5](https://body.liang111.top/releases/zixu-android-1.0.5.apk) · [Contribute](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT License](LICENSE)
+[Open the Web App](https://body.liang111.top/) · [Download Android 1.0.6](https://body.liang111.top/releases/zixu-android-1.0.6.apk) · [Contribute](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT License](LICENSE)
 
 ## Purpose
 
@@ -27,7 +27,7 @@ Safety -> Posture -> Fat loss -> Muscle gain -> Conditioning
 
 ## Current Release
 
-Version `1.0.5` keeps the Web/PWA and signed Android package in sync. The iOS Capacitor project is maintained in the same source tree, but there is currently no public App Store, TestFlight, or IPA download. The public service uses HTTPS and isolates registration, sessions, training records, and posture photos by account.
+The web app and Android 1.0.6 both include the six redesigned screens. On iPhone and iPad, you can add the web app to your Home Screen from Safari. There is currently no public App Store, TestFlight, or IPA download. The public service uses HTTPS and the same account system for registration, sessions, training records, and posture photos.
 
 Highlights in this release:
 
@@ -111,10 +111,10 @@ Read the [contribution guide](CONTRIBUTING.md), [code of conduct](CODE_OF_CONDUC
 
 ## Android Installation and Updates
 
-1. Open the [official Android download](https://body.liang111.top/releases/zixu-android-1.0.5.apk) on the phone.
+1. Open the [official Android download](https://body.liang111.top/releases/zixu-android-1.0.6.apk) on the phone.
 2. Android completes the installation flow. First-time installation may require enabling “Install unknown apps” for the browser or file manager.
 3. Installation always requires user confirmation; Zixu does not bypass Android with silent installation.
-4. Use the published [SHA-256 checksum](https://body.liang111.top/releases/zixu-android-1.0.5.apk.sha256) to verify the package.
+4. Use the published [SHA-256 checksum](https://body.liang111.top/releases/zixu-android-1.0.6.apk.sha256) to verify the package.
 5. “Me → Settings → Check for updates” reads the official release manifest and lets the user choose whether to download a newer package.
 
 ## Operations Dashboard
