@@ -2836,6 +2836,29 @@ label,
   color: #7f382f;
 }
 
+.health-consent-notice strong {
+  color: #504886;
+}
+
+.health-consent-notice dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.health-consent-notice dt {
+  margin-top: 4px;
+  color: #3f3a5c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.health-consent-notice dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .onboarding-actions {
   margin-top: 2px;
 }

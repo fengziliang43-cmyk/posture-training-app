@@ -101,7 +101,7 @@ export function OnboardingView({
 
   async function submitProfile() {
     if (!form.healthConsent) {
-      setError("请阅读并同意健康数据说明后继续。");
+      setError("请阅读健康信息说明，并勾选单独同意后继续。");
       return;
     }
     setSaving(true);
@@ -341,14 +341,34 @@ export function OnboardingView({
               {editing ? (
                 <p className="muted small profile-consent-note">保存后继续按你已同意的范围，将这些信息用于个人动作筛选和当日计划匹配。</p>
               ) : (
-                <label className="check-row consent-row">
-                  <input
-                    type="checkbox"
-                    checked={form.healthConsent}
-                    onChange={(event) => setForm({ ...form, healthConsent: event.target.checked })}
-                  />
-                  <span>我同意将以上健康与训练信息用于个人动作筛选和当日计划匹配。</span>
-                </label>
+                <>
+                  {/* Shown once, when the profile is first created; bump HEALTH_CONSENT_VERSION on the server when this text changes. */}
+                  <div className="safety-notice health-consent-notice">
+                    <strong>健康信息说明（需要你单独同意）</strong>
+                    <dl>
+                      <dt>哪些信息</dt>
+                      <dd>建档里的年龄段、身高体重（可选）、体能、需要保守的部位和平时不适；之后每天记的腰背和肩颈不适、精神、睡眠、步数、饮食、体重和危险信号；训练和练后记录；你自己上传的体态照片（可选）。</dd>
+                      <dt>用来做什么</dt>
+                      <dd>筛选动作、生成当天训练、出现危险信号当天停训、按练后不适调整下次训练量、做记录和照片对比。只用于这些功能。</dd>
+                      <dt>存在哪</dt>
+                      <dd>按账号保存在姿序服务器，只有登录这个账号才能看到。照片上传前会在你的设备上重新压缩，一般会去掉拍摄时间、地点这类信息。</dd>
+                      <dt>会不会给别人</dt>
+                      <dd>不给第三方。只有你自己打开 AI 解读并填了自己的 DeepSeek Key 时，才会把当天计划的说明（含由当天状态推出的原因）或一周的汇总数字（如记录天数、平均腰酸）发给 DeepSeek；账号、照片和备注不发。</dd>
+                      <dt>保存多久、怎么删</dt>
+                      <dd>账号在就一直保存。照片可以单张删除；注销账号会删除全部档案、记录和照片，注销前可以先导出备份。</dd>
+                      <dt>为什么必须同意</dt>
+                      <dd>没有这些信息，姿序没法筛选动作、判断当天能不能练，所以不同意就不能完成建档。健康信息一旦泄露，别人可能知道你的身体状况，所以姿序按账号隔离保存，不公开展示。</dd>
+                    </dl>
+                  </div>
+                  <label className="check-row consent-row">
+                    <input
+                      type="checkbox"
+                      checked={form.healthConsent}
+                      onChange={(event) => setForm({ ...form, healthConsent: event.target.checked })}
+                    />
+                    <span>我已阅读上面的健康信息说明，单独同意姿序按说明处理这些信息。</span>
+                  </label>
+                </>
               )}
             </section>
           )}

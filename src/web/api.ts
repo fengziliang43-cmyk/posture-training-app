@@ -11,9 +11,11 @@ import type {
 import type { WeeklyReview } from "../core/weekly-review";
 import {
   cacheTodayPlan,
-  clearCachedTodayPlan,
+  clearAccountOfflineData,
+  deleteLegacyPlanCache,
   flushOfflineActions,
   getCachedTodayPlan,
+  getOfflineAccount,
   queueOfflineAction
 } from "./offline";
 
@@ -271,6 +273,11 @@ export async function setup(username: string, password: string): Promise<AuthRes
 }
 
 export async function logout(): Promise<void> {
+  const account = getOfflineAccount();
+  // Send what was recorded offline before the session ends; what cannot be sent stays with this account.
+  if (typeof navigator === "undefined" || navigator.onLine !== false) {
+    await flushQueuedOfflineActions().catch(() => 0);
+  }
   try {
     await apiRequest("/api/auth/logout", {
       method: "POST",
@@ -278,24 +285,30 @@ export async function logout(): Promise<void> {
     });
   } finally {
     localStorage.removeItem(AUTH_TOKEN_KEY);
-    clearCachedTodayPlan();
+    clearAccountOfflineData(account, { keepUnsynced: true });
+    void deleteLegacyPlanCache();
   }
 }
 
 export async function deleteAccount(password: string, confirmation: string): Promise<void> {
+  const account = getOfflineAccount();
   await apiRequest("/api/account", {
     method: "DELETE",
     body: JSON.stringify({ password, confirmation })
   });
   localStorage.removeItem(AUTH_TOKEN_KEY);
+  clearAccountOfflineData(account, { keepUnsynced: false });
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const account = getOfflineAccount();
   await apiRequest<{ ok: true; reauthenticationRequired: true }>("/api/account/password", {
     method: "PUT",
     body: JSON.stringify({ currentPassword, newPassword })
   });
   localStorage.removeItem(AUTH_TOKEN_KEY);
+  // Every session ends here, so this device keeps no more of the account than after signing out.
+  clearAccountOfflineData(account, { keepUnsynced: true });
 }
 
 export async function getProfile(): Promise<ProfileResponse> {
@@ -317,31 +330,38 @@ export async function submitCheckin(checkin: DailyCheckinInput): Promise<Checkin
 }
 
 export async function createTodayPlan(date: string): Promise<PlanResponse> {
+  const account = getOfflineAccount();
   const response = await apiRequest<PlanResponse>("/api/plans/today", {
     method: "POST",
     body: JSON.stringify({ date })
   });
   const normalized = normalizePlanResponse(response);
-  cacheTodayPlan(normalized);
+  cacheTodayPlanIfStillSignedIn(normalized, account);
   return normalized;
 }
 
 export async function getTodayPlan(date?: string): Promise<PlanResponse> {
   const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  const account = getOfflineAccount();
 
   try {
     const response = normalizePlanResponse(
       await apiRequest<PlanResponse>(`/api/plans/today${query}`)
     );
-    cacheTodayPlan(response);
+    cacheTodayPlanIfStillSignedIn(response, account);
     return response;
   } catch (error) {
     if (isRetryableApiError(error)) {
-      const cached = getCachedTodayPlan(date);
+      const cached = getCachedTodayPlan(date, account);
       if (cached) return normalizePlanResponse(cached);
     }
     throw error;
   }
+}
+
+/** A plan that arrives after its account signed out is not stored: signing out already cleared that account. */
+function cacheTodayPlanIfStillSignedIn(planResponse: PlanResponse, account: number | null): void {
+  if (account !== null && getOfflineAccount() === account) cacheTodayPlan(planResponse, account);
 }
 
 function normalizePlanResponse(response: PlanResponse): PlanResponse {
@@ -403,6 +423,7 @@ export async function completeWorkout(
     lowBackPainAfter: payload.lowBackPainAfter,
     exerciseResults: payload.exerciseResults
   };
+  const account = getOfflineAccount();
 
   try {
     return await apiRequest<WorkoutResponse>(`/api/workouts/${planId}/complete`, {
@@ -414,10 +435,14 @@ export async function completeWorkout(
       throw error;
     }
 
-    queueOfflineAction({
-      type: "completeWorkout",
-      payload: normalizedPayload
-    });
+    const queued = queueOfflineAction(
+      {
+        type: "completeWorkout",
+        payload: normalizedPayload
+      },
+      account
+    );
+    if (!queued) throw error;
 
     return {
       queued: true,
@@ -434,10 +459,15 @@ export async function completeWorkout(
 }
 
 export async function flushQueuedOfflineActions(): Promise<number> {
-  return flushOfflineActions({
-    completeWorkout: (planId, payload) =>
-      completeWorkout(planId, payload, { queueOnFailure: false })
-  });
+  return flushOfflineActions(
+    {
+      completeWorkout: (planId, payload) =>
+        completeWorkout(planId, payload, { queueOnFailure: false }),
+      // 404: the plan is not this account's (or is gone), so sending it again can never work.
+      isPermanentFailure: (error) => error instanceof ApiRequestError && error.status === 404
+    },
+    getOfflineAccount()
+  );
 }
 
 export async function getRecordsSummary(date?: string): Promise<RecordsSummaryResponse> {

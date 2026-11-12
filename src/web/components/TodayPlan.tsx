@@ -15,6 +15,7 @@ import {
   type DailyCheckinInput,
   type PlanResponsePlan
 } from "../api";
+import { exerciseFeedbackKey, getOfflineAccount } from "../offline";
 import { Icon, PainScale, Segmented } from "./ui";
 
 const exerciseById = new Map(exerciseLibrary.map((exercise) => [exercise.id, exercise]));
@@ -486,7 +487,9 @@ function getExerciseInstanceKey(
 
 function readSavedExerciseResults(planId: number, signature: string): ExerciseResult[] {
   try {
-    const raw = localStorage.getItem(exerciseStorageKey(planId));
+    const key = exerciseStorageKey(planId);
+    if (!key) return [];
+    const raw = localStorage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as
       | ExerciseResult[]
@@ -503,8 +506,10 @@ function saveExerciseResults(
   signature: string,
   results: LocalExerciseResult[]
 ): void {
+  const key = exerciseStorageKey(planId);
+  if (!key) return;
   localStorage.setItem(
-    exerciseStorageKey(planId),
+    key,
     JSON.stringify({
       signature,
       results: results.filter((result): result is ExerciseResult => result !== null)
@@ -512,8 +517,10 @@ function saveExerciseResults(
   );
 }
 
-function exerciseStorageKey(planId: number): string {
-  return `posture-training.exercise-feedback.${planId}`;
+/** Kept per account and cleared on sign-out, so the next person on this device never sees these notes. */
+function exerciseStorageKey(planId: number): string | null {
+  const account = getOfflineAccount();
+  return account === null ? null : exerciseFeedbackKey(account, planId);
 }
 
 function describeTimeVersion(timeVersion: PlanResponsePlan["timeVersion"]): string {

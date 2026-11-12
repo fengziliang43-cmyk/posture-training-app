@@ -3,6 +3,7 @@ import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildApp } from "../../src/server/app";
+import { HEALTH_CONSENT_VERSION } from "../../src/server/routes/profile";
 
 describe("open registration and onboarding", () => {
   it("advertises registration availability in development", async () => {
@@ -466,6 +467,33 @@ describe("open registration and onboarding", () => {
     await expect(access(quarantineDir)).rejects.toThrow();
     await secondApp.close();
     await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("records the health consent once, at first onboarding, under the notice version that was shown", async () => {
+    const app = await buildApp({ databaseFile: ":memory:", uploadDir: "uploads-test" });
+    const user = await registerAndOnboard(app, "consent-check");
+    const healthConsents = async () =>
+      ((await (app as any).db.all(
+        "SELECT policy_version FROM user_consents WHERE user_id = ? AND consent_type = 'health-data'",
+        user.id
+      )) as Array<{ policy_version: string }>).map((row) => row.policy_version);
+    expect(await healthConsents()).toEqual([HEALTH_CONSENT_VERSION]);
+
+    // Someone who agreed to an older notice edits the profile later: the edit form only says
+    // "continue within what you agreed to", so no newer version may be recorded for them.
+    await (app as any).db.run(
+      "UPDATE user_consents SET policy_version = '2026-08-09-v1' WHERE user_id = ? AND consent_type = 'health-data'",
+      user.id
+    );
+    const edit = await app.inject({
+      method: "PUT",
+      url: "/api/profile",
+      headers: { cookie: user.cookie },
+      payload: { ...profilePayload(), defaultSessionMinutes: 20 }
+    });
+    expect(edit.statusCode).toBe(200);
+    expect(await healthConsents()).toEqual(["2026-08-09-v1"]);
+    await app.close();
   });
 });
 

@@ -5,7 +5,8 @@ import { requireAuthenticatedUserId, type SessionStore } from "../auth";
 import type { AppDatabase } from "../db";
 
 export const ONBOARDING_VERSION = "2026-08-09-v1";
-export const HEALTH_CONSENT_VERSION = "2026-08-09-v1";
+/** Version of the health notice shown at onboarding (text in OnboardingView); bump it when the text changes. */
+export const HEALTH_CONSENT_VERSION = "2026-11-12-v2";
 
 const equipmentValues = [
   "bodyweight",
@@ -67,6 +68,13 @@ export function registerProfileRoutes(app: FastifyInstance, context: ProfileRout
     const profile = parsed.data;
     await context.db.exec("BEGIN IMMEDIATE");
     try {
+      // The health notice and its consent box appear only when the profile is first created; later
+      // edits say "continue within what you agreed to", so they must not record a newer version.
+      const existing = await context.db.get<{ completed_at: string | null }>(
+        "SELECT completed_at FROM user_profiles WHERE user_id = ?",
+        userId
+      );
+      const firstOnboarding = !existing?.completed_at;
       await context.db.run(
         `INSERT INTO user_profiles (
           user_id, age_range, height_cm, weight_kg, fitness_level, goals_json,
@@ -110,15 +118,17 @@ export function registerProfileRoutes(app: FastifyInstance, context: ProfileRout
         profile.baselineNeckShoulderPain ?? null,
         ONBOARDING_VERSION
       );
-      await context.db.run(
-        `INSERT INTO user_consents (user_id, consent_type, policy_version)
-         VALUES (?, 'health-data', ?)
-         ON CONFLICT(user_id, consent_type, policy_version) DO UPDATE SET
-           granted_at = CURRENT_TIMESTAMP,
-           revoked_at = NULL`,
-        userId,
-        HEALTH_CONSENT_VERSION
-      );
+      if (firstOnboarding) {
+        await context.db.run(
+          `INSERT INTO user_consents (user_id, consent_type, policy_version)
+           VALUES (?, 'health-data', ?)
+           ON CONFLICT(user_id, consent_type, policy_version) DO UPDATE SET
+             granted_at = CURRENT_TIMESTAMP,
+             revoked_at = NULL`,
+          userId,
+          HEALTH_CONSENT_VERSION
+        );
+      }
       await context.db.exec("COMMIT");
     } catch (error) {
       await context.db.exec("ROLLBACK");

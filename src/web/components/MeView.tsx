@@ -469,7 +469,7 @@ export function MeView({
         <section className="card-solid setting-panel privacy-summary-card">
           <p className="eyebrow">数据边界</p>
           <h3 className="section-title">你的记录只归当前账号</h3>
-          <p className="muted small">训练记录和体态照片按账号隔离保存在姿序服务器；导出只包含当前账号的数据，不包含任何 DeepSeek API Key。</p>
+          <p className="muted small">每日状态、训练记录和体态照片属于健康信息，按账号隔离保存在姿序服务器，只用于训练匹配和记录对比；只有你自己开启 AI 解读时，才会把计划说明或一周汇总数字发给 DeepSeek，照片不发。导出只包含当前账号的数据，不包含任何 DeepSeek API Key。</p>
           <button type="button" className="secondary-button" disabled={saving} onClick={() => void exportBackup()}>
             导出账号备份
           </button>

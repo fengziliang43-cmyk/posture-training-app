@@ -21,6 +21,7 @@ import {
   type PlanResponsePlan,
   type PlanWorkout
 } from "./api";
+import { setOfflineAccount } from "./offline";
 import { RecordsView } from "./components/RecordsView";
 import { PostureView } from "./components/PostureView";
 import { MeView, type MeRoute } from "./components/SettingsView";
@@ -74,12 +75,25 @@ export function App() {
   const [week, setWeek] = useState<WeekSummary | null>(null);
   const [defaultMinutes, setDefaultMinutes] = useState<number | undefined>(undefined);
 
+  // One token per signed-in account, replaced on every sign-in and sign-out. An answer that arrives
+  // after the token changed is dropped, so the next person never sees the previous account's plan,
+  // check-in or messages; the offline store switches to the new account at the same moment.
+  const session = useRef<{ userId: number | null }>({ userId: null });
+  function applyAuthUser(user: AuthUser | null) {
+    const userId = user?.id ?? null;
+    if (session.current.userId !== userId) {
+      session.current = { userId };
+      setOfflineAccount(userId);
+    }
+    setAuthUser(user);
+  }
+
   // Whoever signs in next must not see the previous account's plan or check-in that are still in memory,
   // and starts on Today instead of the page the last person left from.
-  const signedInUserId = useRef<number | null>(null);
+  const previousUserId = useRef<number | null>(null);
   useEffect(() => {
-    const signedOut = signedInUserId.current !== null && authUser === null;
-    signedInUserId.current = authUser?.id ?? null;
+    const signedOut = previousUserId.current !== null && authUser === null;
+    previousUserId.current = authUser?.id ?? null;
 
     setTodayPlan(null);
     setLatestStatus(null);
@@ -88,6 +102,8 @@ export function App() {
     setTodayInfo(null);
     setWeek(null);
     setDefaultMinutes(undefined);
+    setPlanLoading(false);
+    setFinishLoading(false);
 
     if (signedOut && typeof window !== "undefined") {
       setActiveTab("today");
@@ -115,23 +131,26 @@ export function App() {
   }, []);
 
   function refreshWeek() {
-    const requestedFor = signedInUserId.current;
+    const requestedIn = session.current;
     getRecordsSummary(formatLocalDate())
       .then((response) => {
-        if (signedInUserId.current === requestedFor) setWeek(buildWeekSummary(response.summary));
+        if (session.current === requestedIn) setWeek(buildWeekSummary(response.summary));
       })
       .catch(() => undefined);
   }
 
   /** Resolves to false when saving failed, so the form can stay open with what was typed. */
   async function handleStatusSubmit(status: DailyCheckinInput): Promise<boolean> {
+    const requestedIn = session.current;
     setPlanLoading(true);
     setTodayError(null);
     setTodayInfo(null);
 
     try {
       const checkinResponse = await submitCheckin(status);
+      if (session.current !== requestedIn) return false;
       const result = await createTodayPlan(status.date);
+      if (session.current !== requestedIn) return false;
       setLatestStatus(checkinResponse.checkin);
       setTodayPlan(result.plan);
       setTodayMode("overview");
@@ -139,11 +158,12 @@ export function App() {
       window.scrollTo({ top: 0, behavior: "auto" });
       return true;
     } catch {
+      if (session.current !== requestedIn) return false;
       setTodayError("今天任务生成失败，请检查服务器连接。");
       window.scrollTo({ top: 0, behavior: "auto" });
       return false;
     } finally {
-      setPlanLoading(false);
+      if (session.current === requestedIn) setPlanLoading(false);
     }
   }
 
@@ -155,6 +175,7 @@ export function App() {
       return;
     }
 
+    const requestedIn = session.current;
     setFinishLoading(true);
     setTodayError(null);
     setTodayInfo(null);
@@ -164,6 +185,7 @@ export function App() {
         lowBackPainAfter,
         exerciseResults
       });
+      if (session.current !== requestedIn) return;
       // The server keeps the record; the plan carries it back so the page never has to guess.
       const workout: PlanWorkout = {
         completedAt: result.workoutLog.completedAt,
@@ -180,9 +202,9 @@ export function App() {
       setTodayMode("overview");
       window.scrollTo({ top: 0, behavior: "auto" });
     } catch {
-      setTodayError("训练完成记录提交失败。");
+      if (session.current === requestedIn) setTodayError("训练完成记录提交失败。");
     } finally {
-      setFinishLoading(false);
+      if (session.current === requestedIn) setFinishLoading(false);
     }
   }
 
@@ -206,47 +228,46 @@ export function App() {
 
   useEffect(() => {
     getMe()
-      .then((response) => setAuthUser(response.user))
-      .catch(() => setAuthUser(null))
+      .then((response) => applyAuthUser(response.user))
+      .catch(() => applyAuthUser(null))
       .finally(() => setAuthLoading(false));
   }, []);
 
   useEffect(() => {
     if (!authUser?.onboardingCompleted) return;
+    const requestedIn = session.current;
+    const stillSignedIn = () => session.current === requestedIn;
 
     getTodayPlan(formatLocalDate())
-      .then((response) => setTodayPlan(response.plan))
+      .then((response) => {
+        if (stillSignedIn()) setTodayPlan(response.plan);
+      })
       .catch(() => undefined);
 
     getRecentCheckins()
       .then((response) => {
+        if (!stillSignedIn()) return;
         const today = response.checkins.find((checkin) => checkin.date === formatLocalDate());
         if (today) setLatestStatus(today);
       })
       .catch(() => undefined);
 
-    const requestedFor = signedInUserId.current;
     getProfile()
       .then((response) => {
-        if (signedInUserId.current === requestedFor && response.profile) {
+        if (stillSignedIn() && response.profile) {
           setDefaultMinutes(response.profile.defaultSessionMinutes);
         }
       })
       .catch(() => undefined);
     refreshWeek();
 
-    flushQueuedOfflineActions()
-      .then((flushed) => {
-        if (flushed > 0) setTodayInfo(`已同步 ${flushed} 条离线记录。`);
-      })
-      .catch(() => undefined);
+    function reportFlushed(flushed: number) {
+      if (stillSignedIn() && flushed > 0) setTodayInfo(`已同步 ${flushed} 条离线记录。`);
+    }
+    flushQueuedOfflineActions().then(reportFlushed).catch(() => undefined);
 
     function handleOnline() {
-      flushQueuedOfflineActions()
-        .then((flushed) => {
-          if (flushed > 0) setTodayInfo(`已同步 ${flushed} 条离线记录。`);
-        })
-        .catch(() => undefined);
+      flushQueuedOfflineActions().then(reportFlushed).catch(() => undefined);
     }
 
     window.addEventListener("online", handleOnline);
@@ -292,7 +313,7 @@ export function App() {
         }}
         onAuthed={(user) => {
           setAuthNotice(null);
-          setAuthUser(user);
+          applyAuthUser(user);
         }}
       />
     );
@@ -305,7 +326,7 @@ export function App() {
     return (
       <AdminConsole
         username={authUser.username}
-        onLogout={() => void handleAdminLogout(setAuthUser)}
+        onLogout={() => void handleAdminLogout(applyAuthUser)}
       />
     );
   }
@@ -314,11 +335,13 @@ export function App() {
     return (
       <OnboardingView
         username={authUser.username}
-        onComplete={() => setAuthUser({ ...authUser, onboardingCompleted: true })}
+        onComplete={() => applyAuthUser({ ...authUser, onboardingCompleted: true })}
       />
     );
   }
 
+  // Captured per render: a plan change from a page the previous account left open is ignored.
+  const renderedIn = session.current;
   return (
     <Layout
       activeTab={activeTab}
@@ -345,7 +368,9 @@ export function App() {
           }}
           onSubmitStatus={handleStatusSubmit}
           onFinishWorkout={handleFinishTodayWorkout}
-          onPlanChange={setTodayPlan}
+          onPlanChange={(plan) => {
+            if (session.current === renderedIn) setTodayPlan(plan);
+          }}
           onOpenSettings={() => openMeRoute("deepseek")}
           onOpenRecords={() => handleTabChange("records")}
         />
@@ -357,10 +382,10 @@ export function App() {
           route={meRoute}
           username={authUser.username}
           onRouteChange={setMeRoute}
-          onLogout={() => handleLogout(setAuthUser)}
+          onLogout={() => handleLogout(applyAuthUser)}
           onPasswordChanged={() => {
             setAuthNotice("密码已修改，请使用新密码重新登录。");
-            setAuthUser(null);
+            applyAuthUser(null);
           }}
         />
       )}
@@ -614,7 +639,7 @@ function AuthScreen({
             </label>
             <details className="privacy-summary">
               <summary>使用与隐私说明摘要</summary>
-              <p>账号或邮箱和密码用于登录；年龄段、体能、运动目标、当日状态等用于训练匹配。邮箱目前只作为登录账号，不发送验证邮件。身高体重可选，姿势照片不是必填项。姿序不做医疗诊断或治疗；动作视频会打开哔哩哔哩第三方页面。</p>
+              <p>账号或邮箱和密码用于登录；邮箱目前只作为登录账号，不发送验证邮件。年龄段、体能、每日状态、训练记录和体态照片（可选）属于健康和训练信息，只用于训练匹配和记录对比，建档时会单独说明并征求你的同意。姿序不做医疗诊断或治疗；动作视频会打开哔哩哔哩第三方页面。</p>
             </details>
           </>
         )}
