@@ -352,8 +352,6 @@ export function App() {
           route={meRoute}
           username={authUser.username}
           onRouteChange={setMeRoute}
-          onOpenRecords={() => setActiveTab("records")}
-          onOpenPosture={() => setActiveTab("posture")}
           onLogout={() => handleLogout(setAuthUser)}
           onPasswordChanged={() => {
             setAuthNotice("密码已修改，请使用新密码重新登录。");

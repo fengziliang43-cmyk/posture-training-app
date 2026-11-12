@@ -5576,3 +5576,183 @@ button.wide {
   color: var(--ink);
   font-size: 16px;
 }
+
+/* ================================================================
+   第 5 页「我的」：账号和训练档案一张卡，设置项直接列出，退出登录放在最后
+   ================================================================ */
+.me-profile {
+  gap: 14px;
+}
+
+.me-who {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.me-avatar {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(145deg, #8f86e8, #6a5ce0);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.me-who h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.me-who .muted-text {
+  margin: 2px 0 0;
+}
+
+.me-who .text-button {
+  min-height: 40px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mini-stats.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.me-list {
+  gap: 0;
+  padding: 4px 0;
+}
+
+.me-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 68px;
+  border-radius: 0;
+  padding: 10px 16px;
+  color: var(--ink);
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  font-weight: 400;
+}
+
+.me-row + .me-row {
+  border-top: 1px solid var(--line);
+}
+
+.me-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.me-row-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--accent);
+  background: #efedf8;
+}
+
+.me-row-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.me-row-copy strong {
+  font-size: 16px;
+}
+
+.me-row-copy small {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.me-row > .ui-icon:last-child {
+  color: var(--text-2);
+}
+
+.me-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.me-sub-head {
+  display: grid;
+  gap: 2px;
+}
+
+.me-sub-head h2 {
+  margin: 0;
+  padding: 0 4px;
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.card-solid .setting-toggle-row.compact {
+  border: 0;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: var(--surface-soft);
+}
+
+.danger-fold {
+  border: 1px solid rgba(179, 38, 30, 0.22);
+  border-radius: var(--card-radius);
+  padding: 0 18px;
+  background: var(--surface);
+}
+
+.danger-fold > summary {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  color: var(--bad);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.danger-fold > form {
+  padding-bottom: 18px;
+}
+
+/* 白卡片、折叠行和浮层里的输入框要看得出边界 */
+.card-solid input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.card-solid select,
+.fold-card input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.danger-fold input,
+.sheet input {
+  border: 1px solid rgba(37, 36, 42, 0.16);
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.card-solid input:focus-visible,
+.card-solid select:focus-visible,
+.fold-card input:focus-visible,
+.danger-fold input:focus-visible,
+.sheet input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid rgba(106, 92, 224, 0.25);
+  outline-offset: 1px;
+}
