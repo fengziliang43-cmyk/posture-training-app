@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { deletePhoto, downloadPhotoFile, listPhotos, updatePhotoNote, uploadPhoto, type PhotoRecord } from "../api";
 import { formatLocalDate } from "../../core/date";
+import { formatDayLabel } from "../format";
 import { formatLocalClock, orderOlderFirst } from "../photo-compare";
 import { ScoliosisRiskGuide } from "./ScoliosisRiskGuide";
+import { Icon, Segmented } from "./ui";
 
 const angles = [
   { value: "front", label: "正面" },
@@ -10,11 +12,18 @@ const angles = [
   { value: "back", label: "背面" }
 ] as const;
 
+type Angle = (typeof angles)[number]["value"];
 type ViewType = "side" | "blend" | "slider";
+
+const VIEW_OPTIONS: ReadonlyArray<{ value: ViewType; label: string }> = [
+  { value: "side", label: "并排" },
+  { value: "slider", label: "滑动" },
+  { value: "blend", label: "叠加" }
+];
 
 export function PostureView() {
   const [photos, setPhotos] = useState<PhotoRecord[]>([]);
-  const [selectedAngle, setSelectedAngle] = useState<(typeof angles)[number]["value"]>("front");
+  const [selectedAngle, setSelectedAngle] = useState<Angle>("front");
   const [compareMode, setCompareMode] = useState<"latest" | "month">("latest");
   const [viewType, setViewType] = useState<ViewType>("side");
   const [compareBlend, setCompareBlend] = useState(50);
@@ -25,6 +34,12 @@ export function PostureView() {
   const [photoUrls, setPhotoUrls] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadAngle, setUploadAngle] = useState<Angle>("front");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  // The photo whose details sheet is open.
+  const [activePhotoId, setActivePhotoId] = useState<number | null>(null);
+  const [sheetError, setSheetError] = useState<string | null>(null);
 
   useEffect(() => {
     refreshPhotos();
@@ -64,6 +79,21 @@ export function PostureView() {
     };
   }, [photos]);
 
+  // The details sheet closes on Escape, and the page behind it does not scroll while it is open.
+  useEffect(() => {
+    if (activePhotoId === null) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActivePhotoId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [activePhotoId]);
+
   const groupedPhotos = useMemo(() => groupPhotosByDate(photos), [photos]);
   const anglePhotos = useMemo(
     () => selectComparisonPhotos(photos.filter((photo) => photo.angle === selectedAngle), compareMode),
@@ -71,6 +101,13 @@ export function PostureView() {
   );
   const comparisonReady = anglePhotos.length >= 2 && anglePhotos.every((photo) => photoUrls[photo.id]);
   const [olderPhoto, newerPhoto] = orderOlderFirst(anglePhotos);
+  const selectedAngleLabel = angles.find((angle) => angle.value === selectedAngle)?.label ?? "";
+  const selectedAngleCount = photos.filter((photo) => photo.angle === selectedAngle).length;
+  const angleOptions = angles.map((angle) => ({
+    value: angle.value,
+    label: `${angle.label} ${photos.filter((photo) => photo.angle === angle.value).length}`
+  }));
+  const activePhoto = photos.find((photo) => photo.id === activePhotoId) ?? null;
 
   async function refreshPhotos() {
     try {
@@ -82,19 +119,30 @@ export function PostureView() {
     }
   }
 
+  function openUpload(angle: Angle) {
+    setUploadAngle(angle);
+    setUploadOpen(true);
+    setUploadError(null);
+    requestAnimationFrame(() => {
+      document.getElementById("posture-upload")?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  }
+
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const fileInput = form.elements.namedItem("photoFile") as HTMLInputElement | null;
     const dateInput = form.elements.namedItem("photoDate") as HTMLInputElement | null;
-    const angleInput = form.elements.namedItem("angle") as HTMLSelectElement | null;
+    const angleInput = form.elements.namedItem("angle") as HTMLInputElement | null;
     const noteInput = form.elements.namedItem("note") as HTMLInputElement | null;
 
     if (!fileInput?.files?.[0] || !dateInput || !angleInput) {
+      setUploadError("请先选一张照片。");
       return;
     }
 
     setBusy(true);
+    setUploadError(null);
     try {
       const originalFile = fileInput.files[0];
       const preparedFile = await preparePhotoUpload(originalFile);
@@ -105,9 +153,10 @@ export function PostureView() {
       formData.append("file", preparedFile, originalFile.name);
       await uploadPhoto(formData);
       form.reset();
+      setUploadOpen(false);
       await refreshPhotos();
     } catch {
-      setError("照片上传失败。");
+      setUploadError("照片上传失败，请再试一次。");
     } finally {
       setBusy(false);
     }
@@ -118,11 +167,13 @@ export function PostureView() {
       return;
     }
     setBusy(true);
+    setSheetError(null);
     try {
       await deletePhoto(photoId);
+      setActivePhotoId(null);
       await refreshPhotos();
     } catch {
-      setError("删除照片失败。");
+      setSheetError("删除照片失败。");
     } finally {
       setBusy(false);
     }
@@ -130,12 +181,14 @@ export function PostureView() {
 
   async function saveNote(photoId: number) {
     setBusy(true);
+    setSheetError(null);
     try {
       const note = noteDrafts[photoId] ?? photos.find((photo) => photo.id === photoId)?.note ?? "";
       await updatePhotoNote(photoId, note);
+      setActivePhotoId(null);
       await refreshPhotos();
     } catch {
-      setError("备注保存失败。");
+      setSheetError("备注保存失败。");
     } finally {
       setBusy(false);
     }
@@ -143,80 +196,34 @@ export function PostureView() {
 
   return (
     <section className="stack">
-      <div className="hero-card">
-        <p className="eyebrow">体态</p>
-        <h2>每周三角度留档</h2>
-        <p>支持本地上传正面、侧面、背面照片，并按同角度做对比。</p>
-      </div>
+      <p className="privacy-note" role="note">
+        <Icon name="shield" size={20} />
+        <span>只做人工对比，不做 AI 或医疗诊断。照片只保存在服务器，不发送给 DeepSeek。</span>
+      </p>
 
-      <div className="privacy-banner" role="note">
-        <strong>只做人工对比</strong>
-        <span>不做 AI 或医疗诊断；照片只保存在服务器，不发送给 DeepSeek。</span>
-      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
 
-      <ScoliosisRiskGuide />
-
-      {error && <p className="error-text">{error}</p>}
-
-      <section className="card">
-        <div className="mini-head">
-          <div>
-            <p className="eyebrow">对比视图</p>
-            <h3 className="section-title">{angles.find((angle) => angle.value === selectedAngle)?.label}对比</h3>
-          </div>
-          <button
-            type="button"
-            className={showGuideLines ? "secondary-button active-chip" : "secondary-button"}
-            style={{ minHeight: "32px", padding: "0 10px", fontSize: "13px" }}
-            onClick={() => setShowGuideLines((prev) => !prev)}
-          >
-            {showGuideLines ? "隐藏参考线" : "显示参考线"}
-          </button>
+      <section className="card-solid compare-card">
+        <div className="card-head-row">
+          <h2>{selectedAngleLabel}对比</h2>
+          {comparisonReady && (
+            <button
+              type="button"
+              className="text-button"
+              aria-pressed={showGuideLines}
+              onClick={() => setShowGuideLines((prev) => !prev)}
+            >
+              {showGuideLines ? "隐藏参考线" : "显示参考线"}
+            </button>
+          )}
         </div>
 
-        <div className="chip-row" style={{ marginTop: "6px" }}>
-          <button
-            type="button"
-            className={compareMode === "latest" ? "secondary-button active-chip" : "secondary-button"}
-            onClick={() => setCompareMode("latest")}
-          >
-            最新对比
-          </button>
-          <button
-            type="button"
-            className={compareMode === "month" ? "secondary-button active-chip" : "secondary-button"}
-            onClick={() => setCompareMode("month")}
-          >
-            本月对比
-          </button>
-        </div>
-
-        <div className="chip-row" style={{ marginTop: "6px", marginBottom: "12px" }}>
-          <button
-            type="button"
-            className={viewType === "side" ? "secondary-button active-chip" : "secondary-button"}
-            onClick={() => setViewType("side")}
-          >
-            并排
-          </button>
-          <button
-            type="button"
-            className={viewType === "slider" ? "secondary-button active-chip" : "secondary-button"}
-            onClick={() => setViewType("slider")}
-          >
-            滑动
-          </button>
-          <button
-            type="button"
-            className={viewType === "blend" ? "secondary-button active-chip" : "secondary-button"}
-            onClick={() => setViewType("blend")}
-          >
-            叠加
-          </button>
-        </div>
+        <Segmented label="选择角度" options={angleOptions} value={selectedAngle} onChange={setSelectedAngle} />
 
         {comparisonReady && olderPhoto && newerPhoto ? (
           <div className="compare-wrap">
+            <Segmented label="对比方式" options={VIEW_OPTIONS} value={viewType} onChange={setViewType} />
+
             {viewType === "side" && (
               <div className="compare-side-by-side">
                 <figure className="compare-side-figure">
@@ -293,58 +300,67 @@ export function PostureView() {
               </label>
             )}
 
-            <p className="muted small">
-              {viewType === "side" && `左：${olderPhoto.photoDate}（较早） · 右：${newerPhoto.photoDate}（较新）`}
-              {viewType === "blend" && `底：${olderPhoto.photoDate}（较早） · 上层半透明：${newerPhoto.photoDate}（较新）`}
-              {viewType === "slider" && `滑块左侧：${olderPhoto.photoDate}（较早） · 右侧：${newerPhoto.photoDate}（较新）`}
-              {" · "}
-              {angles.find((angle) => angle.value === selectedAngle)?.label}
-              {compareMode === "latest" ? "，最近两张" : "，本月第一张与最新一张"}
-            </p>
+            <div className="compare-caption">
+              <p className="muted small">
+                {viewType === "side" && `左：${olderPhoto.photoDate}（较早） · 右：${newerPhoto.photoDate}（较新）`}
+                {viewType === "blend" && `底：${olderPhoto.photoDate}（较早） · 上层半透明：${newerPhoto.photoDate}（较新）`}
+                {viewType === "slider" && `滑块左侧：${olderPhoto.photoDate}（较早） · 右侧：${newerPhoto.photoDate}（较新）`}
+                {compareMode === "latest" ? " · 最近两张" : " · 本月第一张与最新一张"}
+              </p>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setCompareMode(compareMode === "latest" ? "month" : "latest")}
+              >
+                {compareMode === "latest" ? "改看本月第一张与最新一张" : "改看最近两张"}
+              </button>
+            </div>
           </div>
         ) : anglePhotos.length >= 2 ? (
           <p className="muted">正在加载照片……</p>
         ) : (
-          <p className="muted">先上传同角度两张照片，再开启对比视图。</p>
+          <div className="compare-empty">
+            <p>
+              {selectedAngleCount === 0
+                ? `还没有${selectedAngleLabel}照片。`
+                : `${selectedAngleLabel}照片只有 ${selectedAngleCount} 张。`}
+              同一个角度有两张，才能对比。
+            </p>
+            <button type="button" className="secondary-button" onClick={() => openUpload(selectedAngle)}>
+              添加{selectedAngleLabel}照片
+            </button>
+          </div>
         )}
       </section>
 
-      <section className="card">
-        <h3 className="section-title">角度选择</h3>
-        <div className="chip-row">
-          {angles.map((angle) => {
-            const count = photos.filter((photo) => photo.angle === angle.value).length;
-            return (
-              <button
-                key={angle.value}
-                type="button"
-                className={selectedAngle === angle.value ? "secondary-button active-chip" : "secondary-button"}
-                onClick={() => setSelectedAngle(angle.value)}
-              >
-                {angle.label} {count}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <details
+        className="fold-card upload-row"
+        id="posture-upload"
+        open={uploadOpen}
+        onToggle={(event) => {
+          const isOpen = event.currentTarget.open;
+          setUploadOpen(isOpen);
+          if (isOpen) setUploadAngle(selectedAngle);
+        }}
+      >
+        <summary>
+          <Icon name="camera" />
+          <span>添加照片</span>
+          <small>每周正面、侧面、背面各一张</small>
+          <Icon name="right" size={16} />
+        </summary>
+        <form className="upload-form" onSubmit={handleUpload}>
+          <input type="hidden" name="angle" value={uploadAngle} />
+          <div className="field-block">
+            <div className="field-head">
+              <span>角度</span>
+            </div>
+            <Segmented label="这张照片的角度" options={angles} value={uploadAngle} onChange={setUploadAngle} />
+          </div>
 
-      <details className="status-drawer">
-        <summary>上传照片</summary>
-        <form className="posture-form" onSubmit={handleUpload}>
           <label>
             拍摄日期
             <input name="photoDate" type="date" defaultValue={formatLocalDate()} />
-          </label>
-
-          <label>
-            角度
-            <select name="angle" defaultValue="front">
-              {angles.map((angle) => (
-                <option key={angle.value} value={angle.value}>
-                  {angle.label}
-                </option>
-              ))}
-            </select>
           </label>
 
           <label>
@@ -353,81 +369,114 @@ export function PostureView() {
           </label>
 
           <label>
-            备注
+            备注（选填）
             <input name="note" maxLength={200} placeholder="比如：自然站姿、训练后、腰酸低" />
           </label>
 
-          <button type="submit" disabled={busy}>
+          {uploadError && <p className="error-text" role="alert">{uploadError}</p>}
+          <button type="submit" className="wide" disabled={busy}>
             {busy ? "上传中" : "上传照片"}
           </button>
         </form>
       </details>
 
-      <section className="card">
-        <h3 className="section-title">每周照片组</h3>
+      <section className="card-solid photo-archive">
+        <div className="card-head-row">
+          <h3>照片档案</h3>
+          {photos.length > 0 && <span className="muted-text">共 {photos.length} 张</span>}
+        </div>
+
         {groupedPhotos.length === 0 ? (
           <div className="empty-state">
             <strong>还没有体态照片</strong>
-            <p>从正面、侧面、背面各拍一张，之后即可按同角度人工对比。</p>
+            <p>从正面、侧面、背面各拍一张，之后就能按同一角度人工对比。</p>
           </div>
         ) : (
-          <div className="photo-group-stack">
-            {groupedPhotos.map((group) => (
-            <article className="photo-group" key={group.date}>
-              <div className="photo-group-head">
-                <strong>{group.date}</strong>
-                <span className="muted">{group.items.length} 张</span>
+          groupedPhotos.map((group) => (
+            <div className="photo-day" key={group.date}>
+              <div className="photo-day-head">
+                <b>{formatDayLabel(group.date)}</b>
+                <span>{group.items.length} 张</span>
               </div>
-              <div className="photo-grid">
+              <div className="thumb-grid">
                 {group.items.map((photo) => (
-                  <figure key={photo.id} className="photo-card">
+                  <button
+                    type="button"
+                    className="thumb"
+                    key={photo.id}
+                    aria-label={`${formatAngleLabel(photo.angle)}照片，${photo.photoDate}，查看详情`}
+                    onClick={() => {
+                      setSheetError(null);
+                      setActivePhotoId(photo.id);
+                    }}
+                  >
                     {photoUrls[photo.id] ? (
-                      <img src={photoUrls[photo.id]} alt={`${photo.photoDate} ${photo.angle}`} />
+                      <img src={photoUrls[photo.id]} alt="" />
                     ) : (
-                      <div className="photo-loading muted">加载中</div>
+                      <span className="thumb-loading">加载中</span>
                     )}
-                    <figcaption>
-                      {formatAngleLabel(photo.angle)} · {formatLocalClock(photo.createdAt)}
-                    </figcaption>
-                    {photo.note && <p className="muted small">{photo.note}</p>}
-                    <div className="photo-note-row">
-                      <input
-                        value={noteDrafts[photo.id] ?? photo.note ?? ""}
-                        onChange={(event) =>
-                          setNoteDrafts((current) => ({
-                            ...current,
-                            [photo.id]: event.target.value
-                          }))
-                        }
-                        maxLength={200}
-                        placeholder="备注"
-                      />
-                      <button
-                        type="button"
-                        className="secondary-button compact-button"
-                        disabled={busy}
-                        onClick={() => void saveNote(photo.id)}
-                      >
-                        保存
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-button compact-button"
-                        style={{ color: "#9b3826" }}
-                        disabled={busy}
-                        onClick={() => void handleDeletePhoto(photo.id)}
-                      >
-                        删除
-                      </button>
-                    </div>
-                  </figure>
+                    <span className="thumb-label">{formatAngleLabel(photo.angle)}</span>
+                    {photo.note && <Icon name="edit" size={14} />}
+                  </button>
                 ))}
               </div>
-            </article>
-            ))}
-          </div>
+            </div>
+          ))
         )}
       </section>
+
+      <ScoliosisRiskGuide />
+
+      {activePhoto && (
+        <div className="sheet-backdrop" role="presentation" onClick={() => setActivePhotoId(null)}>
+          <div
+            className="sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="照片详情"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="sheet-handle" aria-hidden="true" />
+            {photoUrls[activePhoto.id] ? (
+              <img src={photoUrls[activePhoto.id]} alt={`${formatAngleLabel(activePhoto.angle)}照片，${activePhoto.photoDate}`} />
+            ) : (
+              <p className="muted">照片加载中……</p>
+            )}
+            <div className="sheet-meta">
+              <b>{formatAngleLabel(activePhoto.angle)}</b>
+              <span>
+                {formatDayLabel(activePhoto.photoDate)} · {formatLocalClock(activePhoto.createdAt)}
+              </span>
+            </div>
+            <label>
+              备注
+              <input
+                value={noteDrafts[activePhoto.id] ?? activePhoto.note ?? ""}
+                onChange={(event) =>
+                  setNoteDrafts((current) => ({
+                    ...current,
+                    [activePhoto.id]: event.target.value
+                  }))
+                }
+                maxLength={200}
+                placeholder="比如：自然站姿、训练后"
+              />
+            </label>
+            {sheetError && <p className="error-text" role="alert">{sheetError}</p>}
+            <div className="button-row">
+              <button type="button" disabled={busy} onClick={() => void saveNote(activePhoto.id)}>
+                保存备注
+              </button>
+              <button type="button" className="danger-button" disabled={busy} onClick={() => void handleDeletePhoto(activePhoto.id)}>
+                删除照片
+              </button>
+            </div>
+            <button type="button" className="text-button" onClick={() => setActivePhotoId(null)}>
+              关闭
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
