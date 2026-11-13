@@ -17,6 +17,16 @@
 - It does not diagnose scoliosis, measure the Cobb angle, or promise any change to the curve.
 - It is not for children or teenagers.
 
+## Guides
+- Scoliosis exercises for adults: what to do at home, and when to stop: {{BASE_URL}}/guides/scoliosis-exercises-for-adults
+- Scoliosis exercises to avoid, and what to do instead: {{BASE_URL}}/guides/scoliosis-exercises-to-avoid
+- Can you run with scoliosis?: {{BASE_URL}}/guides/can-you-run-with-scoliosis
+- Can you squat or deadlift with scoliosis?: {{BASE_URL}}/guides/squat-deadlift-with-scoliosis
+- Staying active with scoliosis after 50: {{BASE_URL}}/guides/scoliosis-after-50
+- How to check for scoliosis at home, and what it can't tell you: {{BASE_URL}}/guides/check-for-scoliosis-at-home
+- How to take posture photos you can compare over time: {{BASE_URL}}/guides/posture-photos-you-can-compare
+- Back pain with scoliosis: red flags that need a doctor: {{BASE_URL}}/guides/back-pain-red-flags
+
 ## Links
 - Privacy notice: {{BASE_URL}}/privacy
 - Source code (MIT): https://github.com/fengziliang43-cmyk/posture-training-app

@@ -8,4 +8,36 @@
     <loc>{{BASE_URL}}/privacy</loc>
     <lastmod>{{UPDATED}}</lastmod>
   </url>
+  <url>
+    <loc>{{BASE_URL}}/guides/scoliosis-exercises-for-adults</loc>
+    <lastmod>{{UPDATED}}</lastmod>
+  </url>
+  <url>
+    <loc>{{BASE_URL}}/guides/scoliosis-exercises-to-avoid</loc>
+    <lastmod>{{UPDATED}}</lastmod>
+  </url>
+  <url>
+    <loc>{{BASE_URL}}/guides/can-you-run-with-scoliosis</loc>
+    <lastmod>{{UPDATED}}</lastmod>
+  </url>
+  <url>
+    <loc>{{BASE_URL}}/guides/squat-deadlift-with-scoliosis</loc>
+    <lastmod>{{UPDATED}}</lastmod>
+  </url>
+  <url>
+    <loc>{{BASE_URL}}/guides/scoliosis-after-50</loc>
+    <lastmod>{{UPDATED}}</lastmod>
+  </url>
+  <url>
+    <loc>{{BASE_URL}}/guides/check-for-scoliosis-at-home</loc>
+    <lastmod>{{UPDATED}}</lastmod>
+  </url>
+  <url>
+    <loc>{{BASE_URL}}/guides/posture-photos-you-can-compare</loc>
+    <lastmod>{{UPDATED}}</lastmod>
+  </url>
+  <url>
+    <loc>{{BASE_URL}}/guides/back-pain-red-flags</loc>
+    <lastmod>{{UPDATED}}</lastmod>
+  </url>
 </urlset>

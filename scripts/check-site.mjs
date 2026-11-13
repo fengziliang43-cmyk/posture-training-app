@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Checks the built English validation site before it is published. Plain Node, no dependencies.
+// Checks the built English site before it is published. Plain Node, no dependencies.
 // usage: node scripts/check-site.mjs [--preview]     (checks dist/site-en against site/site.config.json)
 //        node scripts/check-site.mjs --self-test     (proves the checks catch what they are meant to)
 // Exit code 0 means every check passed.
@@ -8,8 +8,9 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { OUTPUT_DIR, resolveConfig } from "./build-site.mjs";
 
-/** The only pages the site has, and the path each one is served at. */
-export const PAGES = { "index.html": "/", "privacy.html": "/privacy" };
+/** Pages the site always has, and the path each one is served at. Guides live in guides/. */
+export const ROOT_PAGES = { "index.html": "/", "privacy.html": "/privacy" };
+const GUIDE_DIR = "guides";
 const REQUIRED_FILES = ["index.html", "privacy.html", "styles.css", "icon.svg", "robots.txt", "sitemap.xml", "llms.txt"];
 const CSS_TOKENS = ["--bg", "--surface", "--text", "--muted", "--accent", "--accent-ink", "--line", "--warn-soft"];
 const MAX_HTML_BYTES = 60_000;
@@ -41,8 +42,27 @@ function metaContent(html, key, value) {
   return tag ? attr(tag, "content") : null;
 }
 
+/** Every page in the built site and the path it is served at (Cloudflare Pages drops ".html"). */
+export function listPages(dir) {
+  const pages = { ...ROOT_PAGES };
+  const guideDir = join(dir, GUIDE_DIR);
+  if (existsSync(guideDir)) {
+    for (const name of readdirSync(guideDir).filter((file) => file.endsWith(".html")).sort()) {
+      pages[`${GUIDE_DIR}/${name}`] = `/${GUIDE_DIR}/${name.slice(0, -".html".length)}`;
+    }
+  }
+  return pages;
+}
+
+function fileForPath(path) {
+  if (path === "/") return "index.html";
+  if (path === "/privacy") return "privacy.html";
+  if (path.startsWith(`/${GUIDE_DIR}/`)) return `${path.slice(1)}.html`;
+  return path.slice(1);
+}
+
 /** Problems found in one page; an empty list means the page passes. */
-export function checkPage(html, { path, baseUrl, isIndex = false }) {
+export function checkPage(html, { path, baseUrl, isIndex = false, isGuide = false }) {
   const problems = [];
   const expectedUrl = baseUrl.replace(/\/$/, "") + path;
 
@@ -88,9 +108,20 @@ export function checkPage(html, { path, baseUrl, isIndex = false }) {
     }
   }
 
-  const claim = CLAIM_WORDS.exec(visibleText(html));
+  const text = visibleText(html);
+  const claim = CLAIM_WORDS.exec(text);
   if (claim) problems.push(`treatment claim word "${claim[0]}" in visible text`);
   if (!/<footer\b[\s\S]*href="\/privacy"[\s\S]*<\/footer>/i.test(html)) problems.push("footer must link to /privacy");
+
+  if (isGuide) {
+    if (metaContent(html, "property", "og:type") !== "article") problems.push('guides need og:type "article"');
+    if (!/"@type"\s*:\s*"Article"/.test(html)) problems.push("guides need Article JSON-LD");
+    if (!/Last reviewed \d{4}-\d{2}-\d{2}/.test(text)) problems.push('guides need "Last reviewed YYYY-MM-DD"');
+    if (!/not a licensed physician/i.test(text)) problems.push("guides need an author line saying not a licensed physician");
+    const sources = /id="sources"[\s\S]*?<\/ol>/i.exec(html)?.[0] ?? "";
+    const sourceLinks = (sources.match(/href="https:\/\//gi) ?? []).length;
+    if (sourceLinks < 2) problems.push(`guides need a #sources list with at least 2 https links (found ${sourceLinks})`);
+  }
 
   const ids = new Set([...html.matchAll(/\bid="([^"]+)"/gi)].map((match) => match[1]));
   for (const match of html.matchAll(/<a\b[^>]*>/gi)) {
@@ -115,21 +146,20 @@ export function checkSite(dir, config) {
   }
   if (problems.length > 0) return problems;
 
-  const htmlFiles = readdirSync(dir).filter((name) => name.endsWith(".html"));
-  for (const name of htmlFiles) {
-    if (!(name in PAGES)) problems.push(`unexpected page ${name}: the site has only ${Object.keys(PAGES).join(" and ")}`);
+  for (const name of readdirSync(dir).filter((file) => file.endsWith(".html"))) {
+    if (!(name in ROOT_PAGES)) problems.push(`unexpected page ${name}: new pages go in ${GUIDE_DIR}/`);
   }
+  const pages = listPages(dir);
+  const guides = Object.entries(pages).filter(([, path]) => path.startsWith(`/${GUIDE_DIR}/`));
 
-  for (const [name, path] of Object.entries(PAGES)) {
+  for (const [name, path] of Object.entries(pages)) {
     const file = join(dir, name);
     const html = readFileSync(file, "utf8");
     if (statSync(file).size > MAX_HTML_BYTES) problems.push(`${name} is larger than ${MAX_HTML_BYTES} bytes`);
-    for (const problem of checkPage(html, { path, baseUrl: base, isIndex: name === "index.html" })) {
-      problems.push(`${name}: ${problem}`);
-    }
+    const options = { path, baseUrl: base, isIndex: name === "index.html", isGuide: path.startsWith(`/${GUIDE_DIR}/`) };
+    for (const problem of checkPage(html, options)) problems.push(`${name}: ${problem}`);
     for (const match of html.matchAll(/\b(?:href|src)="(\/[^"#?]*)/gi)) {
-      const target = match[1] === "/" ? "index.html" : match[1] === "/privacy" ? "privacy.html" : match[1].slice(1);
-      if (!existsSync(join(dir, target))) problems.push(`${name}: link to ${match[1]} has no file behind it`);
+      if (!existsSync(join(dir, fileForPath(match[1])))) problems.push(`${name}: link to ${match[1]} has no file behind it`);
     }
   }
 
@@ -138,6 +168,9 @@ export function checkSite(dir, config) {
     const tag = (index.match(new RegExp(`<a\\b[^>]*\\bid="${id}"[^>]*>`, "i")) ?? [])[0];
     const href = tag ? attr(tag, "href")?.replace(/&amp;/g, "&") : null;
     if (href !== config.waitlistUrl) problems.push(`index.html: #${id} must link to the waitlist form (${config.waitlistUrl})`);
+  }
+  for (const [name, path] of guides) {
+    if (!index.includes(`href="${path}"`)) problems.push(`index.html must link to ${path} (${name})`);
   }
 
   const cssFile = join(dir, "styles.css");
@@ -153,12 +186,15 @@ export function checkSite(dir, config) {
   if (!robots.includes(`Sitemap: ${base}/sitemap.xml`)) problems.push("robots.txt must point to the sitemap");
   const sitemap = readFileSync(join(dir, "sitemap.xml"), "utf8");
   const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]).sort();
-  const expectedLocs = Object.values(PAGES).map((path) => base + path).sort();
+  const expectedLocs = Object.values(pages).map((path) => base + path).sort();
   if (JSON.stringify(locs) !== JSON.stringify(expectedLocs)) problems.push(`sitemap.xml must list exactly ${expectedLocs.join(", ")}`);
   const llms = readFileSync(join(dir, "llms.txt"), "utf8");
   if (!llms.startsWith("# Zixu\n") || !llms.includes("\n> ")) problems.push("llms.txt must start with '# Zixu' and a '> ' summary line");
+  for (const [, path] of guides) {
+    if (!llms.includes(base + path)) problems.push(`llms.txt must list ${base + path}`);
+  }
 
-  for (const name of ["index.html", "privacy.html", "robots.txt", "sitemap.xml", "llms.txt", "styles.css"]) {
+  for (const name of [...Object.keys(pages), "robots.txt", "sitemap.xml", "llms.txt", "styles.css"]) {
     if (/\{\{[A-Z_]+\}\}/.test(readFileSync(join(dir, name), "utf8"))) problems.push(`${name} still has an unfilled {{...}} value`);
   }
   return problems;
@@ -175,22 +211,32 @@ function selfTest() {
 <script type="application/ld+json">{"@type":"SoftwareApplication"}</script></head>
 <body><h1 id="top">Hello</h1><p>It does not diagnose, treat or prevent any condition. Ask your physiotherapist.</p>
 <a href="#top">Top</a><footer><a href="/privacy">Privacy</a></footer></body></html>`;
+  const guide = good
+    .replace(`href="${base}/"`, `href="${base}/guides/x"`)
+    .replace(`content="${base}/"`, `content="${base}/guides/x"`)
+    .replace('content="website"', 'content="article"')
+    .replace('{"@type":"SoftwareApplication"}', '{"@type":"Article"}')
+    .replace("</p>", '</p><p>Last reviewed 2026-11-13. Written by a student, not a licensed physician.</p><h2 id="sources">Sources</h2><ol><li><a href="https://a.example">A</a></li><li><a href="https://b.example">B</a></li></ol>');
   const cases = [
-    ["passes a clean page", good, null],
-    ["missing canonical", good.replace(/<link rel="canonical"[^>]*>/, ""), "canonical must be"],
-    ["two h1", good.replace("<h1 id=\"top\">Hello</h1>", "<h1 id=\"top\">A</h1><h1>B</h1>"), "exactly one <h1>"],
-    ["claim word", good.replace("Hello", "Cure your back"), 'claim word "Cure"'],
-    ["straighten", good.replace("Hello", "Straighten your spine"), 'claim word "Straighten"'],
-    ["external script", good.replace("</head>", '<script src="https://x.example/a.js"></script></head>'), "no external scripts"],
-    ["web font", good.replace("</head>", '<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=X"></head>'), "web fonts"],
-    ["http link", good.replace('href="#top"', 'href="http://example.org"'), "must use https"],
-    ["missing section", good.replace('href="#top"', 'href="#nowhere"'), "missing section"],
-    ["short description", good.replace(/content="A description[^"]*"/, 'content="Too short"'), "meta description must be"],
-    ["footer without privacy link", good.replace('<footer><a href="/privacy">Privacy</a></footer>', "<footer></footer>"), "footer must link"]
+    ["passes a clean page", good, null, {}],
+    ["missing canonical", good.replace(/<link rel="canonical"[^>]*>/, ""), "canonical must be", {}],
+    ["two h1", good.replace('<h1 id="top">Hello</h1>', '<h1 id="top">A</h1><h1>B</h1>'), "exactly one <h1>", {}],
+    ["claim word", good.replace("Hello", "Cure your back"), 'claim word "Cure"', {}],
+    ["straighten", good.replace("Hello", "Straighten your spine"), 'claim word "Straighten"', {}],
+    ["external script", good.replace("</head>", '<script src="https://x.example/a.js"></script></head>'), "no external scripts", {}],
+    ["web font", good.replace("</head>", '<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=X"></head>'), "web fonts", {}],
+    ["http link", good.replace('href="#top"', 'href="http://example.org"'), "must use https", {}],
+    ["missing section", good.replace('href="#top"', 'href="#nowhere"'), "missing section", {}],
+    ["short description", good.replace(/content="A description[^"]*"/, 'content="Too short"'), "meta description must be", {}],
+    ["footer without privacy link", good.replace('<footer><a href="/privacy">Privacy</a></footer>', "<footer></footer>"), "footer must link", {}],
+    ["passes a clean guide", guide, null, { path: "/guides/x", isGuide: true }],
+    ["guide without sources", guide.replace(/<h2 id="sources">[\s\S]*?<\/ol>/, ""), "#sources list", { path: "/guides/x", isGuide: true }],
+    ["guide without review date", guide.replace("Last reviewed 2026-11-13. ", ""), "Last reviewed", { path: "/guides/x", isGuide: true }],
+    ["guide without author line", guide.replace("not a licensed physician", "a writer"), "not a licensed physician", { path: "/guides/x", isGuide: true }]
   ];
   let failed = 0;
-  for (const [label, html, expected] of cases) {
-    const problems = checkPage(html, { path: "/", baseUrl: base, isIndex: true });
+  for (const [label, html, expected, extra] of cases) {
+    const problems = checkPage(html, { path: "/", baseUrl: base, isIndex: !extra.isGuide, ...extra });
     const ok = expected === null ? problems.length === 0 : problems.some((problem) => problem.includes(expected));
     if (!ok) {
       failed += 1;
