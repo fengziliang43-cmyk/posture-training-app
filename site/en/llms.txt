@@ -1,0 +1,22 @@
+# Zixu
+
+> Zixu is an open-source posture log and daily exercise planner for adults living with scoliosis. It turns a two-minute check-in into a short, conservative routine, stops on red flags, and does not diagnose or treat.
+
+## Status
+- The English version is in preparation; the waitlist is open: {{BASE_URL}}/#waitlist
+- A Chinese version is live at https://body.liang111.top (web and Android).
+
+## What it does
+- Daily check-in: back discomfort from 0 to 10, energy, and the minutes available.
+- A short routine of low-load exercises, each with its own stop rules.
+- No routine on a day with red flags: numbness or tingling in the legs, pain shooting down a leg, new weakness, changes in bladder or bowel control, sudden sharp back pain.
+- If discomfort is clearly higher after a session, the next one can be made lighter or turned into a rest day.
+- Posture photos taken the same way each time, compared side by side.
+
+## What it does not do
+- It does not diagnose scoliosis, measure the Cobb angle, or promise any change to the curve.
+- It is not for children or teenagers.
+
+## Links
+- Privacy notice: {{BASE_URL}}/privacy
+- Source code (MIT): https://github.com/fengziliang43-cmyk/posture-training-app
