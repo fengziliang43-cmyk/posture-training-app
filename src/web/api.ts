@@ -173,6 +173,24 @@ export interface DeepSeekTestResponse {
   error?: string;
 }
 
+export interface ReadTokenRecord {
+  id: number;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export interface ReadTokensResponse {
+  tokens: ReadTokenRecord[];
+}
+
+export interface CreatedReadTokenResponse {
+  token: string;
+  id: number;
+  name: string;
+  createdAt: string;
+}
+
 export interface AdminStatsResponse {
   generatedAt: string;
   users: {
@@ -798,6 +816,24 @@ export async function downloadBackup(): Promise<Blob> {
     );
   }
   return response.blob();
+}
+
+export async function listReadTokens(): Promise<ReadTokensResponse> {
+  return apiRequest<ReadTokensResponse>("/api/read-tokens");
+}
+
+export async function createReadToken(name?: string): Promise<CreatedReadTokenResponse> {
+  const trimmed = name?.trim();
+  return apiRequest<CreatedReadTokenResponse>("/api/read-tokens", {
+    method: "POST",
+    body: JSON.stringify(trimmed ? { name: trimmed } : {})
+  });
+}
+
+export async function revokeReadToken(id: number): Promise<void> {
+  await apiRequest<{ ok: true }>(`/api/read-tokens/${id}`, {
+    method: "DELETE"
+  });
 }
 
 export function isRetryableApiError(error: unknown): boolean {

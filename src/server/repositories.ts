@@ -19,6 +19,8 @@ import type {
 export interface AppRepositories {
   db: AppDatabase;
   forUser: (userId: number) => UserRepositories;
+  findReadToken: (tokenHash: string) => Promise<ReadTokenMatch | undefined>;
+  touchReadToken: (id: number) => Promise<void>;
 }
 
 export interface UserRepositories {
@@ -61,6 +63,34 @@ export interface UserRepositories {
   setDeepseekApiKey: (apiKey: string) => Promise<SettingsRecord>;
   clearDeepseekApiKey: () => Promise<SettingsRecord>;
   updateDeepseekTestStatus: (ok: boolean, checkedAt: string) => Promise<SettingsRecord>;
+  listReadTokens: () => Promise<ReadTokenRecord[]>;
+  createReadToken: (name: string, tokenHash: string) => Promise<CreatedReadTokenRecord>;
+  revokeReadToken: (id: number) => Promise<number>;
+}
+
+export class ReadTokenLimitError extends Error {
+  constructor(message = "最多 5 把有效钥匙，先作废一把") {
+    super(message);
+    this.name = "ReadTokenLimitError";
+  }
+}
+
+export interface ReadTokenRecord {
+  id: number;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export interface CreatedReadTokenRecord {
+  id: number;
+  name: string;
+  createdAt: string;
+}
+
+export interface ReadTokenMatch {
+  id: number;
+  userId: number;
 }
 
 export interface CheckinRecord extends DailyStatus {
@@ -154,8 +184,13 @@ export function createRepositories(db: AppDatabase, secretRoot: string): AppRepo
       getDeepseekApiKey: () => getDeepseekApiKey(db, userId, secretCipher),
       setDeepseekApiKey: (apiKey) => setDeepseekApiKey(db, userId, apiKey, secretCipher),
       clearDeepseekApiKey: () => clearDeepseekApiKey(db, userId, secretCipher),
-      updateDeepseekTestStatus: (ok, checkedAt) => updateDeepseekTestStatus(db, userId, ok, checkedAt, secretCipher)
-    })
+      updateDeepseekTestStatus: (ok, checkedAt) => updateDeepseekTestStatus(db, userId, ok, checkedAt, secretCipher),
+      listReadTokens: () => listReadTokens(db, userId),
+      createReadToken: (name, tokenHash) => createReadToken(db, userId, name, tokenHash),
+      revokeReadToken: (id) => revokeReadToken(db, userId, id)
+    }),
+    findReadToken: (tokenHash) => findReadToken(db, tokenHash),
+    touchReadToken: (id) => touchReadToken(db, id)
   };
 }
 
@@ -1503,4 +1538,101 @@ interface ReplacementRow {
   original_exercise_json: string;
   replaced_at: string;
   reverted_at: string | null;
+}
+
+interface ReadTokenRow {
+  id: number;
+  user_id: number;
+  name: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+const MAX_ACTIVE_READ_TOKENS = 5;
+
+async function listReadTokens(db: AppDatabase, userId: number): Promise<ReadTokenRecord[]> {
+  const rows = await db.all<ReadTokenRow[]>(
+    `
+      SELECT id, name, created_at, last_used_at
+      FROM read_tokens
+      WHERE user_id = ? AND revoked_at IS NULL
+      ORDER BY id DESC
+    `,
+    userId
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    createdAt: row.created_at,
+    lastUsedAt: row.last_used_at ?? null
+  }));
+}
+
+async function createReadToken(
+  db: AppDatabase,
+  userId: number,
+  name: string,
+  tokenHash: string
+): Promise<CreatedReadTokenRecord> {
+  const countRow = await db.get<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM read_tokens WHERE user_id = ? AND revoked_at IS NULL",
+    userId
+  );
+  if ((countRow?.count ?? 0) >= MAX_ACTIVE_READ_TOKENS) {
+    throw new ReadTokenLimitError();
+  }
+  const createdAt = new Date().toISOString();
+  const result = await db.run(
+    `
+      INSERT INTO read_tokens (user_id, token_hash, name, created_at)
+      VALUES (?, ?, ?, ?)
+    `,
+    userId,
+    tokenHash,
+    name,
+    createdAt
+  );
+  const id = result.lastID;
+  if (typeof id !== "number") {
+    throw new Error("Failed to insert read token.");
+  }
+  return { id, name, createdAt };
+}
+
+async function revokeReadToken(db: AppDatabase, userId: number, id: number): Promise<number> {
+  const result = await db.run(
+    `
+      UPDATE read_tokens
+      SET revoked_at = ?
+      WHERE id = ? AND user_id = ? AND revoked_at IS NULL
+    `,
+    new Date().toISOString(),
+    id,
+    userId
+  );
+  return result.changes ?? 0;
+}
+
+async function findReadToken(db: AppDatabase, tokenHash: string): Promise<ReadTokenMatch | undefined> {
+  const row = await db.get<{ id: number; user_id: number }>(
+    "SELECT id, user_id FROM read_tokens WHERE token_hash = ? AND revoked_at IS NULL",
+    tokenHash
+  );
+  return row ? { id: row.id, userId: row.user_id } : undefined;
+}
+
+async function touchReadToken(db: AppDatabase, id: number): Promise<void> {
+  const nowIso = new Date().toISOString();
+  await db.run(
+    `
+      UPDATE read_tokens
+      SET last_used_at = ?
+      WHERE id = ?
+        AND revoked_at IS NULL
+        AND (last_used_at IS NULL OR strftime('%s', ?) - strftime('%s', last_used_at) >= 60)
+    `,
+    nowIso,
+    id,
+    nowIso
+  );
 }

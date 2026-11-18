@@ -23,6 +23,7 @@ import {
   type AppUpdateResult
 } from "../app-update";
 import { OnboardingView } from "./OnboardingView";
+import { ReadTokensCard } from "./ReadTokensCard";
 import { Icon, type IconName } from "./ui";
 
 export type MeRoute =
@@ -474,6 +475,8 @@ export function MeView({
             导出账号备份
           </button>
         </section>
+
+        <ReadTokensCard />
 
         <button type="button" className="secondary-button logout-button" onClick={onLogout}>
           退出登录

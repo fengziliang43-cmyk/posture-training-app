@@ -13,6 +13,7 @@ import { registerBackupRoutes } from "./routes/backup";
 import { registerCheckinRoutes } from "./routes/checkins";
 import { registerPhotoRoutes } from "./routes/photos";
 import { registerPlanRoutes } from "./routes/plans";
+import { registerReadTokenRoutes } from "./routes/read-tokens";
 import { registerRecordsRoutes } from "./routes/records";
 import { registerReleaseRoutes } from "./routes/releases";
 import { registerSettingsRoutes } from "./routes/settings";
@@ -136,6 +137,7 @@ export async function buildApp(
     sessions,
     deepseekUserKeysEnabled: config.deepseekUserKeysEnabled
   });
+  registerReadTokenRoutes(app, { repositories, sessions });
   registerAiRoutes(app, {
     repositories,
     sessions,

@@ -1,6 +1,6 @@
 import type { Database } from "sqlite";
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 export async function runMigrations(db: Database): Promise<void> {
   await db.exec(`
@@ -201,6 +201,17 @@ async function createCurrentTables(db: Database): Promise<void> {
       PRIMARY KEY(user_id, key),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS read_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_used_at TEXT,
+      revoked_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 }
 
@@ -220,6 +231,8 @@ async function createCurrentIndexes(db: Database): Promise<void> {
       ON posture_photos(user_id, photo_date DESC);
     CREATE INDEX IF NOT EXISTS idx_replacements_user_plan
       ON plan_exercise_replacements(user_id, plan_id, replaced_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_read_tokens_user
+      ON read_tokens(user_id);
   `);
 }
 
