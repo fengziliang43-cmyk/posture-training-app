@@ -416,23 +416,21 @@ describe("read tokens and summary export", () => {
       });
       expect(afterRevoke.statusCode).toBe(401);
 
-      // Cap at 5 active tokens
-      for (let i = 1; i <= 5; i++) {
-        const res = await app.inject({
-          method: "POST",
-          url: "/api/read-tokens",
-          headers: { cookie: userA.cookie },
-          payload: { name: `Key ${i}` }
-        });
-        expect(res.statusCode).toBe(201);
-      }
-      const sixth = await app.inject({
-        method: "POST",
-        url: "/api/read-tokens",
-        headers: { cookie: userA.cookie },
-        payload: { name: "Key 6" }
-      });
-      expect(sixth.statusCode).toBe(409);
+      // Cap at 5 active tokens even under concurrent requests
+      const burst = await Promise.all(
+        Array.from({ length: 8 }, (_, idx) =>
+          app.inject({
+            method: "POST",
+            url: "/api/read-tokens",
+            headers: { cookie: userA.cookie },
+            payload: { name: `Key ${idx + 1}` }
+          })
+        )
+      );
+      const createdCount = burst.filter((res) => res.statusCode === 201).length;
+      const conflictCount = burst.filter((res) => res.statusCode === 409).length;
+      expect(createdCount).toBe(5);
+      expect(conflictCount).toBe(3);
 
       // Deleting account cascades to read_tokens
       const delAccount = await app.inject({

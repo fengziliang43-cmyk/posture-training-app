@@ -1568,35 +1568,65 @@ async function listReadTokens(db: AppDatabase, userId: number): Promise<ReadToke
   }));
 }
 
+const readTokenWriteLocks = new WeakMap<AppDatabase, Promise<void>>();
+
+async function withReadTokenWriteLock<T>(db: AppDatabase, fn: () => Promise<T>): Promise<T> {
+  const prev = readTokenWriteLocks.get(db) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = prev.then(() => current);
+  readTokenWriteLocks.set(db, chained);
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (readTokenWriteLocks.get(db) === chained) {
+      readTokenWriteLocks.delete(db);
+    }
+  }
+}
+
 async function createReadToken(
   db: AppDatabase,
   userId: number,
   name: string,
   tokenHash: string
 ): Promise<CreatedReadTokenRecord> {
-  const countRow = await db.get<{ count: number }>(
-    "SELECT COUNT(*) AS count FROM read_tokens WHERE user_id = ? AND revoked_at IS NULL",
-    userId
-  );
-  if ((countRow?.count ?? 0) >= MAX_ACTIVE_READ_TOKENS) {
-    throw new ReadTokenLimitError();
-  }
-  const createdAt = new Date().toISOString();
-  const result = await db.run(
-    `
-      INSERT INTO read_tokens (user_id, token_hash, name, created_at)
-      VALUES (?, ?, ?, ?)
-    `,
-    userId,
-    tokenHash,
-    name,
-    createdAt
-  );
-  const id = result.lastID;
-  if (typeof id !== "number") {
-    throw new Error("Failed to insert read token.");
-  }
-  return { id, name, createdAt };
+  return withReadTokenWriteLock(db, async () => {
+    await db.exec("BEGIN IMMEDIATE");
+    try {
+      const countRow = await db.get<{ count: number }>(
+        "SELECT COUNT(*) AS count FROM read_tokens WHERE user_id = ? AND revoked_at IS NULL",
+        userId
+      );
+      if ((countRow?.count ?? 0) >= MAX_ACTIVE_READ_TOKENS) {
+        throw new ReadTokenLimitError();
+      }
+      const createdAt = new Date().toISOString();
+      const result = await db.run(
+        `
+          INSERT INTO read_tokens (user_id, token_hash, name, created_at)
+          VALUES (?, ?, ?, ?)
+        `,
+        userId,
+        tokenHash,
+        name,
+        createdAt
+      );
+      const id = result.lastID;
+      if (typeof id !== "number") {
+        throw new Error("Failed to insert read token.");
+      }
+      await db.exec("COMMIT");
+      return { id, name, createdAt };
+    } catch (error) {
+      await db.exec("ROLLBACK");
+      throw error;
+    }
+  });
 }
 
 async function revokeReadToken(db: AppDatabase, userId: number, id: number): Promise<number> {
