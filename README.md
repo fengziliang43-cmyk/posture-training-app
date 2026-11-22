@@ -14,7 +14,9 @@
 
 ## 项目定位
 
-`姿序` 面向脊柱侧弯人群。它根据个人档案和每日状态给出保守、可执行的训练或恢复任务，并长期记录完成情况与体态变化。
+`姿序`（Zixu）是一款面向成人脊柱侧弯人群的开源体态记录与每日训练计划工具：根据每日简短状态打卡给出保守、可执行的训练或恢复任务，遇红旗症状立即提示停训并就医，不做医学诊断或治疗。
+
+海外英文验证站（等候名单开放中，国内版保持免费）：[zixu.pages.dev](https://zixu.pages.dev/) · [英文站隐私说明](https://zixu.pages.dev/privacy)
 
 固定优先级：
 
@@ -24,6 +26,19 @@
 
 > [!IMPORTANT]
 > 本项目只提供训练辅助，不用于医学诊断或治疗。出现红旗症状时应停止训练并及时寻求专业医疗评估。状态或疼痛变差时，训练计划应降级，而不是强行完成。
+
+## 英文指南（海外验证期）
+
+英文科普问答页与等候名单位于 [zixu.pages.dev](https://zixu.pages.dev/)（静态页托管于 Cloudflare Pages，不加载统计脚本，等候名单不收集健康详情）：
+
+- [成人脊柱侧弯日常训练：在家能练什么、什么时候该停](https://zixu.pages.dev/guides/scoliosis-exercises-for-adults)
+- [成人脊柱侧弯要慎做的动作与替代方案](https://zixu.pages.dev/guides/scoliosis-exercises-to-avoid)
+- [有脊柱侧弯能跑步吗？怎么安全起步](https://zixu.pages.dev/guides/can-you-run-with-scoliosis)
+- [有脊柱侧弯能做深蹲和硬拉吗？](https://zixu.pages.dev/guides/squat-deadlift-with-scoliosis)
+- [50 岁以后带脊柱侧弯如何安全保持活动](https://zixu.pages.dev/guides/scoliosis-after-50)
+- [如何在家自查脊柱侧弯，以及它查不出什么](https://zixu.pages.dev/guides/check-for-scoliosis-at-home)
+- [如何拍出能跨月对比的体态照片](https://zixu.pages.dev/guides/posture-photos-you-can-compare)
+- [脊柱侧弯伴随背痛：需要立刻就医的红旗症状](https://zixu.pages.dev/guides/back-pain-red-flags)
 
 ## 当前版本
 

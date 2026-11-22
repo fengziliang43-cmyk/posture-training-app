@@ -14,7 +14,9 @@
 
 ## Purpose
 
-Zixu is built for people with scoliosis. It uses each person's profile and daily readiness to suggest conservative training or recovery tasks while tracking completion and posture changes over time.
+Zixu is an open-source posture log and daily exercise planner for adults living with scoliosis. It turns a two-minute check-in into a short, conservative routine, stops on red flags, and does not diagnose or treat.
+
+English site & guides (waitlist open; domestic version stays free): [zixu.pages.dev](https://zixu.pages.dev/) · [Privacy Notice](https://zixu.pages.dev/privacy)
 
 Its priorities are fixed:
 
@@ -24,6 +26,19 @@ Safety -> Posture -> Fat loss -> Muscle gain -> Conditioning
 
 > [!IMPORTANT]
 > This project is a training aid, not a medical diagnostic or treatment tool. Stop training and seek appropriate medical assessment for red-flag symptoms. A worsening condition or increased pain should downgrade the plan, not be pushed through.
+
+## English Guides (Preview)
+
+Our English evidence-referenced guides and waitlist are hosted at [zixu.pages.dev](https://zixu.pages.dev/) (static pages with no analytics scripts; the waitlist collects no health details):
+
+- [Scoliosis exercises for adults: what to do at home, and when to stop](https://zixu.pages.dev/guides/scoliosis-exercises-for-adults)
+- [Scoliosis exercises to avoid, and what to do instead](https://zixu.pages.dev/guides/scoliosis-exercises-to-avoid)
+- [Can you run with scoliosis? How to start safely](https://zixu.pages.dev/guides/can-you-run-with-scoliosis)
+- [Can you squat or deadlift with scoliosis?](https://zixu.pages.dev/guides/squat-deadlift-with-scoliosis)
+- [Staying active with scoliosis after 50](https://zixu.pages.dev/guides/scoliosis-after-50)
+- [How to check for scoliosis at home, and its limits](https://zixu.pages.dev/guides/check-for-scoliosis-at-home)
+- [How to take posture photos you can compare over time](https://zixu.pages.dev/guides/posture-photos-you-can-compare)
+- [Back pain with scoliosis: red flags that need a doctor](https://zixu.pages.dev/guides/back-pain-red-flags)
 
 ## Current Release
 
